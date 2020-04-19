@@ -1,0 +1,5 @@
+cmd: 'echo "Pick a command (see .atom-build.yml)"'
+name: ''
+targets:
+  Run in toolbox:
+    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE}'
