@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+source ./functions
+
+#####################
+##### DEFAULTS ######
+#####################
+
+# TP-Link Archer C7 v2
+_version="19.07.2"
+_target="ath79/generic"
+_profile="tplink_archer-c7-v2"
+
+# Raspberry Pi 4
+#_version="snapshot"
+#_target="brcm2708/bcm2711"
+#_profile="rpi-4"
+
+_debug="false" # Turn debugging on by default (useful for testing)
+
+#####################
+##### FUNCTIONS #####
+#####################
+printHelpAndExit () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    cat <<-'EOF'
+USAGE:
+buildOpenWRT [[OPTION] [VALUE]]...
+
+OPTIONS
+    --version, -v OPENWRT_VERSION
+        Default: 19.07.02
+    --target, -t TARGET
+        Default: ath79/generic
+    --profile, -p PROFILE
+        Default: tplink_archer-c7-v2
+    --builddir, -b PATH
+        Default: Current working directory
+    --ssh-backup SSH path
+        Example: root@192.168.1.1
+    --debug, -d
+    --help, -h
+EOF
+        # Exit using passed exit code
+        [[ -z $1 ]] && exit 0 || exit "$1"
+}
+
+
+parseInput () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    if _input=$(getopt -o +v:t:p:b:dh -l version:,target:,profile:,builddir:,ssh-backup:debug,help -- "$@"); then
+        eval set -- "$_input"
+        while true; do
+            case "$1" in
+                --version|-v)
+                    shift && _version="$1"
+                    ;;
+                --target|-t)
+                    shift && _target="$1"
+                    ;;
+                --profile|-p)
+                    shift && _profile="$1"
+                    ;;
+                --builddir|-b)
+                    shift && _builddir="$1"
+                    ;;
+                --ssh-backup)
+                    shift && _ssh_backup="$1"
+                    ;;
+                --debug|-d)
+                    echo "Debugging on"
+                    _debug="true"
+                    ;;
+                --help|-h)
+                    _printHelpAndExit 0
+                    ;;
+                --)
+                    shift
+                    break
+                    ;;
+            esac
+            shift
+        done
+    else
+        echo "Incorrect options provided"
+        printHelpAndExit 1
+    fi
+}
+
+
+mkDirs () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    [[ ! -d "$_builddir/output/sources" ]] && mkdir -p "$_builddir/output/sources"
+    [[ ! -d "$_filesroot" ]] && mkdir -p "$_filesroot"
+    [[ ! -d "$_builddir/bin" ]] && mkdir -p "$_builddir/bin"
+}
+
+
+installPrerequisites () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    if [[ "$ID" == "fedora" ]]; then
+        if ! sudo dnf -y install @c-development @development-tools @development-libs zlib-static elfutils-libelf-devel gawk unzip file wget python3 python2 > /dev/null 2>&1; then
+            echo "Warning: Problem installing prerequisites"
+        fi
+    elif [[ "$ID" =~ ^(debian|ubuntu)$ ]]; then
+        if ! sudo apt-get -y install build-essential libncurses5-dev libncursesw5-dev zlib1g-dev gawk git gettext libssl-dev xsltproc wget unzip python > /dev/null 2>&1; then
+            echo "Warning: Problem installing prerequisites"
+        fi
+    fi
+}
+
+
+acquireImageBuilder () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    local _url
+
+    if [[ "$_version" == "snapshot" ]]; then
+        _filename="openwrt-imagebuilder-${_target//\//-}.Linux-x86_64.tar.xz"
+        _url="https://downloads.openwrt.org/snapshots/targets/$_target/$_filename"
+    else
+        _filename="openwrt-imagebuilder-$_version-${_target//\//-}.Linux-x86_64.tar.xz"
+        _url="https://downloads.openwrt.org/releases/$_version/targets/$_target/$_filename"
+    fi
+
+    if [[ ! -f "$_builddir/output/sources/$_filename" ]]; then
+            echo "Downloading $_url to $_builddir/output/sources"
+        if ! wget -q -P "$_builddir/output/sources" "$_url"; then
+            echo "Could not download Image Builder"
+            exit 1
+        fi
+    else
+        echo "Image builder already exists, skipping download..."
+    fi
+}
+
+
+extractImageBuilder () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    if [[ -f "$_builddir/output/sources/$_filename" ]]; then
+        if ! tar -xf "$_builddir/output/sources/$_filename" -C "$_builddir/output/sources/"; then
+            echo "Extraction failed"
+            exit 1
+        fi
+    fi
+}
+
+
+makeImage () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    # move to extracted source directory
+    if ! pushd "$_builddir/output/sources/${_filename%.tar.xz}" > /dev/null 2>&1; then
+        exit 1
+    fi
+
+    # build image
+    if ! make -j4 image BIN_DIR="$_builddir/bin" PROFILE="$_profile" PACKAGES="${_packages[*]}" FILES="$_filesroot"; then
+        echo "Make image failed!"
+        exit 1
+    fi
+
+    if ! popd > /dev/null 2>&1; then
+        exit 1
+    fi
+}
+
+# TODO
+#flashImage () {
+#
+#    if ! scp -rp  "$_bin_path" "$_ssh_backup:/tmp/$_bin_name"; then
+#        echo "Could not copy update file to device!"
+#        exit 1
+#    fi
+#
+#3    # shellcheck disable=SC2029
+#    if ! ssh "$_ssh_backup" "sysupgrade -v /tmp/$_bin_name"; then
+#3        echo "sysupgrade failed!"
+#        exit 1
+#    fi
+#}
+
+
+__main () {
+
+    parseInput "$@"
+    mkDirs
+    getOS
+    installPrerequisites
+    acquireImageBuilder
+    extractImageBuilder
+    [[ -n $_ssh_backup ]] && sshBackup
+    makeImage
+    #flashImage # TODO
+    exit 0
+}
+
+__main "$@"

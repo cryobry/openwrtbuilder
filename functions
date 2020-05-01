@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+#####################
+##### DEFAULTS ######
+#####################
+
+declare -x _packages=(
+    "luci" "luci-theme-material" "luci-app-ddns" \
+    "wireguard" "luci-app-wireguard" "luci-app-vpn-policy-routing" \
+    "-dnsmasq" "dnsmasq-full" \
+    "luci-app-upnp" \
+    "nano" "htop")
+declare -x _builddir
+_builddir="$(pwd)"
+declare -x _filesroot="$_builddir/files/"
+declare -x _ssh_backup="root@192.168.2.1"
+declare -x _backedup=(
+    '/etc/config/*' \
+    '/etc/dropbear/*')
+declare -x _debug="false"
+
+#####################
+##### FUNCTIONS #####
+#####################
+
+runDebug () { [[ "$_debug" == "true" ]] && echo "Running: " "$@" ; }
+
+
+sshBackup () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    for fd in "${_backedup[@]}"; do
+        _dir="${fd%/*}/"
+        [[ ! -d "$_filesroot$_dir" ]] && mkdir -p "$_filesroot/$_dir"
+        if ! scp -rp "$_ssh_backup:$fd" "$_filesroot/$_dir"; then
+            echo "Did not successfully backup files from --ssh-backup"
+            echo "Exiting now to prevent data loss!"
+            exit 1
+        fi
+    done
+}
+
+
+getOS () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    if [[ -f /etc/os-release ]]; then
+        source /etc/os-release
+    else
+        echo "Cannot detect OS!"
+        exit 1
+    fi
+}

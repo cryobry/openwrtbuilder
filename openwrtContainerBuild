@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+source ./functions
+
+#####################
+##### DEFAULTS ######
+#####################
+
+_image="ath79-generic-19.07.2"
+_profile="tplink_archer-c7-v2"
+_debug="true" # Turn debugging on by default (useful for testing)
+
+#####################
+##### FUNCTIONS #####
+#####################
+printHelpAndExit () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    cat <<-'EOF'
+USAGE:
+buildOpenWRT [[OPTION] [VALUE]]...
+
+OPTIONS
+    --image, -i OPENWRT_IMAGE
+        Default: "ath79-generic-19.07.2"
+    --profile, -p PROFILE
+        Default: tplink_archer-c7-v2
+    --builddir, -b PATH
+        Default: Current working directory
+    --package
+        Add this package to the packages array declared in DEFAULTS
+        Supports multiple --package directives
+    --ssh-backup SSH_PATH
+        Example: root@192.168.1.1
+    --backup PATH
+        Add this file or directory to the packages array declared in DEFAULTS
+    --debug, -d
+    --help, -h
+EOF
+        # Exit using passed exit code
+        [[ -z $1 ]] && exit 0 || exit "$1"
+}
+
+
+parseInput () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    if _input=$(getopt -o +i:p:b:dh -l image:,profile:,builddir:,ssh-backup:,backup:,package:,debug,help -- "$@"); then
+        eval set -- "$_input"
+        while true; do
+            case "$1" in
+                --image|-i)
+                    shift && _image="$1"
+                    ;;
+                --profile|-p)
+                    shift && _profile="$1"
+                    ;;
+                --package)
+                    shift && _packages+=("$1")
+                    ;;
+                --builddir|-b)
+                    shift && _builddir="$1"
+                    ;;
+                --ssh-backup)
+                    shift && _ssh_backup="$1"
+                    ;;
+                --backup)
+                    shift && _backedup+=("$1")
+                    ;;
+                --debug|-d)
+                    echo "Debugging on"
+                    _debug="true"
+                    ;;
+                --help|-h)
+                    _printHelpAndExit 0
+                    ;;
+                --)
+                    shift
+                    break
+                    ;;
+            esac
+            shift
+        done
+    else
+        echo "Incorrect options provided"
+        printHelpAndExit 1
+    fi
+}
+
+
+mkDirs () {
+
+    runDebug "${FUNCNAME[0]}"
+
+    [[ ! -d "$_filesroot" ]] && \
+        mkdir -p "$_filesroot"
+
+    [[ ! -d "$_builddir/bin" ]] && \
+        mkdir -p "$_builddir/bin"
+
+
+    # fix SELinux contexts
+    chcon -t container_file_t -R "$_builddir/bin"
+    chcon -t container_file_t -R "$_filesroot"
+}
+
+
+__main() {
+
+    parseInput "$@"
+
+    mkDirs
+
+    [[ -n $_ssh_backup ]] && sshBackup
+
+    podman run \
+            --rm \
+            --userns="keep-id" \
+            -v "$_builddir/bin/:/home/build/openwrt/bin" \
+            -v "$_filesroot:$_filesroot" \
+            openwrtorg/imagebuilder:"$_image" \
+            make image PROFILE="$_profile" PACKAGES="${_packages[*]}" FILES="$_filesroot"
+}
+
+__main "$@"
