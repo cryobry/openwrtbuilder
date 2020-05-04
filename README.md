@@ -1,1 +1,1 @@
-See `openwrtBuild --help` or `openwrtContainerBuild --help` for options.
+See `openwrtBuild --help` for options.
