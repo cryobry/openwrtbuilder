@@ -240,7 +240,6 @@ __main () {
 
     parseInput "$@"
     setDefaults
-    getOS
     installPrerequisites
     acquireImageBuilder
     extractImageBuilder
