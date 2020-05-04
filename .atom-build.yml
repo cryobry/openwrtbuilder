@@ -2,6 +2,8 @@ cmd: 'echo "Pick a command (see .atom-build.yml)"'
 name: ''
 targets:
   Build RPi4 snapshot in toolbox:
-    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --target brcm2708/bcm2711 --profile rpi-4 --ssh-backup root@192.168.2.1'
+    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --profile rpi-4'
   Build Archer snapshot in toolbox:
-    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version "snapshot" --target "brcm2708/bcm2711" --profile "rpi-4" --ssh-backup "root@192.168.2.1"'
+    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --profile tplink_archer-c7-v2'
+  Build Archer 19.07.2 in toolbox:
+    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version 19.07.2 --profile tplink_archer-c7-v2'
