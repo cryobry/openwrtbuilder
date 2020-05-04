@@ -1,21 +1,36 @@
 #!/usr/bin/env bash
-source ./functions
 
 #####################
 ##### DEFAULTS ######
 #####################
 
-# TP-Link Archer C7 v2
-_version="19.07.2"
-_target="ath79/generic"
-_profile="tplink_archer-c7-v2"
+setDefaults() {
 
-# Raspberry Pi 4
-#_version="snapshot"
-#_target="brcm2708/bcm2711"
-#_profile="rpi-4"
+    runDebug "${FUNCNAME[0]}"
 
-_debug="false" # Turn debugging on by default (useful for testing)
+    [[ -z $_debug ]] && _debug="true" # Set to true to enable debugging by default
+    [[ -z $_builddir ]] && _builddir="$PWD"
+    [[ -z $_filesroot ]] && _filesroot="$_builddir/files/"
+
+    # Global default packages for all profiles
+    declare -a _packages=("luci" "nano" "htop" "tcpdump" "diffutils")
+
+    # If no profile is specified, use the TP-Link Archer C7 v2
+    [[ -z $_profile ]] && _profile="tplink_archer-c7-v2"
+
+    # PROFILES
+    # TP-Link Archer C7 v2
+    if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
+        [[ -z $_version ]] && _version="19.07.2"
+        [[ -z $_target ]] && _target="ath79/generic"
+    # Raspberry Pi 4
+    elif [[ "$_profile" == "rpi-4" ]]; then
+        [[ -z $_version ]] && _version="snapshot"
+        [[ -z $_target ]] && _target="bcm27xx/bcm2711"
+        packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
+        "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full")
+    fi
+}
 
 #####################
 ##### FUNCTIONS #####
@@ -30,13 +45,9 @@ buildOpenWRT [[OPTION] [VALUE]]...
 
 OPTIONS
     --version, -v OPENWRT_VERSION
-        Default: 19.07.02
     --target, -t TARGET
-        Default: ath79/generic
     --profile, -p PROFILE
-        Default: tplink_archer-c7-v2
     --builddir, -b PATH
-        Default: Current working directory
     --ssh-backup SSH path
         Example: root@192.168.1.1
     --debug, -d
@@ -91,19 +102,25 @@ parseInput () {
 }
 
 
-mkDirs () {
-
-    runDebug "${FUNCNAME[0]}"
-
-    [[ ! -d "$_builddir/output/sources" ]] && mkdir -p "$_builddir/output/sources"
-    [[ ! -d "$_filesroot" ]] && mkdir -p "$_filesroot"
-    [[ ! -d "$_builddir/bin" ]] && mkdir -p "$_builddir/bin"
-}
+runDebug () { [[ "$_debug" == "true" ]] && echo "Running: " "$@" ; }
 
 
 installPrerequisites () {
 
     runDebug "${FUNCNAME[0]}"
+
+    getOS () {
+
+        runDebug "${FUNCNAME[0]}"
+
+        if [[ -f /etc/os-release ]]; then
+            source /etc/os-release
+        else
+            echo "Cannot detect OS!"
+            exit 1
+        fi
+    }
+    getOS
 
     if [[ "$ID" == "fedora" ]]; then
         if ! sudo dnf -y install @c-development @development-tools @development-libs zlib-static elfutils-libelf-devel gawk unzip file wget python3 python2 > /dev/null 2>&1; then
@@ -131,9 +148,12 @@ acquireImageBuilder () {
         _url="https://downloads.openwrt.org/releases/$_version/targets/$_target/$_filename"
     fi
 
-    if [[ ! -f "$_builddir/output/sources/$_filename" ]]; then
-            echo "Downloading $_url to $_builddir/output/sources"
-        if ! wget -q -P "$_builddir/output/sources" "$_url"; then
+    # Make sources directory if it does not exist
+    [[ ! -d "$_builddir/sources" ]] && mkdir -p "$_builddir/sources"
+
+    if [[ ! -f "$_builddir/sources/$_filename" ]]; then
+            echo "Downloading $_url to $_builddir/sources"
+        if ! wget -q -P "$_builddir/sources" "$_url"; then
             echo "Could not download Image Builder"
             exit 1
         fi
@@ -147,8 +167,8 @@ extractImageBuilder () {
 
     runDebug "${FUNCNAME[0]}"
 
-    if [[ -f "$_builddir/output/sources/$_filename" ]]; then
-        if ! tar -xf "$_builddir/output/sources/$_filename" -C "$_builddir/output/sources/"; then
+    if [[ -f "$_builddir/sources/$_filename" ]]; then
+        if ! tar -xf "$_builddir/sources/$_filename" -C "$_builddir/sources/"; then
             echo "Extraction failed"
             exit 1
         fi
@@ -161,12 +181,16 @@ makeImage () {
     runDebug "${FUNCNAME[0]}"
 
     # move to extracted source directory
-    if ! pushd "$_builddir/output/sources/${_filename%.tar.xz}" > /dev/null 2>&1; then
+    if ! pushd "$_builddir/sources/${_filename%.tar.xz}" > /dev/null 2>&1; then
         exit 1
     fi
 
+    # Make bin dir
+    [[ ! -d "$_builddir/bin" ]] && mkdir -p "$_builddir/bin"
+
     # build image
-    if ! make -j4 image BIN_DIR="$_builddir/bin" PROFILE="$_profile" PACKAGES="${_packages[*]}" FILES="$_filesroot"; then
+    if ! make -j4 image BIN_DIR="$_builddir/bin/$_profile/" PROFILE="$_profile" \
+    PACKAGES="${_packages[*]}" FILES="$_filesroot"; then
         echo "Make image failed!"
         exit 1
     fi
@@ -175,6 +199,26 @@ makeImage () {
         exit 1
     fi
 }
+
+
+#sshBackup () {
+#
+#    runDebug "${FUNCNAME[0]}"
+#
+#    # Make files directory if it does not exist
+#    [[ ! -d "$_filesroot" ]] && mkdir -p "$_filesroot"
+#
+#    for fd in "${_backedup[@]}"; do
+#        _dir="${fd%/*}/"
+#        [[ ! -d "$_filesroot$_dir" ]] && mkdir -p "$_filesroot/$_dir"
+#        if ! scp -rp "$_ssh_backup:$fd" "$_filesroot/$_dir"; then
+#            echo "Did not successfully backup files from --ssh-backup"
+#            echo "Exiting now to prevent data loss!"
+#            exit 1
+#        fi
+#    done
+#}
+
 
 # TODO
 #flashImage () {
@@ -195,7 +239,7 @@ makeImage () {
 __main () {
 
     parseInput "$@"
-    mkDirs
+    setDefaults
     getOS
     installPrerequisites
     acquireImageBuilder
