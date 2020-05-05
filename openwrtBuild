@@ -13,7 +13,7 @@ setDefaults() {
     [[ -z $_filesroot ]] && _filesroot="$_builddir/files/"
 
     # Global default packages for all profiles
-    declare -a _packages=("luci" "nano" "htop" "tcpdump" "diffutils")
+    declare -ag _packages=("luci" "nano" "htop" "tcpdump" "diffutils")
 
     # If no profile is specified, use the TP-Link Archer C7 v2
     [[ -z $_profile ]] && _profile="tplink_archer-c7-v2"
@@ -27,7 +27,7 @@ setDefaults() {
     elif [[ "$_profile" == "rpi-4" ]]; then
         [[ -z $_version ]] && _version="snapshot"
         [[ -z $_target ]] && _target="bcm27xx/bcm2711"
-        packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
+        _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
         "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full")
     fi
 }
@@ -35,6 +35,7 @@ setDefaults() {
 #####################
 ##### FUNCTIONS #####
 #####################
+
 printHelpAndExit () {
 
     runDebug "${FUNCNAME[0]}"
@@ -50,6 +51,8 @@ OPTIONS
     --builddir, -b PATH
     --ssh-backup SSH path
         Example: root@192.168.1.1
+    --flash, -f DEVICE
+        Example: /dev/sdX
     --debug, -d
     --help, -h
 EOF
@@ -62,7 +65,7 @@ parseInput () {
 
     runDebug "${FUNCNAME[0]}"
 
-    if _input=$(getopt -o +v:t:p:b:dh -l version:,target:,profile:,builddir:,ssh-backup:debug,help -- "$@"); then
+    if _input=$(getopt -o +v:t:p:b:f:dh -l version:,target:,profile:,builddir:,ssh-backup:,flash:,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -80,6 +83,9 @@ parseInput () {
                     ;;
                 --ssh-backup)
                     shift && _ssh_backup="$1"
+                    ;;
+                --flash|-f)
+                    shift && _flash_dev="$1"
                     ;;
                 --debug|-d)
                     echo "Debugging on"
@@ -115,6 +121,7 @@ installPrerequisites () {
 
         if [[ -f /etc/os-release ]]; then
             source /etc/os-release
+            echo "Detected platform: $ID"
         else
             echo "Cannot detect OS!"
             exit 1
@@ -122,12 +129,14 @@ installPrerequisites () {
     }
     getOS
 
+
+    echo "Installing dependencies..."
     if [[ "$ID" == "fedora" ]]; then
-        if ! sudo dnf -y install @c-development @development-tools @development-libs zlib-static elfutils-libelf-devel gawk unzip file wget python3 python2 > /dev/null 2>&1; then
+        if ! sudo dnf -y install @c-development @development-tools @development-libs zlib-static elfutils-libelf-devel gawk unzip file wget python3 python2 axel > /dev/null 2>&1; then
             echo "Warning: Problem installing prerequisites"
         fi
     elif [[ "$ID" =~ ^(debian|ubuntu)$ ]]; then
-        if ! sudo apt-get -y install build-essential libncurses5-dev libncursesw5-dev zlib1g-dev gawk git gettext libssl-dev xsltproc wget unzip python > /dev/null 2>&1; then
+        if ! sudo apt-get -y install build-essential libncurses5-dev libncursesw5-dev zlib1g-dev gawk git gettext libssl-dev xsltproc wget unzip python axel > /dev/null 2>&1; then
             echo "Warning: Problem installing prerequisites"
         fi
     fi
@@ -138,7 +147,10 @@ acquireImageBuilder () {
 
     runDebug "${FUNCNAME[0]}"
 
-    local _url
+    local _url _filename
+    export _source_archive
+
+    echo "Downloading image archive..."
 
     if [[ "$_version" == "snapshot" ]]; then
         _filename="openwrt-imagebuilder-${_target//\//-}.Linux-x86_64.tar.xz"
@@ -151,14 +163,14 @@ acquireImageBuilder () {
     # Make sources directory if it does not exist
     [[ ! -d "$_builddir/sources" ]] && mkdir -p "$_builddir/sources"
 
-    if [[ ! -f "$_builddir/sources/$_filename" ]]; then
-            echo "Downloading $_url to $_builddir/sources"
-        if ! wget -q -P "$_builddir/sources" "$_url"; then
-            echo "Could not download Image Builder"
-            exit 1
-        fi
-    else
-        echo "Image builder already exists, skipping download..."
+    _source_archive="$_builddir/sources/$_profile-$_version.tar.xz"
+
+    # Remove existing ImageBuilder archives
+    [[ -f "$_source_archive" ]] && rm "$_source_archive"
+
+    if ! axel -o "$_source_archive" "$_url"; then
+        echo "Could not download Image Builder"
+        exit 1
     fi
 }
 
@@ -167,8 +179,13 @@ extractImageBuilder () {
 
     runDebug "${FUNCNAME[0]}"
 
-    if [[ -f "$_builddir/sources/$_filename" ]]; then
-        if ! tar -xf "$_builddir/sources/$_filename" -C "$_builddir/sources/"; then
+    export _source_dir="${_source_archive%.tar.xz}"
+
+    [[ ! -d "$_source_dir" ]] && mkdir -p "$_source_dir"
+
+    echo "Extracting image archive..."
+    if [[ -f "$_source_archive" ]]; then
+        if ! tar -xf "$_source_archive" -C "$_source_dir" --strip-components 1; then
             echo "Extraction failed"
             exit 1
         fi
@@ -180,22 +197,67 @@ makeImage () {
 
     runDebug "${FUNCNAME[0]}"
 
+    export _out_bin_gz _out_bin_dir
+
     # move to extracted source directory
-    if ! pushd "$_builddir/sources/${_filename%.tar.xz}" > /dev/null 2>&1; then
+    if ! pushd "$_source_dir" > /dev/null 2>&1; then
         exit 1
     fi
 
+    _out_bin_dir="$_builddir/bin/$_profile-$_version/"
+
     # Make bin dir
-    [[ ! -d "$_builddir/bin" ]] && mkdir -p "$_builddir/bin"
+    [[ ! -d "$_out_bin_dir" ]] && mkdir -p "$_out_bin_dir"
 
     # build image
-    if ! make -j4 image BIN_DIR="$_builddir/bin/$_profile/" PROFILE="$_profile" \
-    PACKAGES="${_packages[*]}" FILES="$_filesroot"; then
+    echo "Running make -j4 image BIN_DIR=$_out_bin_dir PROFILE=$_profile PACKAGES=${_packages[*]} FILES=$_filesroot"
+    if ! make -j4 image BIN_DIR="$_out_bin_dir" PROFILE="$_profile" \
+    PACKAGES="${_packages[*]}" FILES="$_filesroot" > make.log; then
         echo "Make image failed!"
         exit 1
     fi
 
+    _out_bin_gz="$_out_bin_dir/openwrt-${_target//\//-}-$_profile-ext4-factory.img.gz"
+
+    if [[ ! -f "$_out_bin_gz" ]]; then
+        echo "Make output image archive not found"
+        exit 1
+    fi
+
     if ! popd > /dev/null 2>&1; then
+        exit 1
+    fi
+}
+
+
+flashImage() {
+
+    runDebug "${FUNCNAME[0]}"
+
+    local _out_bin="${_out_bin_gz%.gz}"
+
+    if [[ -f "$_out_bin_gz" ]]; then
+        gunzip "$_out_bin_gz"
+    fi
+
+    if [[ ! -f "$_out_bin" ]]; then
+        echo "Cannot find output bin file"
+        exit 1
+    fi
+
+    if [[ ! -d "$_flash_dev" ]]; then
+        echo "The device specified by --flash could not be found"
+        exit 1
+    fi
+
+    echo "Unmounting target device $_flash_dev partitions..."
+    sudo umount "$_flash_dev?*"
+
+    if sudo dd if="$_out_bin" of="$_flash_dev" bs=2M conv=fsync; then
+        sync
+        echo "Image flashed sucessfully!"
+    else
+        echo "dd failed!"
         exit 1
     fi
 }
@@ -220,22 +282,6 @@ makeImage () {
 #}
 
 
-# TODO
-#flashImage () {
-#
-#    if ! scp -rp  "$_bin_path" "$_ssh_backup:/tmp/$_bin_name"; then
-#        echo "Could not copy update file to device!"
-#        exit 1
-#    fi
-#
-#3    # shellcheck disable=SC2029
-#    if ! ssh "$_ssh_backup" "sysupgrade -v /tmp/$_bin_name"; then
-#3        echo "sysupgrade failed!"
-#        exit 1
-#    fi
-#}
-
-
 __main () {
 
     parseInput "$@"
@@ -243,10 +289,10 @@ __main () {
     installPrerequisites
     acquireImageBuilder
     extractImageBuilder
-    [[ -n $_ssh_backup ]] && sshBackup
+    #[[ -n $_ssh_backup ]] && sshBackup
     makeImage
-    #flashImage # TODO
-    exit 0
+    [[ -n $_flash_dev ]] && flashImage
 }
 
 __main "$@"
+exit $?
