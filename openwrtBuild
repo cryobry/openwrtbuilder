@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-source ./functions.sh
 
 #####################
 ##### DEFAULTS ######
@@ -243,6 +242,24 @@ makeImage() {
     if ! popd > /dev/null 2>&1; then
         exit 1
     fi
+}
+
+
+extractImage() {
+
+    debug "${FUNCNAME[0]}" "$@"
+
+    local _gz
+
+    [[ $# -lt 1 ]] && echo "extractImage() requires at least one argument" && exit 1
+
+    for _gz in "$@"; do
+        [[ ! -f "$_gz" ]] && return 1
+        debug "gunzip -qfk $_gz"
+        if ! gunzip -qfk "$_gz"; then
+            echo "$_gz extraction failed!"
+        fi
+    done
 }
 
 
