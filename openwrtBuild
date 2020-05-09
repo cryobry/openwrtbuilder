@@ -19,17 +19,20 @@ setDefaults() {
     # If no profile is specified, use the TP-Link Archer C7 v2
     [[ -z $_profile ]] && _profile="tplink_archer-c7-v2"
 
-    # PROFILES
-    # TP-Link Archer C7 v2
-    if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
-        [[ -z $_version ]] && _version="19.07.2"
-        [[ -z $_target ]] && _target="ath79/generic"
-    # Raspberry Pi 4
-    elif [[ "$_profile" == "rpi-4" ]]; then
-        [[ -z $_version ]] && _version="snapshot"
-        [[ -z $_target ]] && _target="bcm27xx/bcm2711"
-        _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
-        "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns")
+    # Custom profiles
+    # TP-Link Archer C7 v2 dumb AP
+    if [[ -z $_target ]]; then
+        if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
+            [[ -z $_version ]] && _version="19.07.2"
+            [[ -z $_target ]] && _target="ath79/generic"
+            _packages+=("-dnsmasq" "-odhcpd")
+        # Raspberry Pi 4B router with USB->Ethernet dongle
+        elif [[ "$_profile" == "rpi-4" ]]; then
+            [[ -z $_version ]] && _version="snapshot"
+            [[ -z $_target ]] && _target="bcm27xx/bcm2711"
+            _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
+            "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns")
+        fi
     fi
 }
 
@@ -43,7 +46,9 @@ printHelpAndExit() {
 
     cat <<-'EOF'
 USAGE:
-buildOpenWRT [[OPTION] [VALUE]]...
+openwrtBuild [[OPTION] [VALUE]]...
+
+If PROFILE is set and TARGET is not, buildOpenwrt can use a custom profile specified in DEFAULTS
 
 OPTIONS
     --version, -v OPENWRT_VERSION
