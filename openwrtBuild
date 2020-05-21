@@ -30,7 +30,7 @@ setDefaults() {
     export _target _factory_suffix _sysupgrade_suffix _profile _builddir _debug _filesroot
     declare -ag _packages
 
-    [[ -z $_debug ]] && _debug="true" # Set to true to enable debugging by default
+    [[ -z $_debug ]] && _debug="false" # Set to true to enable debugging by default
     [[ -z $_builddir ]] && _builddir="$PWD"
     [[ -z $_filesroot ]] && _filesroot="$_builddir/files/"
 
