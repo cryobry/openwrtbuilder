@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
-
-#####################
-##### DEFAULTS ######
-#####################
+#
+# This script/function will build and flash/upgrade OpenWRT based on custom profiles
+#
+# MIT License
+# Copyright (c) 2020 Bryan Roessler
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 setDefaults() {
 
@@ -20,24 +38,23 @@ setDefaults() {
 
     # Custom profiles
     # TP-Link Archer C7 v2 dumb AP
-    if [[ -z $_target ]]; then
-        if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
-            [[ -z $_version ]] && _version="19.07.2"
-            [[ -z $_target ]] && _target="ath79/generic"
-            _packages+=("-dnsmasq" "-odhcpd")
-        # Raspberry Pi 4B router with USB->Ethernet dongle
-        elif [[ "$_profile" == "rpi-4" ]]; then
-            [[ -z $_version ]] && _version="snapshot"
-            [[ -z $_target ]] && _target="bcm27xx/bcm2711"
-            _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
-            "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns")
-        fi
+    if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
+        [[ -z $_version ]] && _version="19.07.3"
+        export _target="ath79/generic"
+        export _factory_suffix="squashfs-factory.bin"
+        export _sysupgrade_suffix="squashfs-sysupgrade.bin"
+        _packages+=("-dnsmasq" "-odhcpd" "-iptables")
+    # Raspberry Pi 4B router with USB->Ethernet dongle
+    elif [[ "$_profile" == "rpi-4" ]]; then
+        [[ -z $_version ]] && _version="snapshot"
+        export _target="bcm27xx/bcm2711"
+        export _factory_suffix="ext4-factory.img"
+        export _sysupgrade_suffix="ext4-sysupgrade.img"
+        _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
+        "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns")
     fi
 }
 
-#####################
-##### FUNCTIONS #####
-#####################
 
 printHelpAndExit() {
 
@@ -51,7 +68,6 @@ If PROFILE is set and TARGET is not, buildOpenwrt can use a custom profile speci
 
 OPTIONS
     --version, -v OPENWRT_VERSION
-    --target, -t TARGET
     --profile, -p PROFILE
     --builddir, -b PATH
     --ssh-upgrade SSH_PATH
@@ -70,15 +86,12 @@ parseInput() {
 
     debug "${FUNCNAME[0]}"
 
-    if _input=$(getopt -o +v:t:p:b:f:dh -l version:,target:,profile:,builddir:,ssh-upgrade:,flash:,debug,help -- "$@"); then
+    if _input=$(getopt -o +v:p:b:f:dh -l version:,profile:,builddir:,ssh-upgrade:,flash:,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
                 --version|-v)
                     shift && _version="$1"
-                    ;;
-                --target|-t)
-                    shift && _target="$1"
                     ;;
                 --profile|-p)
                     shift && _profile="$1"
@@ -137,11 +150,23 @@ setVars() {
 
     export _source_archive="$_builddir/sources/$_profile-$_version.tar.xz"
     export _source_dir="${_source_archive%.tar.xz}"
-
     export _out_bin_dir="$_builddir/bin/$_profile-$_version/"
-    export _out_bin_gz="$_out_bin_dir/openwrt-${_target//\//-}-$_profile-ext4-factory.img.gz"
-    export _out_bin="${_out_bin_gz%.gz}"
 
+    if [[ "$_version" == "snapshot" ]]; then
+        local _out_prefix="$_out_bin_dir/openwrt-${_target//\//-}-$_profile"
+    else
+        local _out_prefix="$_out_bin_dir/openwrt-$_version-${_target//\//-}-$_profile"
+    fi
+
+    export _factory_bin="$_out_prefix-$_factory_suffix"
+    export _factory_bin_fname="${_factory_bin##*/}"
+    export _factory_bin_gz="$_factory_bin.gz"
+    export _factory_bin_gz_fname="${_factory_bin_gz##*/}"
+
+    export _sysupgrade_bin="$_out_prefix-$_sysupgrade_suffix"
+    export _sysupgrade_bin_fname="${_sysupgrade_bin##*/}"
+    export _sysupgrade_bin_gz="$_sysupgrade_bin.gz"
+    export _sysupgrade_bin_gz_fname="${_sysupgrade_bin_gz##*/}"
 }
 
 
@@ -267,7 +292,9 @@ flashImage() {
 
     debug "${FUNCNAME[0]}"
 
-    extractImage "$_out_bin_gz"
+    if [[ -z $_factory_bin && -f "$_factory_bin_gz" ]]; then
+        extractImage "$_factory_bin_gz"
+    fi
 
     if [[ ! -d "$_flash_dev" ]]; then
         echo "The device specified by --flash could not be found"
@@ -278,8 +305,8 @@ flashImage() {
     debug "umount $_flash_dev?*"
     sudo umount "$_flash_dev?*"
 
-    debug "sudo dd if=\"$_out_bin\" of=\"$_flash_dev\" bs=2M conv=fsync"
-    if sudo dd if="$_out_bin" of="$_flash_dev" bs=2M conv=fsync; then
+    debug "sudo dd if=\"$_factory_bin\" of=\"$_flash_dev\" bs=2M conv=fsync"
+    if sudo dd if="$_factory_bin" of="$_flash_dev" bs=2M conv=fsync; then
         sync
         echo "Image flashed sucessfully!"
     else
@@ -293,20 +320,29 @@ sshUpgrade() {
 
     debug "${FUNCNAME[0]}"
 
-    local _out_bin_gz_name="${_out_bin_gz##*/}"
+    if [[ -f "$_sysupgrade_bin_gz" ]]; then
+        local _source="$_sysupgrade_bin_gz"
+        local _source_fname="$_sysupgrade_bin_gz_fname"
+    elif [[ -f "$_sysupgrade_bin" ]]; then
+        local _source="$_sysupgrade_bin"
+        local _source_fname="$_sysupgrade_bin_fname"
+    else
+        echo "Could not find upgrade file"
+        exit 1
+    fi
 
-    echo "Copying upgrade image to $_ssh_upgrade_path"
-    debug "scp \"$_out_bin_gz\" \"$_ssh_upgrade_path:/tmp/$_out_bin_gz_name\""
+    echo "Copying \"$_source\" to $_ssh_upgrade_path/tmp/"
+    debug "scp \"$_source\" \"$_ssh_upgrade_path\":\"/tmp/$_source_fname\""
     # shellcheck disable=SC2140
-    if ! scp "$_out_bin_gz" "$_ssh_upgrade_path":"/tmp/$_out_bin_gz_name"; then
+    if ! scp "$_source" "$_ssh_upgrade_path":"/tmp/$_source_fname"; then
         echo "Could not access the --ssh-upgrade PATH"
         exit 1
     fi
 
     echo "Executing remote sysupgrade"
-    debug "ssh \"$_ssh_upgrade_path\" \"sysupgrade -F /tmp/$_out_bin_gz_name\""
-    # shellcheck disable=SC2029
-    ssh "$_ssh_upgrade_path" "sysupgrade -F /tmp/$_out_bin_gz_name"
+    debug "ssh \"$_ssh_upgrade_path\" \"sysupgrade -F /tmp/$_source_fname\""
+
+    #ssh "$_ssh_upgrade_path" "sysupgrade -F /tmp/$_source_fname"
 }
 
 
