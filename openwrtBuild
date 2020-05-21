@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# This script/function will build and flash/upgrade OpenWRT based on custom profiles
+# This script/function will build and flash/upgrade OpenWRT based on user-defined custom profiles
+# For Fedora/Debian/Ubuntu only
 #
 # MIT License
 # Copyright (c) 2020 Bryan Roessler
@@ -26,30 +27,33 @@ setDefaults() {
 
     debug "${FUNCNAME[0]}"
 
+    export _target _factory_suffix _sysupgrade_suffix _profile _builddir _debug _filesroot
+    declare -ag _packages
+
     [[ -z $_debug ]] && _debug="true" # Set to true to enable debugging by default
     [[ -z $_builddir ]] && _builddir="$PWD"
     [[ -z $_filesroot ]] && _filesroot="$_builddir/files/"
 
-    # Global default packages for all profiles
-    declare -ag _packages=("luci" "nano" "htop" "tcpdump" "diffutils")
+    # Additional packages for all profiles
+    _packages+=("luci" "nano" "htop" "tcpdump" "diffutils")
 
-    # If no profile is specified, use the TP-Link Archer C7 v2
+    # If no profile is specified, use the TP-Link Archer C7 v2 dumb AP
     [[ -z $_profile ]] && _profile="tplink_archer-c7-v2"
 
     # Custom profiles
     # TP-Link Archer C7 v2 dumb AP
     if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
         [[ -z $_version ]] && _version="19.07.3"
-        export _target="ath79/generic"
-        export _factory_suffix="squashfs-factory.bin"
-        export _sysupgrade_suffix="squashfs-sysupgrade.bin"
+        _target="ath79/generic"
+        _factory_suffix="squashfs-factory.bin"
+        _sysupgrade_suffix="squashfs-sysupgrade.bin"
         _packages+=("-dnsmasq" "-odhcpd" "-iptables")
     # Raspberry Pi 4B router with USB->Ethernet dongle
     elif [[ "$_profile" == "rpi-4" ]]; then
         [[ -z $_version ]] && _version="snapshot"
-        export _target="bcm27xx/bcm2711"
-        export _factory_suffix="ext4-factory.img"
-        export _sysupgrade_suffix="ext4-sysupgrade.img"
+        _target="bcm27xx/bcm2711"
+        _factory_suffix="ext4-factory.img"
+        _sysupgrade_suffix="ext4-sysupgrade.img"
         _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
         "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns")
     fi
@@ -341,8 +345,8 @@ sshUpgrade() {
 
     echo "Executing remote sysupgrade"
     debug "ssh \"$_ssh_upgrade_path\" \"sysupgrade -F /tmp/$_source_fname\""
-
-    #ssh "$_ssh_upgrade_path" "sysupgrade -F /tmp/$_source_fname"
+    # shellcheck disable=SC2029
+    ssh "$_ssh_upgrade_path" "sysupgrade -F /tmp/$_source_fname"
 }
 
 
@@ -354,9 +358,10 @@ __main() {
     installPrerequisites
     acquireImageBuilder
     extractImageBuilder
-    makeImage
-    [[ -n $_ssh_upgrade_path ]] && sshUpgrade
-    [[ -n $_flash_dev ]] && flashImage
+    if makeImage; then
+        [[ -n $_ssh_upgrade_path ]] && sshUpgrade
+        [[ -n $_flash_dev ]] && flashImage
+    fi
 }
 
 __main "$@"
