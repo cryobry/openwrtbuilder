@@ -205,18 +205,19 @@ acquireImageBuilder() {
     local _url _filename
 
     if [[ "$_version" == "snapshot" ]]; then
+        # Remove existing ImageBuilders
+        [[ -f "$_source_archive" ]] && rm "$_source_archive"
         _filename="openwrt-imagebuilder-${_target//\//-}.Linux-x86_64.tar.xz"
         _url="https://downloads.openwrt.org/snapshots/targets/$_target/$_filename"
     else
+        # Reuse existing ImageBuilders
+        [[ -f "$_source_archive" ]] && return 0
         _filename="openwrt-imagebuilder-$_version-${_target//\//-}.Linux-x86_64.tar.xz"
         _url="https://downloads.openwrt.org/releases/$_version/targets/$_target/$_filename"
     fi
 
     # Make sources directory if it does not exist
     [[ ! -d "$_builddir/sources" ]] && mkdir -p "$_builddir/sources"
-
-    # Remove existing ImageBuilder archives
-    [[ -f "$_source_archive" ]] && rm "$_source_archive"
 
     echo "Downloading image archive"
     debug "axel -o $_source_archive $_url"
