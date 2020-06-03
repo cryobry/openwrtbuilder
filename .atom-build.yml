@@ -2,8 +2,12 @@ cmd: 'echo "Pick a command (see .atom-build.yml)"'
 name: ''
 targets:
   Build RPi4 snapshot in toolbox:
-    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --profile rpi-4'
+    cmd: 'toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --profile rpi-4'
+  Build and Flash RPi4 snapshot in toolbox:
+    cmd: 'toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --profile rpi-4 --ssh-upgrade root@router.lan'
   Build Archer snapshot in toolbox:
-    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --profile tplink_archer-c7-v2'
-  Build Archer 19.07.2 in toolbox:
-    cmd: 'buildWrapper toolboxRun -c openwrt {FILE_ACTIVE} --version 19.07.2 --profile tplink_archer-c7-v2'
+    cmd: 'toolboxRun -c openwrt {FILE_ACTIVE} --version snapshot --profile tplink_archer-c7-v2'
+  Build Archer stable in toolbox:
+    cmd: 'toolboxRun -c openwrt {FILE_ACTIVE} --version 19.07.3 --profile tplink_archer-c7-v2'
+  Build and Flash Archer stable in toolbox:
+    cmd: 'toolboxRun -c openwrt {FILE_ACTIVE} --version 19.07.3 --profile tplink_archer-c7-v2 --ssh-upgrade root@archer.lan'
