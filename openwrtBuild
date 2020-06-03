@@ -71,8 +71,8 @@ openwrtBuild [[OPTION] [VALUE]]...
 If PROFILE is set and TARGET is not, buildOpenwrt can use a custom profile specified in DEFAULTS
 
 OPTIONS
-    --version, -v OPENWRT_VERSION
     --profile, -p PROFILE
+    --version, -v OPENWRT_VERSION
     --builddir, -b PATH
     --ssh-upgrade SSH_PATH
         Example: root@192.168.1.1
