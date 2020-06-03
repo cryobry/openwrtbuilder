@@ -55,7 +55,7 @@ setDefaults() {
         _factory_suffix="ext4-factory.img"
         _sysupgrade_suffix="ext4-sysupgrade.img"
         _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
-        "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns")
+        "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns" "luci-app-sqm")
     fi
 }
 
