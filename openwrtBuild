@@ -81,8 +81,8 @@ OPTIONS
     --debug, -d
     --help, -h
 EOF
-        # Exit using passed exit code
-        [[ -z $1 ]] && exit 0 || exit "$1"
+    # Exit using passed exit code
+    [[ -z $1 ]] && exit 0 || exit "$1"
 }
 
 
@@ -142,6 +142,7 @@ setVars() {
         debug "${FUNCNAME[0]}"
 
         if [[ -f /etc/os-release ]]; then
+            # shellcheck disable=SC1091
             source /etc/os-release
             export ID="$ID"
             echo "Detected platform: $ID"
