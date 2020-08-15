@@ -114,7 +114,7 @@ parseInput() {
                     _debug="true"
                     ;;
                 --help|-h)
-                    _printHelpAndExit 0
+                    printHelpAndExit 0
                     ;;
                 --)
                     shift
