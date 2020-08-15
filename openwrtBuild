@@ -74,7 +74,7 @@ OPTIONS
     --profile, -p PROFILE
     --version, -v OPENWRT_VERSION
     --builddir, -b PATH
-    --ssh-upgrade SSH_PATH
+    --ssh-upgrade, -s SSH_PATH
         Example: root@192.168.1.1
     --flash, -f DEVICE
         Example: /dev/sdX
@@ -90,7 +90,7 @@ parseInput() {
 
     debug "${FUNCNAME[0]}"
 
-    if _input=$(getopt -o +v:p:b:f:dh -l version:,profile:,builddir:,ssh-upgrade:,flash:,debug,help -- "$@"); then
+    if _input=$(getopt -o +v:p:b:s:f:dh -l version:,profile:,builddir:,ssh-upgrade:,flash:,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -103,7 +103,7 @@ parseInput() {
                 --builddir|-b)
                     shift && _builddir="$1"
                     ;;
-                --ssh-upgrade)
+                --ssh-upgrade|-s)
                     shift && _ssh_upgrade_path="$1"
                     ;;
                 --flash|-f)
