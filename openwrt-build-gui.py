@@ -3,9 +3,13 @@
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
+import os.path
 import pandas
 import gzip
 import urllib.request
+
+# This will enable file caching and some dev output
+debug=True
 
 
 class Main(tk.Frame):
@@ -35,7 +39,7 @@ class Main(tk.Frame):
 
         # Device Info
         self.device_info = tk.StringVar()
-        
+
 
         # Layout
         self.target_menu.grid(row=0, column=0, sticky=(tk.W + tk.E))
@@ -44,15 +48,29 @@ class Main(tk.Frame):
         self.backup_file_button.grid(row=1, column=0, sticky=(tk.W))
         self.columnconfigure(1, weight=1)
 
+
     
     def get_toh_df(self):
-        toh_gz_handle = urllib.request.urlopen("https://openwrt.org/_media/toh_dump_tab_separated.gz")
-        toh_handle = gzip.open(toh_gz_handle)
-        toh_df = pandas.read_csv(toh_handle, sep="\t", encoding = "ISO-8859-1")
-        toh_df = toh_df[(toh_df.target.notnull()) & 
-                             (toh_df.subtarget.notnull()) &
-                             (toh_df.target != '¿') &
-                             (toh_df.subtarget != '¿')]
+
+        cache_file = "sources/toh.tsv"
+
+        if debug is True and os.path.isfile(cache_file):
+            with open(cache_file) as infile:
+                try:
+                    toh_df = pandas.read_csv(infile)
+                except:
+                    os.remove(cache_file)
+        else:
+            toh_gz_handle = urllib.request.urlopen("https://openwrt.org/_media/toh_dump_tab_separated.gz")
+            toh_handle = gzip.open(toh_gz_handle)
+            toh_df = pandas.read_csv(toh_handle, sep="\t", encoding = "ISO-8859-1")
+            toh_df = toh_df[(toh_df.target.notnull()) & 
+                                (toh_df.subtarget.notnull()) &
+                                (toh_df.target != '¿') &
+                                (toh_df.subtarget != '¿')]
+            if debug is True:
+                with open(cache_file, 'w') as outfile:
+                    toh_df.to_csv(outfile)
         return toh_df
         
 
