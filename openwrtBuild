@@ -23,43 +23,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-setDefaults() {
-
-    debug "${FUNCNAME[0]}"
-
-    export _target _factory_suffix _sysupgrade_suffix _profile _builddir _debug _filesroot
-    declare -ag _packages
-
-    [[ -z $_debug ]] && _debug="false" # Set to true to enable debugging by default
-    [[ -z $_builddir ]] && _builddir="$PWD"
-    [[ -z $_filesroot ]] && _filesroot="$_builddir/files/"
-
-    # Additional packages for all profiles
-    _packages+=("luci" "nano" "htop" "tcpdump" "diffutils")
-
-    # If no profile is specified, use the TP-Link Archer C7 v2 dumb AP
-    [[ -z $_profile ]] && _profile="tplink_archer-c7-v2"
-
-    # Custom profiles
-    # TP-Link Archer C7 v2 dumb AP
-    if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
-        [[ -z $_version ]] && _version="19.07.3"
-        _target="ath79/generic"
-        _factory_suffix="squashfs-factory.bin"
-        _sysupgrade_suffix="squashfs-sysupgrade.bin"
-        _packages+=("-dnsmasq" "-odhcpd" "-iptables")
-    # Raspberry Pi 4B router with USB->Ethernet dongle
-    elif [[ "$_profile" == "rpi-4" ]]; then
-        [[ -z $_version ]] && _version="snapshot"
-        _target="bcm27xx/bcm2711"
-        _factory_suffix="ext4-factory.img"
-        _sysupgrade_suffix="ext4-sysupgrade.img"
-        _packages+=("kmod-usb-net-asix-ax88179" "luci-app-upnp" "luci-app-wireguard" \
-        "luci-app-vpn-policy-routing" "-dnsmasq" "dnsmasq-full" "luci-app-ddns" "luci-app-sqm")
-    fi
-}
-
-
 printHelpAndExit() {
 
     debug "${FUNCNAME[0]}"
@@ -74,8 +37,10 @@ OPTIONS
     --profile, -p PROFILE
     --version, -v OPENWRT_VERSION
     --builddir, -b PATH
-    --ssh-upgrade, -s SSH_PATH
+    --ssh-upgrade SSH_PATH
         Example: root@192.168.1.1
+    --ssh-backup SSH_PATH
+        Enabled by default for --ssh-upgrade
     --flash, -f DEVICE
         Example: /dev/sdX
     --debug, -d
@@ -86,11 +51,79 @@ EOF
 }
 
 
+setDefaults() {
+
+    debug "${FUNCNAME[0]}"
+
+    export _target _factory_suffix _sysupgrade_suffix _profile _builddir _debug _filesroot
+    declare -ag _packages
+
+    [[ -z $_debug ]] && _debug="false" # Set to true to enable debugging by default
+    [[ -z $_builddir ]] && _builddir="$PWD"
+    [[ -z $_filesroot ]] && _filesroot="$_builddir/files/"
+
+    # Additional packages for all profiles
+    _packages+=("luci" "nano" "htop" "tcpdump" "diffutils" "tar" "iperf")
+
+    # If no profile is specified, use the TP-Link Archer C7 v2 dumb AP
+    [[ -z $_profile ]] && _profile="tplink_archer-c7-v2"
+
+    # Custom profiles
+    # TP-Link Archer C7v2 WAP (dumb AP) w/ legacy drivers for better performance
+    if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
+        [[ -z $_version ]] && _version="21.02.0-rc1"
+        _target="ath79/generic"
+        _factory_suffix="squashfs-factory.bin"
+        _sysupgrade_suffix="squashfs-sysupgrade.bin"
+        _packages+=("-dnsmasq" \
+                    "-odhcpd" \
+                    "-iptables" \
+                    "-ath10k-firmware-qca988x-ct" \
+                    "-kmod-ath10k-ct" \
+                    "ath10k-firmware-qca988x" \
+                    "kmod-ath10k")
+    # Raspberry Pi 4B router with USB->Ethernet dongle
+    elif [[ "$_profile" == "rpi-4" ]]; then
+        [[ -z $_version ]] && _version="21.02.0-rc1"
+        _target="bcm27xx/bcm2711"
+        _factory_suffix="ext4-factory.img"
+        _sysupgrade_suffix="ext4-sysupgrade.img"
+        _packages+=("kmod-usb-net-asix-ax88179" \
+                    "kmod-usb-net-rtl8152" \
+                    "luci-app-upnp" \
+                    "luci-app-wireguard" \
+                    "luci-app-vpn-policy-routing" \
+                    "-dnsmasq" \
+                    "dnsmasq-full" \
+                    "luci-app-ddns" \
+                    "luci-app-sqm")
+    # NanoPi R2S router
+    elif [[ "$_profile" == "r2s" ]]; then
+        [[ -z $_version ]] && _version="21.02.0-rc1"
+        _profile="friendlyarm_nanopi-r2s"
+        _target="rockchip/armv8"
+        _factory_suffix="ext4-factory.img"
+        _sysupgrade_suffix="ext4-sysupgrade.img"
+        _packages+=("luci-app-upnp" \
+                    "luci-app-wireguard" \
+                    "luci-app-vpn-policy-routing" \
+                    "-dnsmasq" \
+                    "dnsmasq-full" \
+                    "luci-app-ddns" \
+                    "luci-app-sqm" \
+                    "luci-app-statistics" \
+                    "collectd-mod-sensors" \
+                    "collectd-mod-thermal" \
+                    "lm-sensors")
+    fi
+}
+
+
 parseInput() {
 
     debug "${FUNCNAME[0]}"
 
-    if _input=$(getopt -o +v:p:b:s:f:dh -l version:,profile:,builddir:,ssh-upgrade:,flash:,debug,help -- "$@"); then
+    if _input=$(getopt -o +v:p:b:f:dh -l version:,profile:,builddir:,ssh-upgrade:,ssh-backup:,flash:,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -103,8 +136,11 @@ parseInput() {
                 --builddir|-b)
                     shift && _builddir="$1"
                     ;;
-                --ssh-upgrade|-s)
+                --ssh-upgrade)
                     shift && _ssh_upgrade_path="$1"
+                    ;;
+                --ssh-backup)
+                    shift && _ssh_backup_path="$1"
                     ;;
                 --flash|-f)
                     shift && _flash_dev="$1"
@@ -183,7 +219,7 @@ installPrerequisites() {
     local _pkg_cmd
 
     if [[ "$ID" == "fedora" ]]; then
-        _pkg_list=("@c-development" "@development-tools" "@development-libs" "zlib-static" "elfutils-libelf-devel" "gawk" "unzip" "file" "wget" "python3" "python2" "axel")
+        _pkg_list=("@c-development" "@development-tools" "@development-libs" "perl-FindBin" "zlib-static" "elfutils-libelf-devel" "gawk" "unzip" "file" "wget" "python3" "python2" "axel")
         _pkg_cmd="dnf"
     elif [[ "$ID" =~ ^(debian|ubuntu)$ ]]; then
         _pkg_list=("build-essential" "libncurses5-dev" "libncursesw5-dev" "zlib1g-dev" "gawk" "git" "gettext" "libssl-dev" "xsltproc" "wget" "unzip" "python" "axel")
@@ -264,8 +300,7 @@ makeImage() {
     # build image
     echo "Running make -j4 image BIN_DIR=$_out_bin_dir PROFILE=$_profile PACKAGES=${_packages[*]} FILES=$_filesroot"
     debug "make -j4 image BIN_DIR=$_out_bin_dir PROFILE=$_profile PACKAGES=${_packages[*]} FILES=$_filesroot > make.log"
-    if ! make -j4 image BIN_DIR="$_out_bin_dir" PROFILE="$_profile" \
-    PACKAGES="${_packages[*]}" FILES="$_filesroot" > make.log; then
+    if ! make image BIN_DIR="$_out_bin_dir" PROFILE="$_profile" PACKAGES="${_packages[*]}" FILES="$_filesroot" > make.log; then
         echo "Make image failed!"
         exit 1
     fi
@@ -302,7 +337,7 @@ flashImage() {
         extractImage "$_factory_bin_gz"
     fi
 
-    if [[ ! -d "$_flash_dev" ]]; then
+    if [[ ! -e "$_flash_dev" ]]; then
         echo "The device specified by --flash could not be found"
         exit 1
     fi
@@ -319,6 +354,39 @@ flashImage() {
         echo "dd failed!"
         exit 1
     fi
+}
+
+
+sshBackup() {
+
+    debug "${FUNCNAME[0]}"
+
+    local _source="$1"
+    local _random="$RANDOM"
+
+    if ! ssh -t "$_source" "sysupgrade -b /tmp/backup-${_random}.tar.gz"; then
+        echo "SSH backup failed"
+        exit 1
+    fi
+    if ! scp "$_source":/tmp/backup-"${_random}".tar.gz "$_builddir"; then
+        echo "Could not copy SSH backup"
+        exit 1
+    fi
+
+    if ! ssh -t "$_source" "rm -f /tmp/backup-${_random}.tar.gz"; then
+        echo "Could not remove /tmp/backup-${_random}.tar.gz from $_source"
+    fi
+
+    [[ -d "$_filesroot" ]] && rm -rf "$_filesroot"
+    mkdir -p "$_filesroot"
+
+    if ! tar xzf "$_builddir/backup-${_random}.tar.gz" etc/ -C "$_filesroot"; then
+        "Could not extract SSH backup"
+        exit 1
+    fi
+
+    rm "$_builddir/backup-${_random}.tar.gz"
+
 }
 
 
@@ -352,6 +420,8 @@ sshUpgrade() {
 }
 
 
+
+
 __main() {
 
     parseInput "$@"
@@ -360,6 +430,8 @@ __main() {
     installPrerequisites
     acquireImageBuilder
     extractImageBuilder
+    rm -rf "$_ssh_backup_path"
+    [[ -v _ssh_backup_path ]] && sshBackup "$_ssh_backup_path"
     if makeImage; then
         [[ -n $_ssh_upgrade_path ]] && sshUpgrade
         [[ -n $_flash_dev ]] && flashImage
