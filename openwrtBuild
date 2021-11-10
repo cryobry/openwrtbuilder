@@ -63,31 +63,38 @@ setDefaults() {
     [[ -z $_filesroot ]] && _filesroot="$_builddir/files/"
 
     # Additional packages for all profiles
-    _packages+=("luci" "nano" "htop" "tcpdump" "diffutils" "tar" "iperf")
+    _packages+=("luci" "luci-ssl" "nano" "htop" "tcpdump" "diffutils" "tar" "iperf")
 
-    # If no profile is specified, use the TP-Link Archer C7 v2 dumb AP
-    [[ -z $_profile ]] && _profile="tplink_archer-c7-v2"
+    # Exit if no profile specified
+    [[ -z $_profile ]] && echo "You must specify a target profile (device)" && printHelpAndExit 1
+
+    # By default use latest release
+    [[ -z $_version ]] && _version="21.02.1"
 
     # Custom profiles
     # TP-Link Archer C7v2 WAP (dumb AP) w/ legacy drivers for better performance
-    if [[ "$_profile" == "tplink_archer-c7-v2" ]]; then
-        [[ -z $_version ]] && _version="21.02.0-rc1"
+    if [[ "$_profile" == "archer" ]]; then
+        _profile="tplink_archer-c7-v2"
         _target="ath79/generic"
-        _factory_suffix="squashfs-factory.bin"
-        _sysupgrade_suffix="squashfs-sysupgrade.bin"
+        _filesystem="squashfs"
         _packages+=("-dnsmasq" \
                     "-odhcpd" \
                     "-iptables" \
                     "-ath10k-firmware-qca988x-ct" \
-                    "-kmod-ath10k-ct" \
-                    "ath10k-firmware-qca988x" \
-                    "kmod-ath10k")
+                    "ath10k-firmware-qca988x-ct-full-htt")
+    # Linksys EA8300 (dumb AP)
+    elif [[ "$_profile" == "linksys" ]]; then
+        _profile="linksys_ea8300"
+        _target="ipq40xx/generic"
+        _filesystem="squashfs"
+        _packages+=("-dnsmasq" \
+                    "-odhcpd" \
+                    "-iptables" \
+                    )
     # Raspberry Pi 4B router with USB->Ethernet dongle
     elif [[ "$_profile" == "rpi-4" ]]; then
-        [[ -z $_version ]] && _version="21.02.0-rc1"
         _target="bcm27xx/bcm2711"
-        _factory_suffix="ext4-factory.img"
-        _sysupgrade_suffix="ext4-sysupgrade.img"
+        _filesystem="ext4"
         _packages+=("kmod-usb-net-asix-ax88179" \
                     "kmod-usb-net-rtl8152" \
                     "luci-app-upnp" \
@@ -99,11 +106,9 @@ setDefaults() {
                     "luci-app-sqm")
     # NanoPi R2S router
     elif [[ "$_profile" == "r2s" ]]; then
-        [[ -z $_version ]] && _version="21.02.0-rc1"
         _profile="friendlyarm_nanopi-r2s"
         _target="rockchip/armv8"
-        _factory_suffix="ext4-factory.img"
-        _sysupgrade_suffix="ext4-sysupgrade.img"
+        _filesystem="ext4"
         _packages+=("luci-app-upnp" \
                     "luci-app-wireguard" \
                     "luci-app-vpn-policy-routing" \
@@ -114,7 +119,29 @@ setDefaults() {
                     "luci-app-statistics" \
                     "collectd-mod-sensors" \
                     "collectd-mod-thermal" \
-                    "lm-sensors")
+                    "collectd-mod-conntrack" \
+                    "smcroute" \
+                    "curl" \
+                    "ethtool")
+    elif [[ "$_profile" == "r4s" ]]; then
+        _version="snapshot"
+        _profile="friendlyarm_nanopi-r4s"
+        _target="rockchip/armv8"
+        _filesystem="ext4"
+        _packages+=("luci-app-upnp" \
+                    "luci-app-wireguard" \
+                    "luci-app-vpn-policy-routing" \
+                    "-dnsmasq" \
+                    "dnsmasq-full" \
+                    "luci-app-ddns" \
+                    "luci-app-sqm" \
+                    "luci-app-statistics" \
+                    "collectd-mod-sensors" \
+                    "collectd-mod-thermal" \
+                    "collectd-mod-conntrack" \
+                    "smcroute" \
+                    "curl" \
+                    "ethtool")
     fi
 }
 
@@ -193,18 +220,22 @@ setVars() {
     export _source_dir="${_source_archive%.tar.xz}"
     export _out_bin_dir="$_builddir/bin/$_profile-$_version/"
 
+    export _patches_dir="$_builddir/patches/"
+    export _files_dir="$_builddir/files/"
+
     if [[ "$_version" == "snapshot" ]]; then
         local _out_prefix="$_out_bin_dir/openwrt-${_target//\//-}-$_profile"
     else
         local _out_prefix="$_out_bin_dir/openwrt-$_version-${_target//\//-}-$_profile"
     fi
 
-    export _factory_bin="$_out_prefix-$_factory_suffix"
+
+    export _factory_bin="$_out_prefix-$_filesystem-factory.bin"
     export _factory_bin_fname="${_factory_bin##*/}"
     export _factory_bin_gz="$_factory_bin.gz"
     export _factory_bin_gz_fname="${_factory_bin_gz##*/}"
 
-    export _sysupgrade_bin="$_out_prefix-$_sysupgrade_suffix"
+    export _sysupgrade_bin="$_out_prefix-$_filesystem-sysupgrade.bin"
     export _sysupgrade_bin_fname="${_sysupgrade_bin##*/}"
     export _sysupgrade_bin_gz="$_sysupgrade_bin.gz"
     export _sysupgrade_bin_gz_fname="${_sysupgrade_bin_gz##*/}"
@@ -285,6 +316,20 @@ extractImageBuilder() {
 }
 
 
+# copyFiles() {
+
+#     debug "${FUNCNAME[0]}"
+
+#     declare -l _this_files_dir="$_files_dir/$_profile"
+
+#     [[ ! -d "$_files_dir" ]] && return
+
+#     $_profile == "r2s"
+
+
+# }
+
+
 makeImage() {
 
     debug "${FUNCNAME[0]}"
@@ -344,7 +389,7 @@ flashImage() {
 
     echo "Unmounting target device $_flash_dev partitions"
     debug "umount $_flash_dev?*"
-    sudo umount "$_flash_dev?*"
+    sudo umount "$_flash_dev"?*
 
     debug "sudo dd if=\"$_factory_bin\" of=\"$_flash_dev\" bs=2M conv=fsync"
     if sudo dd if="$_factory_bin" of="$_flash_dev" bs=2M conv=fsync; then
@@ -430,11 +475,12 @@ __main() {
     installPrerequisites
     acquireImageBuilder
     extractImageBuilder
+    #copyFiles
     rm -rf "$_ssh_backup_path"
     [[ -v _ssh_backup_path ]] && sshBackup "$_ssh_backup_path"
     if makeImage; then
-        [[ -n $_ssh_upgrade_path ]] && sshUpgrade
-        [[ -n $_flash_dev ]] && flashImage
+        [[ -v _ssh_upgrade_path ]] && sshUpgrade
+        [[ -v _flash_dev ]] && flashImage
     fi
 }
 

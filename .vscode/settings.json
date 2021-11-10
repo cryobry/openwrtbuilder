@@ -1,3 +1,10 @@
 {
-    "window.title": "openwrtBuild"
+    "window.title": "openwrtBuild",
+    "cSpell.words": [
+        "infile",
+        "isfile",
+        "openwrt",
+        "regen",
+        "sysbackup"
+    ]
 }
