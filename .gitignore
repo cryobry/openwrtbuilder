@@ -1,4 +1,5 @@
 sources/
 bin/
 files/
+patches/
 .lock

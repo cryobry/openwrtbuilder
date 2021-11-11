@@ -1,0 +1,517 @@
+#!/usr/bin/env bash
+#
+# Build and flash/upgrade OpenWRT devices
+#
+# Apache 2.0 License
+
+printHelpAndExit() {
+
+    debug "${FUNCNAME[0]}"
+
+    cat <<-'EOF'
+USAGE:
+openwrtbuilder [[OPTION] [VALUE]]...
+
+If PROFILE is set and TARGET is not, openwrtbuild can use a custom profile specified in DEFAULTS
+
+OPTIONS
+    --profile, -p PROFILE
+    --profile-info, -i PROFILE
+    --list-profiles, -l
+    --release, -r RELEASE
+    --builddir, -b PATH
+    --ssh-upgrade HOST
+        Example: root@192.168.1.1
+    --ssh-backup SSH_PATH
+        Enabled by default for --ssh-upgrade
+    --flash, -f DEVICE
+        Example: /dev/sdX
+    --debug, -d
+    --help, -h
+EOF
+    # Exit using passed exit code
+    [[ -z $1 ]] && exit 0 || exit "$1"
+}
+
+
+input() {
+
+    debug "${FUNCNAME[0]}"
+
+    if _input=$(getopt -o +v:p:i:lb:f:dh -l release:,profile:,profile-info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,debug,help -- "$@"); then
+        eval set -- "$_input"
+        while true; do
+            case "$1" in
+                --release|-r)
+                    shift && RELEASE="$1"
+                    ;;
+                --profile|-p)
+                    shift && PROFILE="$1"
+                    ;;
+                --profile-info|-i)
+                    shift && profileInfo "$1" && exit $?
+                    ;;
+                --list-profile|-l)
+                    listProfiles && exit $?
+                    ;;
+                --builddir|-b)
+                    shift && BUILDDIR="$1"
+                    ;;
+                --ssh-upgrade)
+                    shift && SSH_UPGRADE_PATH="$1"
+                    ;;
+                --ssh-backup)
+                    shift && SSH_BACKUP_PATH="$1"
+                    ;;
+                --flash|-f)
+                    shift && flash_dev="$1"
+                    ;;
+                --debug|-d)
+                    echo "Debugging on"
+                    DEBUG=true
+                    ;;
+                --help|-h)
+                    printHelpAndExit 0
+                    ;;
+                --)
+                    shift
+                    break
+                    ;;
+            esac
+            shift
+        done
+    else
+        echo "Incorrect options provided"
+        printHelpAndExit 1
+    fi
+}
+
+
+profiles() {
+
+    debug "${FUNCNAME[0]}"
+
+    [[ -z $DEBUG ]] && DEBUG=false # Set to true to enable debugging by default
+    [[ -z $BUILDDIR ]] && BUILDDIR="$PWD"
+    [[ -z $FILESDIR ]] && FILESDIR="$BUILDDIR/files/"
+
+    # Additional packages to install for all profiles
+    default_packages="\
+        luci \
+        luci-ssl \
+        nano \
+        htop \
+        tcpdump \
+        diffutils \
+        tar \
+        iperf "
+
+    # Set the default release
+    [[ -z $RELEASE ]] && RELEASE="21.02.1"
+
+    # Use these tools to add and parse profiles
+    declare -ag PROFILES
+    add_profile() { 
+        declare -Ag "$1"
+        PROFILES+=("$1")
+    }
+
+    add_profile archer
+    archer['profile']="tplink_archer-c7-v2"
+    archer['target']="ath79/generic"
+    archer['filesystem']="squashfs"
+    archer['packages']="\
+        $default_packages \
+        -dnsmasq \
+        -odhcpd \
+        -iptables \
+        -ath10k-firmware-qca988x-ct \
+        ath10k-firmware-qca988x-ct-full-htt"
+
+    add_profile linksys
+    linksys['profile']="linksys_ea8300"
+    linksys['target']="ipq40xx/generic"
+    linksys['filesystem']="squashfs"
+    linksys['packages']="\
+        $default_packages \
+        -dnsmasq \
+        -odhcpd \
+        -iptables"
+
+    add_profile rpi4
+    rpi4['profile']="rpi-4"
+    rpi4['target']="bcm27xx/bcm2711"
+    rpi4['filesystem']="ext4"
+    rpi4['packages']="\
+        $default_packages \
+        kmod-usb-net-asix-ax88179 \
+        kmod-usb-net-rtl8152 \
+        luci-app-upnp \
+        luci-app-wireguard \
+        luci-app-vpn-policy-routing \
+        -dnsmasq \
+        dnsmasq-full \
+        luci-app-ddns \
+        luci-app-sqm"
+
+    add_profile r2s
+    r2s['profile']="friendlyarm_nanopi-r2s"
+    r2s['target']="rockchip/armv8"
+    r2s['filesystem']="ext4"
+    r2s['packages']="\
+        $default_packages \
+        luci-app-upnp \
+        luci-app-wireguard \
+        luci-app-vpn-policy-routing \
+        -dnsmasq \
+        dnsmasq-full \
+        luci-app-ddns \
+        luci-app-sqm \
+        luci-app-statistics \
+        collectd-mod-sensors \
+        collectd-mod-thermal \
+        collectd-mod-conntrack \
+        smcroute \
+        curl \
+        ethtool"
+
+    add_profile r4s
+    r4s['release']="snapshot"
+    r4s['profile']="friendlyarm_nanopi-r4s"
+    r4s['target']="rockchip/armv8"
+    r4s['filesystem']="ext4"
+    r4s['packages']="\
+        $default_packages \
+        luci-app-upnp \
+        luci-app-wireguard \
+        luci-app-vpn-policy-routing \
+        -dnsmasq \
+        dnsmasq-full \
+        luci-app-ddns \
+        luci-app-sqm \
+        luci-app-statistics \
+        collectd-mod-sensors \
+        collectd-mod-thermal \
+        collectd-mod-conntrack \
+        smcroute \
+        curl \
+        ethtool"
+
+    for PNAME in "${PROFILES[@]}"; do
+        declare -n ARR="$PNAME"
+        local _out_prefix
+
+        [[ ! -v ARR['release'] ]] && ARR['release']="$RELEASE"
+        ARR['source_archive']="$BUILDDIR/sources/${ARR[profile]}-${ARR[release]}.tar.xz"
+        ARR['source_dir']="${ARR[source_archive]%.tar.xz}"
+        ARR['out_bin_dir']="$BUILDDIR/bin/${ARR[profile]}-${ARR[release]}"
+
+        #_patches_dir="$BUILDDIR/patches/"
+        #_files_dir="$BUILDDIR/files/"
+
+        if [[ "${ARR[release]}" == "snapshot" ]]; then
+            _out_prefix="${ARR[out_bin_dir]}/openwrt-${ARR[target]//\//-}-${ARR[profile]}"
+        else
+            _out_prefix="${ARR[out_bin_dir]}/openwrt-${ARR[release]}-${ARR[target]//\//-}-${ARR[profile]}"
+        fi
+
+        ARR['factory_img']="$_out_prefix-${ARR[filesystem]}-factory.img"
+        ARR['factory_img_gz']="${ARR[factory_img]}.gz"
+
+        ARR['sysupgrade_img']="$_out_prefix-${ARR[filesystem]}-sysupgrade.img"
+        ARR['sysupgrade_img_gz']="${ARR[sysupgrade_img]}.gz"
+
+        ARR['sysupgrade_bin']="$_out_prefix-${ARR[filesystem]}-sysupgrade.bin"
+        ARR['sysupgrade_bin_fname']="${ARR[sysupgrade_bin]##*/}"
+        ARR['sysupgrade_bin_gz']="${ARR[sysupgrade_bin]}.gz"
+        ARR['sysupgrade_bin_gz_fname']="${ARR[sysupgrade_bin_gz]##*/}"
+    done
+}
+
+
+listProfiles() {
+    debug "${FUNCNAME[0]}"
+    [[ ! -v PROFILES ]] && profiles
+    echo "Available profiles:"
+    for PNAME in "${PROFILES[@]}"; do
+        declare -n ARR2="$PNAME"
+        echo "$PNAME: ${ARR2[profile]}"
+    done
+}
+
+
+profileInfo() {
+    debug "${FUNCNAME[0]}"
+    local _profile 
+    _profile="$1"
+    [[ ! -v PROFILES ]] && profiles
+    declare -n ARR3="$_profile"
+    for i in "${!ARR3[@]}"; do
+        echo "$i: ${ARR3[i]}"
+    done
+}
+
+
+prerequisites() {
+
+    debug "${FUNCNAME[0]}"
+
+    local -a _pkg_list
+    local _pkg_cmd
+
+    source /etc/os-release
+
+    if [[ "$ID" == "fedora" ]]; then
+        _pkg_list=(\
+            "@c-development" \
+            "@development-tools" \
+            "@development-libs" \
+            "perl-FindBin" \
+            "zlib-static" \
+            "elfutils-libelf-devel" \
+            "gawk" \
+            "unzip" \
+            "file" \
+            "wget" \
+            "python3" \
+            "python2" \
+            "axel" \
+        )
+        _pkg_cmd="dnf"
+    elif [[ "$ID" =~ ^(debian|ubuntu)$ ]]; then
+        _pkg_list=(\
+            "build-essential" \
+            "libncurses5-dev" \
+            "libncursesw5-dev" \
+            "zlib1g-dev" \
+            "gawk" \
+            "git" \
+            "gettext" \
+            "libssl-dev" \
+            "xsltproc" \
+            "wget" \
+            "unzip" \
+            "python" \
+            "axel" \
+        )
+        _pkg_cmd="apt-get"
+    fi
+
+    echo "Installing dependencies"
+    debug "sudo $_pkg_cmd -y install ${_pkg_list[*]}"
+    if ! sudo "$_pkg_cmd" -y install "${_pkg_list[@]}" > /dev/null 2>&1; then
+        echo "Warning: Problem installing prerequisites"
+        return 1
+    fi
+}
+
+
+getImageBuilder() {
+
+    debug "${FUNCNAME[0]}"
+
+    declare -n ARR4="$PROFILE"
+
+    local _url _filename
+
+    if [[ "${ARR4[release]}" == "snapshot" ]]; then
+        _filename="openwrt-imagebuilder-${ARR4[target]//\//-}.Linux-x86_64.tar.xz"
+        _url="https://downloads.openwrt.org/snapshots/targets/${ARR4[target]}/$_filename"
+        if [[ -f "${ARR4[source_archive]}" ]]; then
+            if askOk "Update ImageBuilder snapshot?"; then
+                rm -f "${ARR4[source_archive]}"
+            else
+                return 0
+            fi
+        fi
+    else
+        _filename="openwrt-imagebuilder-${ARR4[release]}-${ARR4[target]//\//-}.Linux-x86_64.tar.xz"
+        _url="https://downloads.openwrt.org/releases/${ARR4[release]}/targets/${ARR4[target]}/$_filename"
+        [[ -f "${ARR4[source_archive]}" ]] && return 0 # Reuse existing ImageBuilders
+    fi
+    
+    # Make sources directory if it does not exist
+    [[ ! -d "$BUILDDIR/sources" ]] && mkdir -p "$BUILDDIR/sources"
+
+    echo "Downloading imagebuilder archive"
+    debug "axel -o ${ARR4[source_archive]} $_url"
+    if ! axel -o "${ARR4[source_archive]}" "$_url" > /dev/null 2>&1; then
+        echo "Could not download imagebuilder archive"
+        exit 1
+    fi
+
+    if [[ ! -f "${ARR4[source_archive]}" ]]; then
+        echo "Archive missing"
+        exit 1
+    fi
+
+    echo "Extracting image archive"
+    debug "tar -xf ${ARR4[source_archive]} -C ${ARR4[source_dir]} --strip-components 1"
+    if ! tar -xf "${ARR4[source_archive]}" -C "${ARR4[source_dir]}" --strip-components 1; then
+        echo "Extraction failed"
+        exit 1
+    fi
+}
+
+
+# copyFiles() {
+#     debug "${FUNCNAME[0]}"
+#     declare -l _this_files_dir="$_files_dir/$PROFILE"
+#     [[ ! -d "$_files_dir" ]] && return
+#     $PROFILE == "r2s"
+# }
+
+
+makeImage() {
+
+    debug "${FUNCNAME[0]}"
+
+    declare -n ARR5="$PROFILE"
+
+    # Reuse the existing output
+    if [[ -d "${ARR5[out_bin_dir]}" ]]; then
+        if askOk "${ARR5[out_bin_dir]} exists. Rebuild?"; then
+            rm -rf "${ARR5[out_bin_dir]}"
+        else
+            return 0
+        fi
+    fi
+
+    [[ ! -d "${ARR5[out_bin_dir]}" ]] && mkdir -p "${ARR5[out_bin_dir]}"
+
+    # build image
+    echo "Running make -j4 image BIN_DIR=${ARR5[out_bin_dir]} PROFILE=${ARR5[profile]} PACKAGES=${ARR5[packages]} FILES=$FILESDIR"
+    debug "make -j4 image BIN_DIR=${ARR5[out_bin_dir]} PROFILE=${ARR5[profile]} PACKAGES=${ARR5[packages]} FILES=$FILESDIR --directory=${ARR5[source_dir]} > make.log"
+    if ! make image BIN_DIR="${ARR5[out_bin_dir]}" PROFILE="${ARR5[profile]}" PACKAGES="${ARR5[packages]}" FILES="$FILESDIR" --directory="${ARR5[source_dir]}"  > make.log; then
+        echo "Make image failed!"
+        exit 1
+    fi
+}
+
+
+flashImage() {
+
+    debug "${FUNCNAME[0]}"
+
+    declare -n ARR6="$PROFILE"
+
+    local _umount
+
+    if [[ ! -e "$flash_dev" ]]; then
+        echo "The device specified by --flash could not be found"
+        exit 1
+    fi
+
+    # TODO Roughly chooses the correct image
+    if [[ -f "${ARR6[factory_img_gz]}" ]]; then
+        img_gz="${ARR6[factory_img_gz]}"
+        img="${ARR6[factory_img]}"
+    elif [[ -f "${ARR6[sysupgrade_img_gz]}" ]]; then
+        img_gz="${ARR6[sysupgrade_img_gz]}"
+        img="${ARR6[sysupgrade_img]}"
+    else
+        return 1
+    fi
+
+    debug "$img_gz $img"
+
+    debug "gunzip -qfk $img_gz"
+    gunzip -qfk "$img_gz"
+        
+    echo "Unmounting target device $flash_dev partitions"
+    _umount=( "$flash_dev"?* )
+    debug "umount ${_umount[*]}"
+    sudo umount "${_umount[@]}"
+
+    debug "sudo dd if=\"$img\" of=\"$flash_dev\" bs=2M conv=fsync"
+    if sudo dd if="$img" of="$flash_dev" bs=2M conv=fsync; then
+        sync
+        echo "Image flashed sucessfully!"
+    else
+        echo "dd failed!"
+        exit 1
+    fi
+}
+
+
+sshBackup() {
+
+    debug "${FUNCNAME[0]}"
+
+    local _random="$RANDOM"
+
+    if ! ssh -t "$SSH_BACKUP_PATH" "sysupgrade -b /tmp/backup-${_random}.tar.gz"; then
+        echo "SSH backup failed"
+        exit 1
+    fi
+    if ! scp "$SSH_BACKUP_PATH":/tmp/backup-"${_random}".tar.gz "$BUILDDIR"; then
+        echo "Could not copy SSH backup"
+        exit 1
+    fi
+
+    if ! ssh -t "$SSH_BACKUP_PATH" "rm -f /tmp/backup-${_random}.tar.gz"; then
+        echo "Could not remove /tmp/backup-${_random}.tar.gz from $SSH_BACKUP_PATH"
+    fi
+
+    [[ -d "$FILESDIR" ]] && rm -rf "$FILESDIR"
+    mkdir -p "$FILESDIR"
+
+    if ! tar xzf "$BUILDDIR/backup-${_random}.tar.gz" etc/ -C "$FILESDIR"; then
+        "Could not extract SSH backup"
+        exit 1
+    fi
+
+    rm "$BUILDDIR/backup-${_random}.tar.gz"
+
+}
+
+
+sshUpgrade() {
+
+    debug "${FUNCNAME[0]}"
+
+    declare -n ARR7="$PROFILE"
+
+    echo "Copying \"${ARR7[sysupgrade_bin_gz]}\" to $SSH_UPGRADE_PATH/tmp/"
+    debug "scp \"${ARR7[sysupgrade_bin_gz]}\" \"$SSH_UPGRADE_PATH\":\"/tmp/${ARR7[sysupgrade_bin_gz_fname]}\""
+    # shellcheck disable=SC2140
+    if ! scp "${ARR7[sysupgrade_bin_gz]}" "$SSH_UPGRADE_PATH":"/tmp/${ARR7[sysupgrade_bin_gz_fname]}"; then
+        echo "Could not access the --ssh-upgrade PATH"
+        exit 1
+    fi
+
+    echo "Executing remote sysupgrade"
+    debug "ssh \"$SSH_UPGRADE_PATH\" \"sysupgrade -F /tmp/${ARR7[sysupgrade_bin_gz_fname]}\""
+    # shellcheck disable=SC2029
+    ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/${ARR7[sysupgrade_bin_gz_fname]}"
+}
+
+
+debug() { "$DEBUG" && echo "Running: " "$@" ; }
+
+
+askOk() {
+    local _response
+    read -r -p "$* [y/N]" _response
+    _response=${_response,,}
+    [[ ! "$_response" =~ ^(yes|y)$ ]] && return 1
+    return 0
+}
+
+
+main() {
+
+    input "$@"
+    profiles
+    prerequisites
+    getImageBuilder
+    copyFiles
+    [[ -v SSH_BACKUP_PATH ]] && sshBackup
+    if makeImage; then
+        [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
+        [[ -v flash_dev ]] && flashImage
+    fi
+}
+
+main "$@"
+exit $?

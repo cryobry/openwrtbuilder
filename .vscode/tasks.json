@@ -6,7 +6,7 @@
         {
             "label": "Build RPi4 snapshot in toolbox",
             "type": "shell",
-            "command": "toolboxRun -c openwrt ${file} --version snapshot --profile rpi-4",
+            "command": "toolbox ${file} -p r4s -d",
             "problemMatcher": []
         }
     ]
