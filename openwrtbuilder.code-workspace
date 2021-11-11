@@ -7,7 +7,11 @@
 	"settings": {
 		"window.title": "openwrtbuilder",
 		"cSpell.words": [
+			"openwrtbuilder",
 			"padx"
+		],
+		"cSpell.ignoreWords": [
+			"openwrtbuilder"
 		]
 	}
 }
