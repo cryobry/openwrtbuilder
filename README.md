@@ -1,1 +1,3 @@
-See `openwrtBuild --help` for options.
+# openwrtbuilder
+
+See `openwrtbuilder --help` for help options.
