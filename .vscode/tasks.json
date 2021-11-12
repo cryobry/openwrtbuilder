@@ -6,7 +6,7 @@
         {
             "label": "Build RPi4 snapshot in toolbox",
             "type": "shell",
-            "command": "toolbox ${file} -p r4s -d",
+            "command": "toolbox run ${file} -p r4s -d",
             "problemMatcher": []
         }
     ]

@@ -23,7 +23,7 @@ OPTIONS
     --ssh-upgrade HOST
         Example: root@192.168.1.1
     --ssh-backup SSH_PATH
-        Enabled by default for --ssh-upgrade
+        (For testing, enabled by default for --ssh-upgrade)
     --flash, -f DEVICE
         Example: /dev/sdX
     --debug, -d
