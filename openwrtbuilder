@@ -16,7 +16,7 @@ Run and deploy OpenWRT imagebuilder.
 
 OPTIONS
     --profile, -p PROFILE
-    --profile-info, -i PROFILE
+    --info, -i PROFILE
     --list-profiles, -l
     --release, -r RELEASE
     --builddir, -b PATH
@@ -38,7 +38,7 @@ input() {
 
     debug "${FUNCNAME[0]}"
 
-    if _input=$(getopt -o +v:p:i:lb:f:dh -l release:,profile:,profile-info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,debug,help -- "$@"); then
+    if _input=$(getopt -o +v:p:i:lb:f:dh -l release:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -48,7 +48,7 @@ input() {
                 --profile|-p)
                     shift && PROFILE="$1"
                     ;;
-                --profile-info|-i)
+                --info|-i)
                     shift && profileInfo "$1" && exit $?
                     ;;
                 --list-profile|-l)
@@ -393,6 +393,39 @@ makeImage() {
     fi
 }
 
+sshBackup() {
+
+    debug "${FUNCNAME[0]}"
+
+    local _date _hostname _backup_fname
+    printf -v _date '%(%Y-%m-%d-%H-%M-%S)T'
+    _hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
+    _backup_fname="backup-$_hostname-$_date.tar.gz"
+
+    # Make backup archive on remote
+    debug "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$_backup_fname"
+    if ! ssh -t "$SSH_BACKUP_PATH" "sysupgrade -b /tmp/$_backup_fname"; then
+        echo "SSH backup failed"
+        exit 1
+    fi
+
+    # Move backup archive locally
+    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname $BUILDDIR/"
+    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
+        echo "Could not copy SSH backup"
+        exit 1
+    fi
+
+    # Extract backup archive
+    debug "tar -C $FILESDIR -xzf $BUILDDIR/$_backup_fname"
+    if ! tar -C "$FILESDIR" -xzf "$BUILDDIR/$_backup_fname"; then
+        echo "Could not extract SSH backup"
+        exit 1
+    fi
+
+    rm "$BUILDDIR/$_backup_fname"
+}
+
 
 flashImage() {
 
@@ -436,40 +469,6 @@ flashImage() {
         echo "dd failed!"
         exit 1
     fi
-}
-
-
-sshBackup() {
-
-    debug "${FUNCNAME[0]}"
-
-    local _date _hostname _backup_fname
-    printf -v _date '%(%Y-%m-%d-%H-%M-%S)T'
-    _hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
-    _backup_fname="backup-$_hostname-$_date.tar.gz"
-
-    # Make backup archive on remote
-    debug "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$_backup_fname"
-    if ! ssh -t "$SSH_BACKUP_PATH" "sysupgrade -b /tmp/$_backup_fname"; then
-        echo "SSH backup failed"
-        exit 1
-    fi
-
-    # Move backup archive locally
-    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname $BUILDDIR/"
-    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
-        echo "Could not copy SSH backup"
-        exit 1
-    fi
-
-    # Extract backup archive
-    debug "tar -C $FILESDIR -xzf $BUILDDIR/$_backup_fname"
-    if ! tar -C "$FILESDIR" -xzf "$BUILDDIR/$_backup_fname"; then
-        echo "Could not extract SSH backup"
-        exit 1
-    fi
-
-    #rm "$BUILDDIR/$_backup_fname"
 }
 
 
