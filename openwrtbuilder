@@ -12,7 +12,7 @@ printHelpAndExit() {
 USAGE:
 openwrtbuilder [[OPTION] [VALUE]]...
 
-If PROFILE is set and TARGET is not, openwrtbuild can use a custom profile specified in DEFAULTS
+Run and deploy OpenWRT imagebuilder.
 
 OPTIONS
     --profile, -p PROFILE
@@ -104,7 +104,8 @@ profiles() {
         tcpdump \
         diffutils \
         tar \
-        iperf "
+        iperf \
+        rsync " # Leave trailing whitespace
 
     # Set the default release
     [[ -z $RELEASE ]] && RELEASE="21.02.1"
@@ -120,6 +121,7 @@ profiles() {
     archer['profile']="tplink_archer-c7-v2"
     archer['target']="ath79/generic"
     archer['filesystem']="squashfs"
+    # shellcheck disable=SC2034 # Indirect
     archer['packages']="\
         $default_packages \
         -dnsmasq \
@@ -132,6 +134,7 @@ profiles() {
     linksys['profile']="linksys_ea8300"
     linksys['target']="ipq40xx/generic"
     linksys['filesystem']="squashfs"
+    # shellcheck disable=SC2034 # Indirect
     linksys['packages']="\
         $default_packages \
         -dnsmasq \
@@ -142,6 +145,7 @@ profiles() {
     rpi4['profile']="rpi-4"
     rpi4['target']="bcm27xx/bcm2711"
     rpi4['filesystem']="ext4"
+    # shellcheck disable=SC2034 # Indirect
     rpi4['packages']="\
         $default_packages \
         kmod-usb-net-asix-ax88179 \
@@ -158,6 +162,7 @@ profiles() {
     r2s['profile']="friendlyarm_nanopi-r2s"
     r2s['target']="rockchip/armv8"
     r2s['filesystem']="ext4"
+    # shellcheck disable=SC2034 # Indirect
     r2s['packages']="\
         $default_packages \
         luci-app-upnp \
@@ -180,6 +185,7 @@ profiles() {
     r4s['profile']="friendlyarm_nanopi-r4s"
     r4s['target']="rockchip/armv8"
     r4s['filesystem']="ext4"
+    # shellcheck disable=SC2034 # Indirect
     r4s['packages']="\
         $default_packages \
         luci-app-upnp \
@@ -380,7 +386,6 @@ makeImage() {
     [[ ! -d "${ARR5[out_bin_dir]}" ]] && mkdir -p "${ARR5[out_bin_dir]}"
 
     # build image
-    echo "Running make -j4 image BIN_DIR=${ARR5[out_bin_dir]} PROFILE=${ARR5[profile]} PACKAGES=${ARR5[packages]} FILES=$FILESDIR"
     debug "make -j4 image BIN_DIR=${ARR5[out_bin_dir]} PROFILE=${ARR5[profile]} PACKAGES=${ARR5[packages]} FILES=$FILESDIR --directory=${ARR5[source_dir]} > make.log"
     if ! make image BIN_DIR="${ARR5[out_bin_dir]}" PROFILE="${ARR5[profile]}" PACKAGES="${ARR5[packages]}" FILES="$FILESDIR" --directory="${ARR5[source_dir]}"  > make.log; then
         echo "Make image failed!"
@@ -438,31 +443,33 @@ sshBackup() {
 
     debug "${FUNCNAME[0]}"
 
-    local _random="$RANDOM"
+    local _date _hostname _backup_fname
+    printf -v _date '%(%Y-%m-%d-%H-%M-%S)T'
+    _hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
+    _backup_fname="backup-$_hostname-$_date.tar.gz"
 
-    if ! ssh -t "$SSH_BACKUP_PATH" "sysupgrade -b /tmp/backup-${_random}.tar.gz"; then
+    # Make backup archive on remote
+    debug "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$_backup_fname"
+    if ! ssh -t "$SSH_BACKUP_PATH" "sysupgrade -b /tmp/$_backup_fname"; then
         echo "SSH backup failed"
         exit 1
     fi
-    if ! scp "$SSH_BACKUP_PATH":/tmp/backup-"${_random}".tar.gz "$BUILDDIR"; then
+
+    # Move backup archive locally
+    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname $BUILDDIR/"
+    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
         echo "Could not copy SSH backup"
         exit 1
     fi
 
-    if ! ssh -t "$SSH_BACKUP_PATH" "rm -f /tmp/backup-${_random}.tar.gz"; then
-        echo "Could not remove /tmp/backup-${_random}.tar.gz from $SSH_BACKUP_PATH"
-    fi
-
-    [[ -d "$FILESDIR" ]] && rm -rf "$FILESDIR"
-    mkdir -p "$FILESDIR"
-
-    if ! tar xzf "$BUILDDIR/backup-${_random}.tar.gz" etc/ -C "$FILESDIR"; then
-        "Could not extract SSH backup"
+    # Extract backup archive
+    debug "tar -C $FILESDIR -xzf $BUILDDIR/$_backup_fname"
+    if ! tar -C "$FILESDIR" -xzf "$BUILDDIR/$_backup_fname"; then
+        echo "Could not extract SSH backup"
         exit 1
     fi
 
-    rm "$BUILDDIR/backup-${_random}.tar.gz"
-
+    #rm "$BUILDDIR/$_backup_fname"
 }
 
 
@@ -505,7 +512,7 @@ main() {
     profiles
     prerequisites
     getImageBuilder
-    copyFiles
+    #copyFiles
     [[ -v SSH_BACKUP_PATH ]] && sshBackup
     if makeImage; then
         [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
