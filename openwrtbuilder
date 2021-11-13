@@ -26,6 +26,8 @@ OPTIONS
         (For testing, enabled by default for --ssh-upgrade)
     --flash, -f DEVICE
         Example: /dev/sdX
+    --reset
+        CLeanup all source and output files
     --debug, -d
     --help, -h
 EOF
@@ -38,7 +40,9 @@ input() {
 
     debug "${FUNCNAME[0]}"
 
-    if _input=$(getopt -o +v:p:i:lb:f:dh -l release:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,debug,help -- "$@"); then
+    unset RESET
+
+    if _input=$(getopt -o +v:p:i:lb:f:dh -l release:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -64,7 +68,10 @@ input() {
                     shift && SSH_BACKUP_PATH="$1"
                     ;;
                 --flash|-f)
-                    shift && flash_dev="$1"
+                    shift && FLASH_DEV="$1"
+                    ;;
+                --reset)
+                    RESET=true
                     ;;
                 --debug|-d)
                     echo "Debugging on"
@@ -90,10 +97,6 @@ input() {
 profiles() {
 
     debug "${FUNCNAME[0]}"
-
-    [[ -z $DEBUG ]] && DEBUG=false # Set to true to enable debugging by default
-    [[ -z $BUILDDIR ]] && BUILDDIR="$PWD"
-    [[ -z $FILESDIR ]] && FILESDIR="$BUILDDIR/files/"
 
     # Additional packages to install for all profiles
     default_packages="\
@@ -360,14 +363,6 @@ getImageBuilder() {
 }
 
 
-# copyFiles() {
-#     debug "${FUNCNAME[0]}"
-#     declare -l _this_files_dir="$_files_dir/$PROFILE"
-#     [[ ! -d "$_files_dir" ]] && return
-#     $PROFILE == "r2s"
-# }
-
-
 makeImage() {
 
     debug "${FUNCNAME[0]}"
@@ -398,6 +393,9 @@ sshBackup() {
     debug "${FUNCNAME[0]}"
 
     local _date _hostname _backup_fname
+
+    [[ -d "$FILESDIR" ]] || mkdir -p "$FILESDIR"
+
     printf -v _date '%(%Y-%m-%d-%H-%M-%S)T'
     _hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
     _backup_fname="backup-$_hostname-$_date.tar.gz"
@@ -435,7 +433,7 @@ flashImage() {
 
     local _umount
 
-    if [[ ! -e "$flash_dev" ]]; then
+    if [[ ! -e "$FLASH_DEV" ]]; then
         echo "The device specified by --flash could not be found"
         exit 1
     fi
@@ -456,13 +454,13 @@ flashImage() {
     debug "gunzip -qfk $img_gz"
     gunzip -qfk "$img_gz"
         
-    echo "Unmounting target device $flash_dev partitions"
-    _umount=( "$flash_dev"?* )
+    echo "Unmounting target device $FLASH_DEV partitions"
+    _umount=( "$FLASH_DEV"?* )
     debug "umount ${_umount[*]}"
     sudo umount "${_umount[@]}"
 
-    debug "sudo dd if=\"$img\" of=\"$flash_dev\" bs=2M conv=fsync"
-    if sudo dd if="$img" of="$flash_dev" bs=2M conv=fsync; then
+    debug "sudo dd if=\"$img\" of=\"$FLASH_DEV\" bs=2M conv=fsync"
+    if sudo dd if="$img" of="$FLASH_DEV" bs=2M conv=fsync; then
         sync
         echo "Image flashed sucessfully!"
     else
@@ -505,17 +503,31 @@ askOk() {
 }
 
 
+reset() {
+    askOk "Remove $FILESDIR $BUILDDIR/sources $BUILDDIR/bin?" || exit $?
+    debug "rm -rf $FILESDIR $BUILDDIR/sources $BUILDDIR/bin"
+    rm -rf "$FILESDIR" "${BUILDDIR:?}/sources" "${BUILDDIR:?}/bin"
+}
+
+
 main() {
+
+    : "${DEBUG:=false}" # Set to true to enable debugging by default
+    scriptdir=$(dirname "$0")
+    # scriptdir="$PWD"
+    : "${BUILDDIR:=$scriptdir}"
+    : "${FILESDIR:=$BUILDDIR/files}"
 
     input "$@"
     profiles
+    [[ -v RESET ]] && reset
     prerequisites
     getImageBuilder
     #copyFiles
     [[ -v SSH_BACKUP_PATH ]] && sshBackup
     if makeImage; then
         [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
-        [[ -v flash_dev ]] && flashImage
+        [[ -v FLASH_DEV ]] && flashImage
     fi
 }
 
