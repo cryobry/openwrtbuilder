@@ -3,3 +3,4 @@ bin/
 files/
 patches/
 .lock
+make.log
