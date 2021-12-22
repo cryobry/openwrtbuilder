@@ -108,6 +108,7 @@ profiles() {
         diffutils \
         tar \
         iperf \
+        bash \
         rsync " # Leave trailing whitespace
 
     # Set the default release
@@ -204,7 +205,8 @@ profiles() {
         collectd-mod-conntrack \
         smcroute \
         curl \
-        ethtool"
+        ethtool \
+        kmod-ipt-nat6"
 
     for PNAME in "${PROFILES[@]}"; do
         declare -n ARR="$PNAME"
@@ -270,7 +272,7 @@ prerequisites() {
 
     source /etc/os-release
 
-    if [[ "$ID" == "fedora" ]]; then
+    if [[ "$ID" =~ ^(fedora)$ ]]; then
         _pkg_list=(\
             "@c-development" \
             "@development-tools" \
@@ -513,7 +515,7 @@ reset() {
 main() {
 
     : "${DEBUG:=false}" # Set to true to enable debugging by default
-    scriptdir=$(dirname "$0")
+    scriptdir="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P )" # https://stackoverflow.com/a/4774063
     # scriptdir="$PWD"
     : "${BUILDDIR:=$scriptdir}"
     : "${FILESDIR:=$BUILDDIR/files}"
