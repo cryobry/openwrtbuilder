@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034
+# This file contains a set of device profiles for openwrtbuilder
+
+# Packages to install for all profiles
+default_packages="\
+	luci \
+	luci-ssl \
+	nano \
+	htop \
+	tcpdump \
+	diffutils \
+	tar \
+	iperf \
+	bash \
+	rsync " # Leave trailing whitespace
+
+
+declare -Ag archer
+archer['profile']="tplink_archer-c7-v2"
+archer['target']="ath79/generic"
+archer['filesystem']="squashfs"
+archer['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd \
+	-iptables \
+	-ath10k-firmware-qca988x-ct \
+	ath10k-firmware-qca988x-ct-full-htt"
+
+declare -Ag linksys
+linksys['profile']="linksys_ea8300"
+linksys['target']="ipq40xx/generic"
+linksys['filesystem']="squashfs"
+linksys['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd \
+	-iptables"
+
+declare -Ag rpi4
+rpi4['profile']="rpi-4"
+rpi4['target']="bcm27xx/bcm2711"
+rpi4['filesystem']="ext4"
+rpi4['packages']="\
+	$default_packages \
+	kmod-usb-net-asix-ax88179 \
+	kmod-usb-net-rtl8152 \
+	luci-app-upnp \
+	luci-app-wireguard \
+	luci-app-vpn-policy-routing \
+	-dnsmasq \
+	dnsmasq-full \
+	luci-app-ddns \
+	luci-app-sqm"
+
+declare -Ag r2s
+r2s['profile']="friendlyarm_nanopi-r2s"
+r2s['target']="rockchip/armv8"
+r2s['filesystem']="ext4"
+r2s['packages']="\
+	$default_packages \
+	luci-app-upnp \
+	luci-app-wireguard \
+	luci-app-vpn-policy-routing \
+	-dnsmasq \
+	dnsmasq-full \
+	luci-app-ddns \
+	luci-app-sqm \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	smcroute \
+	curl \
+	ethtool"
+
+declare -Ag r4s
+r4s['release']="snapshot"
+r4s['profile']="friendlyarm_nanopi-r4s"
+r4s['target']="rockchip/armv8"
+r4s['filesystem']="ext4"
+r4s['repo']="src/gz stangri_repo https://repo.openwrt.melmac.net"
+# r4s['packages']="\
+# 	$default_packages \
+# 	luci-app-upnp \
+# 	luci-app-wireguard \
+# 	luci-app-vpn-policy-routing \
+#   vpn-policy-routing \
+# 	-dnsmasq \
+# 	dnsmasq-full \
+# 	luci-app-ddns \
+# 	luci-app-sqm \
+# 	luci-app-statistics \
+# 	collectd-mod-sensors \
+# 	collectd-mod-thermal \
+# 	collectd-mod-conntrack \
+# 	smcroute \
+# 	curl \
+# 	ethtool \
+# 	kmod-ipt-nat6 \
+# 	-firewall4 \
+# 	-nftables \
+# 	-kmod-nft-offload \
+# 	firewall \
+# 	ip6tables \
+# 	iptables \
+# 	kmod-ipt-offload"
+r4s['packages']="\
+	$default_packages \
+	luci-app-upnp \
+	luci-app-wireguard \
+	luci-app-pbr \
+	pbr-ipt \
+	-dnsmasq \
+	dnsmasq-full \
+	luci-app-ddns \
+	luci-app-sqm \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	smcroute \
+	curl \
+	ethtool \
+	kmod-ipt-nat6 \
+	-firewall4 \
+	-nftables \
+	-kmod-nft-offload \
+	firewall \
+	ip6tables \
+	iptables \
+	kmod-ipt-offload"
+
+declare -Ag x5000r
+x5000r['profile']="totolink_x5000r"
+x5000r['target']="ramips/mt7621"
+x5000r['filesystem']="squashfs"
+x5000r['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd \
+	-iptables"

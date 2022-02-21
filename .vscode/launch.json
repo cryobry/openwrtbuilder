@@ -12,10 +12,7 @@
             "program": "${file}",
             "args": [
                 "-d", 
-                "-p", 
-                "r4s", 
-                "--ssh-backup", 
-                "root@router.lan"
+                "-p", "r4s"
             ]
         }
     ]
