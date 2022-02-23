@@ -184,8 +184,7 @@ getImageBuilder() {
         return 1
     fi 
     
-    echo "Downloading imagebuilder archive"
-
+    echo "Downloading imagebuilder archive using $_dl_tool"
 
     debug "$_dl_tool -o ${P_ARR[source_archive]} $_url"
     if ! "$_dl_tool" -o "${P_ARR[source_archive]}" "$_url" > /dev/null 2>&1; then
