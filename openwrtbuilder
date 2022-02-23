@@ -182,7 +182,9 @@ getImageBuilder() {
     else
         echo "Downloading the ImageBuilder requires axel or curl!"
         return 1
-    fi 
+    fi
+
+    _dl_tool="curl" # TODO remove
     
     echo "Downloading imagebuilder archive using $_dl_tool"
 
