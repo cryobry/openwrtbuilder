@@ -81,6 +81,7 @@ r4s['profile']="friendlyarm_nanopi-r4s"
 r4s['target']="rockchip/armv8"
 r4s['filesystem']="ext4"
 r4s['repo']="src/gz stangri_repo https://repo.openwrt.melmac.net"
+# fw3 + vpn-policy-routing
 # r4s['packages']="\
 # 	$default_packages \
 # 	luci-app-upnp \
@@ -106,6 +107,8 @@ r4s['repo']="src/gz stangri_repo https://repo.openwrt.melmac.net"
 # 	ip6tables \
 # 	iptables \
 # 	kmod-ipt-offload"
+
+# fw3 + pbr
 r4s['packages']="\
 	$default_packages \
 	luci-app-upnp \
@@ -131,6 +134,26 @@ r4s['packages']="\
 	ip6tables \
 	iptables \
 	kmod-ipt-offload"
+
+# fw4 + pbr
+# r4s['packages']="\
+# 	$default_packages \
+# 	luci-app-upnp \
+# 	luci-app-wireguard \
+# 	luci-app-pbr \
+# 	pbr-netifd \
+# 	-dnsmasq \
+# 	dnsmasq-full \
+# 	luci-app-ddns \
+# 	luci-app-sqm \
+# 	luci-app-statistics \
+# 	collectd-mod-sensors \
+# 	collectd-mod-thermal \
+# 	collectd-mod-conntrack \
+# 	smcroute \
+# 	curl \
+# 	ethtool \
+# 	kmod-nft-nat6"
 
 declare -Ag x5000r
 x5000r['profile']="totolink_x5000r"
