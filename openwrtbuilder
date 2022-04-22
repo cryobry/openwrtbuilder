@@ -6,6 +6,9 @@
 #
 # Apache 2.0 License
 
+# Set default release
+: "${RELEASE:="22.03.0-rc1"}"
+
 printHelp() {
     debug "${FUNCNAME[0]}"
 
@@ -40,7 +43,7 @@ readInput() {
 
     unset RESET
 
-    if _input=$(getopt -o +v:p:i:lb:f:dh -l release:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
+    if _input=$(getopt -o +r:v:p:i:lb:f:dh -l release:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -386,7 +389,6 @@ main() {
 
     : "${BUILDDIR:=$SCRIPTDIR}"
     : "${FILESDIR:=$BUILDDIR/files}"
-    : "${RELEASE:="21.02.1"}"
 
     : "${P_ARR[release]:=$RELEASE}"
     : "${P_ARR[source_archive]:=$BUILDDIR/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz}"

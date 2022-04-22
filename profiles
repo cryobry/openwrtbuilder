@@ -76,7 +76,7 @@ r2s['packages']="\
 	ethtool"
 
 declare -Ag r4s
-r4s['release']="snapshot"
+r4s['release']="22.03.0-rc1"
 r4s['profile']="friendlyarm_nanopi-r4s"
 r4s['target']="rockchip/armv8"
 r4s['filesystem']="ext4"
@@ -109,31 +109,56 @@ r4s['repo']="src/gz stangri_repo https://repo.openwrt.melmac.net"
 # 	kmod-ipt-offload"
 
 # fw3 + pbr
-r4s['packages']="\
-	$default_packages \
-	luci-app-upnp \
-	luci-app-wireguard \
-	luci-app-pbr \
-	pbr-ipt \
-	-dnsmasq \
-	dnsmasq-full \
-	luci-app-ddns \
-	luci-app-sqm \
-	luci-app-statistics \
-	collectd-mod-sensors \
-	collectd-mod-thermal \
-	collectd-mod-conntrack \
-	smcroute \
-	curl \
-	ethtool \
-	kmod-ipt-nat6 \
-	-firewall4 \
-	-nftables \
-	-kmod-nft-offload \
-	firewall \
-	ip6tables \
-	iptables \
-	kmod-ipt-offload"
+# r4s['packages']="\
+# 	$default_packages \
+# 	luci-app-upnp \
+# 	luci-app-wireguard \
+# 	luci-app-pbr \
+# 	pbr-ipt \
+# 	-dnsmasq \
+# 	dnsmasq-full \
+# 	luci-app-ddns \
+# 	luci-app-sqm \
+# 	luci-app-statistics \
+# 	collectd-mod-sensors \
+# 	collectd-mod-thermal \
+# 	collectd-mod-conntrack \
+# 	smcroute \
+# 	curl \
+# 	ethtool \
+# 	kmod-ipt-nat6 \
+# 	-firewall4 \
+# 	-nftables \
+# 	-kmod-nft-offload \
+# 	firewall \
+# 	ip6tables \
+# 	iptables \
+# 	kmod-ipt-offload"
+
+# fw3
+# r4s['packages']="\
+# 	$default_packages \
+# 	luci-app-upnp \
+# 	luci-app-wireguard \
+# 	-dnsmasq \
+# 	dnsmasq-full \
+# 	luci-app-ddns \
+# 	luci-app-sqm \
+# 	luci-app-statistics \
+# 	collectd-mod-sensors \
+# 	collectd-mod-thermal \
+# 	collectd-mod-conntrack \
+# 	smcroute \
+# 	curl \
+# 	ethtool \
+# 	kmod-ipt-nat6 \
+# 	-firewall4 \
+# 	-nftables \
+# 	-kmod-nft-offload \
+# 	firewall \
+# 	ip6tables \
+# 	iptables \
+# 	kmod-ipt-offload"
 
 # fw4 + pbr
 # r4s['packages']="\
@@ -154,6 +179,24 @@ r4s['packages']="\
 # 	curl \
 # 	ethtool \
 # 	kmod-nft-nat6"
+
+# fw4
+r4s['packages']="\
+	$default_packages \
+	luci-app-upnp \
+	luci-app-wireguard \
+	-dnsmasq \
+	dnsmasq-full \
+	luci-app-ddns \
+	luci-app-sqm \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	smcroute \
+	curl \
+	ethtool \
+	kmod-nft-nat6"
 
 declare -Ag x5000r
 x5000r['profile']="totolink_x5000r"
