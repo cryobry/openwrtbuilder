@@ -7,7 +7,7 @@
 # Apache 2.0 License
 
 # Set default release
-: "${RELEASE:="22.03.0-rc1"}"
+: "${RELEASE:="22.03.1"}"
 
 printHelp() {
     debug "${FUNCNAME[0]}"
@@ -148,7 +148,7 @@ installHostDependencies() {
     echo "Installing dependencies"
     debug "sudo $_pkg_cmd -y install ${_pkg_list[*]}"
     if ! sudo "$_pkg_cmd" -y install "${_pkg_list[@]}" > /dev/null 2>&1; then
-        echo "Warning: Problem installing prerequisites"
+        echo "Warning: Problem installing dependencies"
         return 1
     fi
 }
@@ -383,7 +383,9 @@ main() {
    
     readInput "$@"
 
-    [[ ! -v "$PROFILE"[@] ]] && echo "Profile does not exist" && return 1
+    echo "PROFILE: $PROFILE"
+
+    [[ ! ${!PROFILE@a} = A ]] && echo "Profile does not exist" && return 1
     declare -gn P_ARR="$PROFILE"
     declare _out_prefix
 
