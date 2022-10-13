@@ -383,8 +383,6 @@ main() {
    
     readInput "$@"
 
-    echo "PROFILE: $PROFILE"
-
     [[ ! ${!PROFILE@a} = A ]] && echo "Profile does not exist" && return 1
     declare -gn P_ARR="$PROFILE"
     declare _out_prefix
