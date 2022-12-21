@@ -90,11 +90,23 @@ r4s['packages']="\
 	collectd-mod-sensors \
 	collectd-mod-thermal \
 	collectd-mod-conntrack \
+	kmod-usb-storage \
+	kmod-usb-storage-uas \
 	smcroute \
 	curl \
 	ethtool \
 	kmod-tun \
 	ca-bundle"
+
+declare -Ag ax6000
+ax6000['profile']="xiaomi_redmi-router-ax6000"
+ax6000['target']="mediatek/filogic"
+ax6000['filesystem']="squashfs"
+ax6000['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd \
+	-iptables"
 
 declare -Ag x5000r
 x5000r['profile']="totolink_x5000r"
