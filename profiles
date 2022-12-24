@@ -14,7 +14,12 @@ default_packages="\
 	iperf \
 	bash \
 	rsync \
-	openssh-sftp-server " # Leave trailing whitespace
+	openssh-sftp-server \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	collectd-mod-cpu " # Leave trailing whitespace
 
 
 declare -Ag archer
@@ -86,12 +91,12 @@ r4s['packages']="\
 	luci-app-wireguard \
 	luci-app-ddns \
 	luci-app-sqm \
-	luci-app-statistics \
-	collectd-mod-sensors \
-	collectd-mod-thermal \
-	collectd-mod-conntrack \
+	collectd-mod-sqm \
+	collectd-mod-df \
 	kmod-usb-storage \
 	kmod-usb-storage-uas \
+	btrfs-progs \
+	block-mount \
 	smcroute \
 	curl \
 	ethtool \
@@ -105,8 +110,11 @@ ax6000['filesystem']="squashfs"
 ax6000['packages']="\
 	$default_packages \
 	-dnsmasq \
-	-odhcpd \
-	-iptables"
+	-odhcpd-ipv6only \
+	-nftables \
+	-firewall4 \
+	-kmod-nft-offload \
+	collectd-mod-iwinfo"
 
 declare -Ag x5000r
 x5000r['profile']="totolink_x5000r"
@@ -115,5 +123,10 @@ x5000r['filesystem']="squashfs"
 x5000r['packages']="\
 	$default_packages \
 	-dnsmasq \
-	-odhcpd \
-	-iptables"
+	-odhcpd-ipv6only \
+	-nftables \
+	-firewall4 \
+	-kmod-nft-offload \
+	relayd \
+	luci-proto-relay \
+	collectd-mod-iwinfo"
