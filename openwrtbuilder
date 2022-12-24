@@ -263,8 +263,6 @@ sshBackup() {
 makeImage() {
     debug "${FUNCNAME[0]}"
 
-    declare _nprocs
-
     # Reuse the existing output
     if [[ -d "${P_ARR[out_bin_dir]}" ]]; then
         if askOk "${P_ARR[out_bin_dir]} exists. Rebuild?"; then
@@ -276,9 +274,14 @@ makeImage() {
 
     [[ ! -d "${P_ARR[out_bin_dir]}" ]] && mkdir -p "${P_ARR[out_bin_dir]}"
 
-    # build image
-    debug "make image BIN_DIR=${P_ARR[out_bin_dir]} PROFILE=${P_ARR[profile]} PACKAGES=${P_ARR[packages]} FILES=$FILESDIR --directory=${P_ARR[source_dir]} > make.log"
-    if ! make image BIN_DIR="${P_ARR[out_bin_dir]}" PROFILE="${P_ARR[profile]}" PACKAGES="${P_ARR[packages]}" FILES="$FILESDIR" --directory="${P_ARR[source_dir]}" > make.log; then
+    if ! make image \
+            BIN_DIR="${P_ARR[out_bin_dir]}" \
+            PROFILE="${P_ARR[profile]}" \
+            PACKAGES="${P_ARR[packages]}" \
+            FILES="$FILESDIR" \
+            --directory="${P_ARR[source_dir]}" \
+            --jobs=$(( $(nproc) - 1 )) \
+            > make.log; then
         echo "Make image failed!"
         exit 1
     fi
