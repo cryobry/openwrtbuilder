@@ -93,6 +93,9 @@ r4s['packages']="\
 	luci-app-sqm \
 	collectd-mod-sqm \
 	collectd-mod-df \
+	pbr \
+	luci-app-pbr \
+	usbutils \
 	kmod-usb-storage \
 	kmod-usb-storage-uas \
 	btrfs-progs \
@@ -103,11 +106,12 @@ r4s['packages']="\
 	kmod-tun \
 	ca-bundle"
 
-declare -Ag ax6000
-ax6000['profile']="xiaomi_redmi-router-ax6000"
-ax6000['target']="mediatek/filogic"
-ax6000['filesystem']="squashfs"
-ax6000['packages']="\
+declare -Ag ax6000_stock
+ax6000_stock['profile']="xiaomi_redmi-router-ax6000-stock"
+ax6000_stock['target']="mediatek/filogic"
+ax6000_stock['release']="snapshot"
+ax6000_stock['filesystem']="squashfs"
+ax6000_stock['packages']="\
 	$default_packages \
 	-dnsmasq \
 	-odhcpd-ipv6only \
@@ -116,17 +120,29 @@ ax6000['packages']="\
 	-kmod-nft-offload \
 	collectd-mod-iwinfo"
 
-declare -Ag x5000r
-x5000r['profile']="totolink_x5000r"
-x5000r['target']="ramips/mt7621"
-x5000r['filesystem']="squashfs"
-x5000r['packages']="\
+declare -Ag ax6000_uboot
+ax6000_uboot['profile']="xiaomi_redmi-router-ax6000-ubootmod"
+ax6000_uboot['target']="mediatek/filogic"
+ax6000_uboot['release']="snapshot"
+ax6000_uboot['filesystem']="squashfs"
+ax6000_uboot['packages']="\
 	$default_packages \
 	-dnsmasq \
 	-odhcpd-ipv6only \
 	-nftables \
 	-firewall4 \
 	-kmod-nft-offload \
-	relayd \
-	luci-proto-relay \
+	collectd-mod-iwinfo"
+
+declare -Ag totolink
+totolink['profile']="totolink_x5000r"
+totolink['target']="ramips/mt7621"
+totolink['filesystem']="squashfs"
+totolink['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd-ipv6only \
+	-nftables \
+	-firewall4 \
+	-kmod-nft-offload \
 	collectd-mod-iwinfo"
