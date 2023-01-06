@@ -13,21 +13,21 @@ printHelp() {
     debug "${FUNCNAME[0]}"
 
     cat <<-'EOF'
-Run and deploy OpenWRT imagebuilder.
+Run and deploy OpenWRT images using the Image Builder.
 
 USAGE:
-openwrtbuilder [[OPTION] [VALUE]]...
+openwrtbuilder [OPTION [VALUE]]...
 
 OPTIONS
     --profile, -p PROFILE
     --info, -i PROFILE
     --list-profiles, -l
-    --release, -r RELEASE
+    --release, -r, --version, -v RELEASE_VERSION ("snapshot", "22.03.3", etc.)
     --builddir, -b PATH
     --ssh-upgrade HOST
         Example: root@192.168.1.1
     --ssh-backup SSH_PATH
-        (For testing, enabled by default for --ssh-upgrade)
+        (Enabled by default for --ssh-upgrade)
     --flash, -f DEVICE
         Example: /dev/sdX
     --reset
