@@ -91,6 +91,7 @@ r4s['packages']="\
 	luci-app-wireguard \
 	luci-app-ddns \
 	luci-app-sqm \
+	irqbalance \
 	collectd-mod-sqm \
 	collectd-mod-df \
 	pbr \

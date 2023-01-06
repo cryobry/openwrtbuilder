@@ -13,10 +13,10 @@ printHelp() {
     debug "${FUNCNAME[0]}"
 
     cat <<-'EOF'
+Run and deploy OpenWRT imagebuilder.
+
 USAGE:
 openwrtbuilder [[OPTION] [VALUE]]...
-
-Run and deploy OpenWRT imagebuilder.
 
 OPTIONS
     --profile, -p PROFILE
@@ -43,11 +43,11 @@ readInput() {
 
     unset RESET
 
-    if _input=$(getopt -o +r:v:p:i:lb:f:dh -l release:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
+    if _input=$(getopt -o +r:v:p:i:lb:f:dh -l release:,version:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
-                --release|-r)
+                --release|-r|--version|-v)
                     shift && RELEASE="$1"
                     ;;
                 --profile|-p)
@@ -145,7 +145,7 @@ installHostDependencies() {
         _pkg_cmd="apt-get"
     fi
 
-    echo "Installing dependencies"
+    debug "Installing dependencies"
     debug "sudo $_pkg_cmd -y install ${_pkg_list[*]}"
     if ! sudo "$_pkg_cmd" -y install "${_pkg_list[@]}" > /dev/null 2>&1; then
         echo "Warning: Problem installing dependencies"
@@ -192,7 +192,7 @@ getImageBuilder() {
     echo "Downloading imagebuilder archive using $_dl_tool"
 
     debug "$_dl_tool -o ${P_ARR[source_archive]} $_url"
-    if ! "$_dl_tool" -o "${P_ARR[source_archive]}" "$_url" > /dev/null 2>&1; then
+    if ! "$_dl_tool" -o "${P_ARR[source_archive]}" "$_url"; then
         echo "Could not download imagebuilder archive"
         exit 1
     fi
