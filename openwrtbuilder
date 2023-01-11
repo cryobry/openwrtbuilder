@@ -369,18 +369,18 @@ makeImage() {
     debug "${FUNCNAME[0]}"
 
     # Reuse the existing output
-    if [[ -d "${P_ARR[out_bin_dir]}" ]]; then
-        if askOk "${P_ARR[out_bin_dir]} exists. Rebuild?"; then
-            rm -rf "${P_ARR[out_bin_dir]}"
+    if [[ -d "${P_ARR[bin_dir]}" ]]; then
+        if askOk "${P_ARR[bin_dir]} exists. Rebuild?"; then
+            rm -rf "${P_ARR[bin_dir]}"
         else
             return 0
         fi
     fi
 
-    [[ ! -d "${P_ARR[out_bin_dir]}" ]] && mkdir -p "${P_ARR[out_bin_dir]}"
+    [[ ! -d "${P_ARR[bin_dir]}" ]] && mkdir -p "${P_ARR[bin_dir]}"
 
     if ! make image \
-            BIN_DIR="${P_ARR[out_bin_dir]}" \
+            BIN_DIR="${P_ARR[bin_dir]}" \
             PROFILE="${P_ARR[profile]}" \
             PACKAGES="${P_ARR[packages]}" \
             FILES="$FILESDIR" \
@@ -461,10 +461,10 @@ fromSource() {
 
     echo "Building from source is under development"
 
-    git clone --depth=1 "$src_url" "$BUILDDIR/sources"
+    git clone --depth=1 "$src_url" "$BUILDDIR/sources/openwrt"
     pushd "$BUILDDIR/sources/$(basename "$src_url" .git)" || return 1
 
-    if [[ ${P_ARR[release]} == "snapshot" ]]; then
+    if [[ ${P_ARR['release']} == "snapshot" ]]; then
         git checkout master
     else
         git checkout "${P_ARR[release]}"
@@ -478,6 +478,7 @@ fromSource() {
     make -j"$(nproc)" world
 
     popd || return 1
+    exit # TODO exit here for fromSource() testing
 }
 
 
@@ -493,19 +494,26 @@ askOk() {
 }
 
 
-reset() {
+resetAll() {
     debug "${FUNCNAME[0]}"
-    askOk "Remove $FILESDIR $BUILDDIR/sources $BUILDDIR/bin?" || exit $?
-    debug "rm -rf $FILESDIR $BUILDDIR/sources $BUILDDIR/bin"
-    rm -rf "$FILESDIR" "${BUILDDIR:?}/sources" "${BUILDDIR:?}/bin"
+    askOk "Remove ${BUILDDIR:-${SCRIPTDIR:?}}/sources ${BUILDDIR:-${SCRIPTDIR:?}}/bin?" || exit $?
+    debug "rm -rf ${BUILDDIR:-${SCRIPTDIR:?}}/sources ${BUILDDIR:-${SCRIPTDIR:?}}/bin"
+    rm -rf "${BUILDDIR:-${SCRIPTDIR:?}}/sources" "${BUILDDIR:-${SCRIPTDIR:?}}/bin"
+}
+
+
+resetProfile() {
+    debug "${FUNCNAME[0]}"
+    askOk "Remove ${P_ARR[source_dir]} ${P_ARR[bin_dir]}?" || exit $?
+    debug "rm -rf ${P_ARR[source_dir]} ${P_ARR[bin_dir]}"
+    rm -rf "${P_ARR[source_dir]}" "${P_ARR[bin_dir]}"
 }
 
 
 loadProfiles() {
     debug "${FUNCNAME[0]}"
-    declare -g SCRIPTDIR PFILE
+    declare -g PFILE
     # https://stackoverflow.com/a/4774063
-    SCRIPTDIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P )"
     PFILE="$SCRIPTDIR/profiles"
     # shellcheck source=./profiles
     ! source "$PFILE" && echo "profiles file missing!" && return 1
@@ -515,7 +523,7 @@ loadProfiles() {
 init() {
     debug "${FUNCNAME[0]}"
 
-    declare -g ID RPM_MGR
+    declare -g ID RPM_MGR SCRIPTDIR
 
     echo "Starting openwrtbuilder"
     debug || echo "To enable debugging output, use --debug or -d"
@@ -589,6 +597,8 @@ init() {
             pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; }
             ;;
     esac
+
+    SCRIPTDIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P )"
 }
 
 
@@ -601,9 +611,14 @@ main() {
    
     readInput "$@"
 
-    (( RESET )) && reset
-
-    [[ ${#PROFILES} -lt 1 ]] && echo "No profile supplied" && return 1
+    if [[ ${#PROFILES} -lt 1 ]]; then
+        if (( RESET )); then
+            resetAll
+            exit
+        else
+            echo "No profile supplied" && return 1
+        fi
+    fi
 
     installDependencies
 
@@ -621,13 +636,13 @@ main() {
         : "${P_ARR[release]:=${USER_RELEASE:-$RELEASE}}" # precedence: profile>user input>env>hardcode
         : "${P_ARR[source_archive]:=$BUILDDIR/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz}"
         : "${P_ARR[source_dir]:=${P_ARR[source_archive]%.tar.xz}}"
-        : "${P_ARR[out_bin_dir]:=$BUILDDIR/bin/${P_ARR[profile]}-${P_ARR[release]}}"
+        : "${P_ARR[bin_dir]:=$BUILDDIR/bin/${P_ARR[profile]}-${P_ARR[release]}}"
 
         declare out_prefix
         if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-            out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+            out_prefix="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
         else
-            out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+            out_prefix="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
         fi
 
         : "${P_ARR[factory_img]:=$out_prefix-${P_ARR[filesystem]}-factory.img}"
@@ -643,6 +658,8 @@ main() {
             echo "Profile settings:"
             for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
         fi
+
+        (( RESET )) && resetProfile
 
         # Experimental
         (( FROM_SOURCE )) && fromSource
