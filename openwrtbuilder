@@ -43,7 +43,7 @@ readInput() {
 
     unset RESET
 
-    if _input=$(getopt -o +r:v:p:i:lb:f:dh -l release:,version:,profile:,info:,list-profiles,builddir:,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
+    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l release:,version:,profile:,info:,list-profiles,builddir:,from-source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -61,6 +61,9 @@ readInput() {
                     ;;
                 --builddir|-b)
                     shift && BUILDDIR="$1"
+                    ;;
+                --from-source|-s)
+                    FROM_SOURCE=1
                     ;;
                 --ssh-upgrade)
                     shift && SSH_UPGRADE_PATH="$1"
@@ -101,98 +104,187 @@ listProfiles() {
 }
 
 
-installHostDependencies() {
+installDependencies() {
     debug "${FUNCNAME[0]}"
 
-    local -a _pkg_list
-    local _pkg_cmd
+    declare -a pkg_list
 
-    source /etc/os-release
-
-    if [[ "$ID" =~ ^(fedora)$ ]]; then
-        _pkg_list=(\
-            "@c-development" \
-            "@development-tools" \
-            "@development-libs" \
-            "perl-FindBin" \
-            "zlib-static" \
-            "elfutils-libelf-devel" \
-            "gawk" \
-            "unzip" \
-            "file" \
-            "wget" \
-            "python3" \
-            "python2" \
-            "axel" \
-        )
-        _pkg_cmd="dnf"
-    elif [[ "$ID" =~ ^(debian|ubuntu)$ ]]; then
-        _pkg_list=(\
-            "build-essential" \
-            "libncurses5-dev" \
-            "libncursesw5-dev" \
-            "zlib1g-dev" \
-            "gawk" \
-            "git" \
-            "gettext" \
-            "libssl-dev" \
-            "xsltproc" \
-            "wget" \
-            "unzip" \
-            "python" \
-            "axel" \
-        )
-        _pkg_cmd="apt-get"
+    # TODO please contribute your platform here
+    if (( FROM_SOURCE )); then
+        # For building from source with make
+        # https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
+        case "$ID" in
+            fedora|centos)
+                pkg_list+=(
+                    "bash-completion"
+                    "bzip2"
+                    "gcc"
+                    "gcc-c++"
+                    "git"
+                    "make"
+                    "ncurses-devel"
+                    "patch"
+                    "rsync"
+                    "tar"
+                    "unzip"
+                    "wget"
+                    "which"
+                    "diffutils"
+                    "python2"
+                    "python3"
+                    "perl-base"
+                    "perl-Data-Dumper"
+                    "perl-File-Compare"
+                    "perl-File-Copy"
+                    "perl-FindBin"
+                    "perl-Thread-Queue"
+                )
+                ;;
+            debian|ubuntu)
+                pkg_list+=(
+                    "build-essential"
+                    "clang"
+                    "flex"
+                    "g++"
+                    "gawk"
+                    "gcc-multilib"
+                    "gettext"
+                    "git"
+                    "libncurses5-dev"
+                    "libssl-dev"
+                    "python3-distutils"
+                    "rsync"
+                    "unzip"
+                    "zlib1g-dev"
+                    "file"
+                    "wget"
+                )
+                ;;
+            arch)
+                pkg_list+=(
+                    "base-devel"
+                    "autoconf"
+                    "automake"
+                    "bash"
+                    "binutils"
+                    "bison"
+                    "bzip2"
+                    "fakeroot"
+                    "file"
+                    "findutils"
+                    "flex"
+                    "gawk"
+                    "gcc"
+                    "gettext"
+                    "git"
+                    "grep"
+                    "groff"
+                    "gzip"
+                    "libelf"
+                    "libtool"
+                    "libxslt"
+                    "m4"
+                    "make"
+                    "ncurses"
+                    "openssl"
+                    "patch"
+                    "pkgconf"
+                    "python"
+                    "rsync"
+                    "sed"
+                    "texinfo"
+                    "time"
+                    "unzip"
+                    "util-linux"
+                    "wget"
+                    "which"
+                    "zlib"
+                )
+        esac
+    else
+        # For Imagebuilder
+        case "$ID" in
+            fedora|centos)
+                pkg_list+=(
+                    "@c-development" 
+                    "@development-tools"
+                    "@development-libs"
+                    "perl-FindBin"
+                    "zlib-static"
+                    "elfutils-libelf-devel"
+                    "gawk"
+                    "unzip"
+                    "file"
+                    "wget"
+                    "python3"
+                    "python2"
+                    "axel"
+                )
+                ;;
+            debian|ubuntu)
+                pkg_list+=(
+                    "build-essential"
+                    "libncurses5-dev"
+                    "libncursesw5-dev"
+                    "zlib1g-dev"
+                    "gawk"
+                    "git"
+                    "gettext"
+                    "libssl-dev"
+                    "xsltproc"
+                    "wget"
+                    "unzip"
+                    "python"
+                    "axel"
+                )
+                ;;
+        esac
     fi
 
-    debug "Installing dependencies"
-    debug "sudo $_pkg_cmd -y install ${_pkg_list[*]}"
-    if ! sudo "$_pkg_cmd" -y install "${_pkg_list[@]}" > /dev/null 2>&1; then
-        echo "Warning: Problem installing dependencies"
-        return 1
-    fi
+    pkg_install "${pkg_list[@]}"
 }
 
 
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
-    local _url _filename _dl_tool
+    declare url_prefix filename url dl_tool sha256sum
 
     if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-        _filename="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-        _url="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}/$_filename"
-        if [[ -f "${P_ARR[source_archive]}" ]]; then
-            if askOk "Update ImageBuilder snapshot?"; then
-                rm -f "${P_ARR[source_archive]}"
-            else
-                return 0
-            fi
-        fi
+        url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
+        filename="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+        url="${url_prefix}/$filename"
     else
-        _filename="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-        _url="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}/$_filename"
+        url_prefix="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}"
+        filename="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+        url="${url_prefix}/$filename"
         [[ -f "${P_ARR[source_archive]}" ]] && return 0 # Reuse existing ImageBuilders
+    fi
+
+    if [[ -f "${P_ARR[source_archive]}" ]]; then
+        if askOk "Update ImageBuilder ?"; then
+            rm -f "${P_ARR[source_archive]}"
+        else
+            return 0
+        fi
     fi
     
     # Make sources directory if it does not exist
     [[ ! -d "$BUILDDIR/sources" ]] && mkdir -p "$BUILDDIR/sources"
 
     if hash axel &>/dev/null; then
-        _dl_tool="axel"
+        dl_tool="axel"
     elif hash curl &>/dev/null; then
-        _dl_tool="curl"
+        dl_tool="curl"
     else
         echo "Downloading the ImageBuilder requires axel or curl!"
         return 1
     fi
-
-    #_dl_tool="curl" # TODO remove
     
-    echo "Downloading imagebuilder archive using $_dl_tool"
+    echo "Downloading imagebuilder archive using $dl_tool"
 
-    debug "$_dl_tool -o ${P_ARR[source_archive]} $_url"
-    if ! "$_dl_tool" -o "${P_ARR[source_archive]}" "$_url"; then
+    debug "$dl_tool -o ${P_ARR[source_archive]} $url"
+    if ! "$dl_tool" -o "${P_ARR[source_archive]}" "$url"; then
         echo "Could not download imagebuilder archive"
         exit 1
     fi
@@ -201,6 +293,16 @@ getImageBuilder() {
         echo "Archive missing"
         exit 1
     fi
+
+    
+    if hash sha256sum &>/dev/null; then
+        echo "Verifying checksums"
+        debug "$dl_tool -s $url_prefix/sha256sums | grep $filename | cut -f1 -d' '"
+        sha256sum=$($dl_tool -s "$url_prefix"/sha256sums |grep "$filename" |cut -f1 -d' ')
+        debug "Downloaded sha256sum: $sha256sum"
+
+    fi
+
 
     echo "Extracting image archive"
     [[ ! -d "${P_ARR[source_dir]}" ]] && mkdir -p "${P_ARR[source_dir]}"
@@ -348,6 +450,35 @@ sshUpgrade() {
 }
 
 
+fromSource() {
+    debug "${FUNCNAME[0]}"
+
+    declare src_url="https://github.com/openwrt/openwrt.git"
+    declare -a pkg_list
+
+    echo "Building from source is under development"
+
+
+    git clone --depth=1 "$src_url" "$BUILDDIR/sources"
+    pushd "$BUILDDIR/sources/$(basename "$src_url" .git)" || return 1
+
+    if [[ ${P_ARR[release]} == "snapshot" ]]; then
+        git checkout master
+    else
+        git checkout "${P_ARR[release]}"
+    fi
+
+    ./scripts/feeds update -a
+    ./scripts/feeds install -a
+
+    make distclean
+    make download
+    make -j"$(nproc)" world
+
+    popd || return 1
+}
+
+
 debug() { (( DEBUG )) && echo "Running: $*"; }
 
 
@@ -379,8 +510,90 @@ loadProfiles() {
 }
 
 
+init() {
+    debug "${FUNCNAME[0]}"
+
+    declare -g ID RPM_MGR
+
+    echo "Starting openwrtbuilder"
+    debug || echo "To enable debugging output, use --debug or -d"
+
+    if [[ -e "/etc/os-release" ]]; then
+        source "/etc/os-release"
+    else
+        err "/etc/os-release not found"
+        err "Your OS is unsupported"
+        printHelp
+        exit 1
+    fi
+
+    debug "Detected host platform: $ID $VERSION_ID"
+
+    # normalize distro ID
+    case "$ID" in
+        debian|arch)
+            ;;
+        centos|fedora)
+            if hash dnf &>/dev/null; then
+                RPM_MGR="dnf"
+            elif hash yum &>/dev/null; then
+                RPM_MGR="yum"
+            fi
+            ;;
+        rhel)
+            ID="centos"
+            ;;
+        linuxmint|neon|*ubuntu*)
+            ID="ubuntu"
+            ;;
+        *suse*)
+            ID="suse"
+            ;;
+        raspbian)
+            ID="debian"
+            ;;
+        *)
+            echo "Autodetecting distro, this may be unreliable and --compat may also be required"
+            if hash dnf &>/dev/null; then
+                ID="fedora"
+                RPM_MGR="dnf"
+            elif hash yum &>/dev/null; then
+                ID="centos"
+                RPM_MGR="yum"
+            elif hash apt &>/dev/null; then
+                ID="ubuntu"
+            elif hash pacman &>/dev/null; then
+                ID="arch"
+            else
+                return 1
+            fi
+            ;;
+    esac
+
+    debug "Using host platform: $ID $VERSION_ID"
+
+    # Set distro-specific functions
+    case "$ID" in
+        fedora|centos)
+            pkg_install(){ sudo "$RPM_MGR" install -y "$@"; }
+            ;;
+        debian|ubuntu)
+            pkg_install(){ sudo apt-get install -y -q0 "$@"; }
+            ;;
+        suse)
+            pkg_install(){ sudo zypper --non-interactive -q install --force --no-confirm "$@"; }
+            ;;
+        arch)
+            pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; }
+            ;;
+    esac
+}
+
+
 main() {
     debug "${FUNCNAME[0]}"
+
+    init
 
     loadProfiles
    
@@ -388,27 +601,27 @@ main() {
 
     [[ ! ${!PROFILE@a} = A ]] && echo "Profile does not exist" && return 1
     declare -gn P_ARR="$PROFILE"
-    declare _out_prefix
-
+    
     : "${BUILDDIR:=$SCRIPTDIR}"
     : "${FILESDIR:=$BUILDDIR/files}"
 
-    : "${P_ARR[release]:=$RELEASE}"
+    : "${P_ARR[release]:=$RELEASE}" # profiles overrides user input and hardcoded versions
     : "${P_ARR[source_archive]:=$BUILDDIR/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz}"
     : "${P_ARR[source_dir]:=${P_ARR[source_archive]%.tar.xz}}"
     : "${P_ARR[out_bin_dir]:=$BUILDDIR/bin/${P_ARR[profile]}-${P_ARR[release]}}"
 
+    declare out_prefix
     if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-        _out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+        out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
     else
-        _out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+        out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
     fi
 
-    : "${P_ARR[factory_img]:=$_out_prefix-${P_ARR[filesystem]}-factory.img}"
+    : "${P_ARR[factory_img]:=$out_prefix-${P_ARR[filesystem]}-factory.img}"
     : "${P_ARR[factory_img_gz]:=${P_ARR[factory_img]}.gz}"
-    : "${P_ARR[sysupgrade_img]:=$_out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
+    : "${P_ARR[sysupgrade_img]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
     : "${P_ARR[sysupgrade_img_gz]:=${P_ARR[sysupgrade_img]}.gz}"
-    : "${P_ARR[sysupgrade_bin]:=$_out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
+    : "${P_ARR[sysupgrade_bin]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
     : "${P_ARR[sysupgrade_bin_fname]:=${P_ARR[sysupgrade_bin]##*/}}"
     : "${P_ARR[sysupgrade_bin_gz]:=${P_ARR[sysupgrade_bin]}.gz}"
     : "${P_ARR[sysupgrade_bin_gz_fname]:=${P_ARR[sysupgrade_bin_gz]##*/}}"
@@ -419,7 +632,10 @@ main() {
         for x in "${!P_ARR[@]}"; do printf "[%s]=%s\n" "$x" "${P_ARR[$x]}"; done
     fi
 
-    installHostDependencies
+    installDependencies
+
+    # Experimental
+    (( FROM_SOURCE )) && fromSource
 
     getImageBuilder
 
