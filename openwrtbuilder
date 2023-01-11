@@ -614,7 +614,7 @@ main() {
 
         [[ ! ${!profile@a} = A ]] && echo "Profile does not exist" && return 1
 
-        debug "r4s: ${!r4s@}"
+        debug "r4s: ${r4s[*]}"
 
         declare -gn P_ARR="$profile"
 
