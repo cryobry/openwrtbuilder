@@ -647,8 +647,6 @@ main() {
         # Experimental
         (( FROM_SOURCE )) && fromSource
 
-        debug && exit
-
         getImageBuilder
 
         addRepos
