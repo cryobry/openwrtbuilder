@@ -610,9 +610,13 @@ main() {
     for profile in "${PROFILES[@]}"; do
 
         debug "Profile: $profile"
+        loadProfiles
+
 
         [[ ! ${!profile@a} = A ]] && echo "Profile does not exist" && return 1
         declare -gn P_ARR="$profile"
+
+        debug "P_ARR: ${P_ARR[*]}"
         
         : "${BUILDDIR:=$SCRIPTDIR}"
         : "${FILESDIR:=$BUILDDIR/files}"
@@ -645,8 +649,6 @@ main() {
 
         # Experimental
         (( FROM_SOURCE )) && fromSource
-
-        debug "P_ARR: ${P_ARR[*]}"
 
         debug && exit
 
