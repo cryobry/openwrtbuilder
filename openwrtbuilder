@@ -644,7 +644,7 @@ main() {
         # Experimental
         (( FROM_SOURCE )) && fromSource
 
-        debug "${P_ARR[*]}"
+        debug "P_ARR: ${P_ARR[*]}"
 
         getImageBuilder
 
