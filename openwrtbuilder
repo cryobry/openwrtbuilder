@@ -16,11 +16,11 @@ printHelp() {
 Run and deploy OpenWRT images using the Image Builder.
 
 USAGE:
-openwrtbuilder [OPTION [VALUE]]...
+openwrtbuilder [OPTION [VALUE]] -p PROFILE [-p PROFILE2]...
 
 OPTIONS
     --profile, -p PROFILE
-    --info, -i PROFILE
+    --info, -i (print profile info)
     --list-profiles, -l
     --release, -r, --version, -v RELEASE_VERSION ("snapshot", "22.03.3", etc.)
     --builddir, -b PATH
@@ -43,6 +43,9 @@ readInput() {
 
     unset RESET
 
+    declare -ga PROFILES
+    declare -g PROFILE_INFO 
+
     if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l release:,version:,profile:,info:,list-profiles,builddir:,from-source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
@@ -51,10 +54,10 @@ readInput() {
                     shift && RELEASE="$1"
                     ;;
                 --profile|-p)
-                    shift && PROFILE="$1"
+                    shift && PROFILES+=("$1")
                     ;;
                 --info|-i)
-                    shift && PROFILE="$1" && PROFILE_INFO=1 && exit $?
+                    PROFILE_INFO=1
                     ;;
                 --list-profiles|-l)
                     listProfiles && exit $?
@@ -458,7 +461,6 @@ fromSource() {
 
     echo "Building from source is under development"
 
-
     git clone --depth=1 "$src_url" "$BUILDDIR/sources"
     pushd "$BUILDDIR/sources/$(basename "$src_url" .git)" || return 1
 
@@ -599,56 +601,60 @@ main() {
    
     readInput "$@"
 
-    [[ ${#PROFILE} -lt 1 ]] && echo "No profile supplied" && return 1
-    [[ ! ${!PROFILE@a} = A ]] && echo "Profile does not exist" && return 1
-    declare -gn P_ARR="$PROFILE"
-    
-    : "${BUILDDIR:=$SCRIPTDIR}"
-    : "${FILESDIR:=$BUILDDIR/files}"
-
-    : "${P_ARR[release]:=$RELEASE}" # profiles overrides user input and hardcoded versions
-    : "${P_ARR[source_archive]:=$BUILDDIR/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz}"
-    : "${P_ARR[source_dir]:=${P_ARR[source_archive]%.tar.xz}}"
-    : "${P_ARR[out_bin_dir]:=$BUILDDIR/bin/${P_ARR[profile]}-${P_ARR[release]}}"
-
-    declare out_prefix
-    if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-        out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-    else
-        out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-    fi
-
-    : "${P_ARR[factory_img]:=$out_prefix-${P_ARR[filesystem]}-factory.img}"
-    : "${P_ARR[factory_img_gz]:=${P_ARR[factory_img]}.gz}"
-    : "${P_ARR[sysupgrade_img]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
-    : "${P_ARR[sysupgrade_img_gz]:=${P_ARR[sysupgrade_img]}.gz}"
-    : "${P_ARR[sysupgrade_bin]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
-    : "${P_ARR[sysupgrade_bin_fname]:=${P_ARR[sysupgrade_bin]##*/}}"
-    : "${P_ARR[sysupgrade_bin_gz]:=${P_ARR[sysupgrade_bin]}.gz}"
-    : "${P_ARR[sysupgrade_bin_gz_fname]:=${P_ARR[sysupgrade_bin_gz]##*/}}"
-
     (( RESET )) && reset
 
-    if (( DEBUG )) || (( PROFILE_INFO )); then
-        for x in "${!P_ARR[@]}"; do printf "[%s]=%s\n" "$x" "${P_ARR[$x]}"; done
-    fi
+    [[ ${#PROFILES} -lt 1 ]] && echo "No profile supplied" && return 1
 
     installDependencies
 
-    # Experimental
-    (( FROM_SOURCE )) && fromSource
+    for profile in "${PROFILES[@]}"; do
 
-    getImageBuilder
+        [[ ! ${!profile@a} = A ]] && echo "Profile does not exist" && return 1
+        declare -gn P_ARR="$profile"
+        
+        : "${BUILDDIR:=$SCRIPTDIR}"
+        : "${FILESDIR:=$BUILDDIR/files}"
 
-    addRepos
+        : "${P_ARR[release]:=$RELEASE}" # profiles overrides user input and hardcoded versions
+        : "${P_ARR[source_archive]:=$BUILDDIR/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz}"
+        : "${P_ARR[source_dir]:=${P_ARR[source_archive]%.tar.xz}}"
+        : "${P_ARR[out_bin_dir]:=$BUILDDIR/bin/${P_ARR[profile]}-${P_ARR[release]}}"
 
-    #copyFiles
+        declare out_prefix
+        if [[ "${P_ARR[release]}" == "snapshot" ]]; then
+            out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+        else
+            out_prefix="${P_ARR[out_bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+        fi
 
-    [[ -v SSH_BACKUP_PATH ]] && sshBackup
-    if makeImage; then
-        [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
-        [[ -v FLASH_DEV ]] && flashImage
-    fi
+        : "${P_ARR[factory_img]:=$out_prefix-${P_ARR[filesystem]}-factory.img}"
+        : "${P_ARR[factory_img_gz]:=${P_ARR[factory_img]}.gz}"
+        : "${P_ARR[sysupgrade_img]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
+        : "${P_ARR[sysupgrade_img_gz]:=${P_ARR[sysupgrade_img]}.gz}"
+        : "${P_ARR[sysupgrade_bin]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
+        : "${P_ARR[sysupgrade_bin_fname]:=${P_ARR[sysupgrade_bin]##*/}}"
+        : "${P_ARR[sysupgrade_bin_gz]:=${P_ARR[sysupgrade_bin]}.gz}"
+        : "${P_ARR[sysupgrade_bin_gz_fname]:=${P_ARR[sysupgrade_bin_gz]##*/}}"
+
+        if (( DEBUG )) || (( PROFILE_INFO )); then
+            for x in "${!P_ARR[@]}"; do printf "[%s]=%s\n" "$x" "${P_ARR[$x]}"; done
+        fi
+
+        # Experimental
+        (( FROM_SOURCE )) && fromSource
+
+        getImageBuilder
+
+        addRepos
+
+        #copyFiles
+
+        [[ -v SSH_BACKUP_PATH ]] && sshBackup
+        if makeImage; then
+            [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
+            [[ -v FLASH_DEV ]] && flashImage
+        fi
+    done
 }
 
 main "$@"
