@@ -599,6 +599,7 @@ main() {
    
     readInput "$@"
 
+    [[ ${#PROFILE} -lt 1 ]] && echo "No profile supplied" && return 1
     [[ ! ${!PROFILE@a} = A ]] && echo "Profile does not exist" && return 1
     declare -gn P_ARR="$PROFILE"
     
