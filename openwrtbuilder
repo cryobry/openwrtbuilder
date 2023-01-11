@@ -464,14 +464,16 @@ fromSource() {
 
     if [[ ! -d "$src_dir" ]]; then
         mkdir -p "$src_dir"
-        if [[ ${P_ARR['release']} == "snapshot" ]]; then
-            git clone --depth=1 -b master "$src_url" "$src_dir"
-        else
-            git clone --depth=1 -b "${P_ARR[release]}" "$src_url" "$src_dir"
-        fi
+        git clone  "$src_url" "$src_dir"
     fi
 
     pushd "$src_dir" || return 1
+
+    if [[ ${P_ARR['release']} == "snapshot" ]]; then
+        git checkout master
+    else
+        git checkout "${P_ARR[release]}"
+    fi
 
     ./scripts/feeds update -a
     ./scripts/feeds install -a
