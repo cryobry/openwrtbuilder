@@ -637,11 +637,14 @@ main() {
         : "${P_ARR[sysupgrade_bin_gz_fname]:=${P_ARR[sysupgrade_bin_gz]##*/}}"
 
         if (( DEBUG )) || (( PROFILE_INFO )); then
+            echo "Profile settings:"
             for x in "${!P_ARR[@]}"; do printf "[%s]=%s\n" "$x" "${P_ARR[$x]}"; done
         fi
 
         # Experimental
         (( FROM_SOURCE )) && fromSource
+
+        debug "${P_ARR[*]}"
 
         getImageBuilder
 
