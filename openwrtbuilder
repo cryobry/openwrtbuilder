@@ -611,12 +611,9 @@ main() {
 
         debug "Profile: $profile"
 
-        #[[ ! ${!profile@a} = A ]] && echo "Profile does not exist" && return 1
+        [[ ! ${!profile@a} = A ]] && echo "Profile does not exist" && return 1
 
         declare -gn P_ARR="$profile"
-
-        debug "P_ARR: ${P_ARR[*]}"
-        debug "HERE: ${P_ARR[target]}"
 
         : "${BUILDDIR:=$SCRIPTDIR}"
         : "${FILESDIR:=$BUILDDIR/files}"
