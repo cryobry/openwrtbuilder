@@ -646,6 +646,8 @@ main() {
 
         debug "P_ARR: ${P_ARR[*]}"
 
+        debug && exit
+
         getImageBuilder
 
         addRepos
