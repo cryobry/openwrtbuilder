@@ -7,7 +7,7 @@
 # Apache 2.0 License
 
 # Set default release
-: "${RELEASE:="22.03.2"}"
+: "${RELEASE:="22.03.3"}"
 
 printHelp() {
     debug "${FUNCNAME[0]}"
@@ -51,7 +51,7 @@ readInput() {
         while true; do
             case "$1" in
                 --release|-r|--version|-v)
-                    shift && RELEASE="$1"
+                    shift && declare -g USER_RELEASE="$1"
                     ;;
                 --profile|-p)
                     shift && PROFILES+=("$1")
@@ -615,7 +615,7 @@ main() {
         : "${BUILDDIR:=$SCRIPTDIR}"
         : "${FILESDIR:=$BUILDDIR/files}"
 
-        : "${P_ARR[release]:=$RELEASE}" # profiles overrides user input and hardcoded versions
+        : "${USER_RELEASE:=P_ARR[release]:=$RELEASE}" # precedence: user input>profiles>env>hardcode
         : "${P_ARR[source_archive]:=$BUILDDIR/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz}"
         : "${P_ARR[source_dir]:=${P_ARR[source_archive]%.tar.xz}}"
         : "${P_ARR[out_bin_dir]:=$BUILDDIR/bin/${P_ARR[profile]}-${P_ARR[release]}}"
