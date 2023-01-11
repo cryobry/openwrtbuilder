@@ -462,7 +462,7 @@ fromSource() {
     echo "Building from source is under development"
 
     git clone --depth=1 "$src_url" "$BUILDDIR/sources/openwrt"
-    pushd "$BUILDDIR/sources/$(basename "$src_url" .git)" || return 1
+    pushd "$BUILDDIR/sources/openwrt" || return 1
 
     if [[ ${P_ARR['release']} == "snapshot" ]]; then
         git checkout master
@@ -496,7 +496,7 @@ askOk() {
 
 resetAll() {
     debug "${FUNCNAME[0]}"
-    askOk "Remove ${BUILDDIR:-${SCRIPTDIR:?}}/sources ${BUILDDIR:-${SCRIPTDIR:?}}/bin?" || exit $?
+    askOk "Remove ${BUILDDIR:-${SCRIPTDIR:?}}/sources and ${BUILDDIR:-${SCRIPTDIR:?}}/bin?" || exit $?
     debug "rm -rf ${BUILDDIR:-${SCRIPTDIR:?}}/sources ${BUILDDIR:-${SCRIPTDIR:?}}/bin"
     rm -rf "${BUILDDIR:-${SCRIPTDIR:?}}/sources" "${BUILDDIR:-${SCRIPTDIR:?}}/bin"
 }
@@ -525,7 +525,6 @@ init() {
 
     declare -g ID RPM_MGR SCRIPTDIR
 
-    echo "Starting openwrtbuilder"
     debug || echo "To enable debugging output, use --debug or -d"
 
     if [[ -e "/etc/os-release" ]]; then
