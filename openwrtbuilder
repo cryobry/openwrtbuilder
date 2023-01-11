@@ -481,7 +481,7 @@ fromSource() {
 }
 
 
-debug() { (( DEBUG )) && echo "Running: $*"; }
+debug() { (( DEBUG )) && echo "Debug: $*"; }
 
 
 askOk() {
@@ -643,7 +643,7 @@ main() {
 
         if (( DEBUG )) || (( PROFILE_INFO )); then
             echo "Profile settings:"
-            for x in "${!P_ARR[@]}"; do printf "[%s]=%s\n" "$x" "${P_ARR[$x]}"; done
+            for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
         fi
 
         # Experimental
