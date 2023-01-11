@@ -99,12 +99,12 @@ r4s['packages']="\
 	usbutils \
 	kmod-usb-storage \
 	kmod-usb-storage-uas \
+	kmod-fs-btrfs \
 	btrfs-progs \
 	block-mount \
 	smcroute \
 	curl \
 	ethtool \
-	kmod-tun \
 	ca-bundle"
 
 declare -Ag ax6000_stock
