@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 # This file contains a set of device profiles for openwrtbuilder
+# bash doesn't like nested arrays so we use strings instead
 
 # Packages to install for all profiles
 default_packages="\

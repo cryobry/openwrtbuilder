@@ -427,7 +427,7 @@ sshUpgrade() {
 
     echo "Copying \"${P_ARR[sysupgrade_bin_gz]}\" to $SSH_UPGRADE_PATH/tmp/"
     debug "scp \"${P_ARR[sysupgrade_bin_gz]}\" \"$SSH_UPGRADE_PATH\":\"/tmp/${P_ARR[sysupgrade_bin_gz_fname]}\""
-    # shellcheck disable=SC2140
+    
     if ! scp "${P_ARR[sysupgrade_bin_gz]}" "$SSH_UPGRADE_PATH":"/tmp/${P_ARR[sysupgrade_bin_gz_fname]}"; then
         echo "Could not access the --ssh-upgrade PATH"
         exit 1
@@ -643,7 +643,7 @@ main() {
         P_ARR[bin_dir]="${P_ARR[build_dir]}"
 
         # shellcheck disable=SC2154
-        # TODO: I don't knwo why shellcheck is catching this
+        # TODO: I don't know why shellcheck is catching this
         if [[ "${P_ARR[release]}" == "snapshot" ]]; then
             P_ARR[out_prefix]="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
             P_ARR[url_prefix]="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
