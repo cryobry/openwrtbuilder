@@ -526,6 +526,9 @@ init() {
 
     debug || echo "To enable debugging output, use --debug or -d"
 
+    # Save the script directory
+    SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
+
     if [[ -e "/etc/os-release" ]]; then
         source "/etc/os-release"
     else
@@ -629,7 +632,6 @@ main() {
         declare -gn P_ARR="$profile"
 
         # Fallback to SCRIPTDIR if BUILDROOT has not been set
-        SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
         BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
         FILESDIR="${FILESDIR:=$BUILDROOT/files}"
 
