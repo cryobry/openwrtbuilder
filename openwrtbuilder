@@ -13,7 +13,7 @@ printHelp() {
     debug "${FUNCNAME[0]}"
 
     cat <<-'EOF'
-Run and deploy OpenWRT images using the Image Builder.
+Create and deploy OpenWRT images using the Image Builder.
 
 USAGE:
 openwrtbuilder [OPTION [VALUE]] -p PROFILE [-p PROFILE2]...
@@ -23,7 +23,7 @@ OPTIONS
     --info, -i (print profile info)
     --list-profiles, -l
     --release, -r, --version, -v RELEASE_VERSION ("snapshot", "22.03.3", etc.)
-    --builddir, -b PATH
+    --buildroot, -b PATH
     --ssh-upgrade HOST
         Example: root@192.168.1.1
     --ssh-backup SSH_PATH
@@ -46,7 +46,7 @@ readInput() {
     declare -ga PROFILES
     declare -g PROFILE_INFO 
 
-    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l release:,version:,profile:,info:,list-profiles,builddir:,from-source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
+    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l release:,version:,profile:,info:,list-profiles,buildroot:,from-source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -62,8 +62,8 @@ readInput() {
                 --list-profiles|-l)
                     listProfiles && exit $?
                     ;;
-                --builddir|-b)
-                    shift && BUILDDIR="$1"
+                --buildroot|-b)
+                    shift && BUILDROOT="$1"
                     ;;
                 --from-source|-s)
                     FROM_SOURCE=1
@@ -252,7 +252,7 @@ installDependencies() {
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
-    declare dl_tool sha256sum
+    declare dl_tool
 
     if [[ -f "${P_ARR[source_archive]}" ]]; then
         if askOk "Update ImageBuilder ?"; then
@@ -493,12 +493,11 @@ askOk() {
 
 resetAll() {
     debug "${FUNCNAME[0]}"
-    # BUILDDIR may not be set, so fallback to SCRIPTDIR
-    askOk "Remove ${BUILDDIR}/sources and ${BUILDDIR}/bin?" || exit $?
-    debug "rm -rf ${BUILDDIR}/sources ${BUILDDIR}/bin"
-    find "${BUILDDIR}/sources" "${BUILDDIR}/bin" \
+    askOk "Remove ${BUILDROOT}/sources and ${BUILDROOT}/bin?" || exit $?
+    debug "rm -rf ${BUILDROOT}/sources ${BUILDROOT}/bin"
+    find "${BUILDROOT}/sources" "${BUILDROOT}/bin" \
         ! -dir "$FILESDIR" -type f -delete +
-    #rm -rf "${BUILDDIR}/sources" "${BUILDDIR}/bin"
+    #rm -rf "${BUILDROOT}/sources" "${BUILDROOT}/bin"
 }
 
 
@@ -602,10 +601,6 @@ init() {
 main() {
     debug "${FUNCNAME[0]}"
 
-    # Use openwrtbuilder directory as fallback if BUILDDIR cannot be determined
-    declare -g SCRIPTDIR
-    SCRIPTDIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P )"
-
     init
 
     loadProfiles
@@ -630,43 +625,41 @@ main() {
 
         [[ ! ${!profile@a} = A ]] && echo "Profile does not exist" && return 1
 
+        # Set profile vars in the P_ARR array
         declare -gn P_ARR="$profile"
 
-        # Fallback to SCRIPTDIR if BUILDDIR has not been set
-        BUILDDIR="${BUILDDIR:=$SCRIPTDIR}"
-        FILESDIR="${FILESDIR:=$BUILDDIR/files}"
+        # Fallback to SCRIPTDIR if BUILDROOT has not been set
+        SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
+        BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
+        FILESDIR="${FILESDIR:=$BUILDROOT/files}"
 
-        P_ARR[release]=${USER_RELEASE:=${P_ARR[release]}:=$RELEASE} # precedence: user input>profile>env>hardcode
-        P_ARR[source_archive]=${P_ARR[build_dir]}/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz
-        P_ARR[source_dir]=${P_ARR[source_archive]%.tar.xz}
-        P_ARR[bin_dir]=${P_ARR[build_dir]}/bin/${P_ARR[profile]}-${P_ARR[release]}
+        # precedence: user input>profile>env>hardcode
+        P_ARR[release]="${USER_RELEASE:=${P_ARR[release]}:=$RELEASE}"
+        P_ARR[build_dir]="$BUILDROOT/$profile/${P_ARR[release]}"
+        P_ARR[source_dir]="${P_ARR[build_root]}/sources"
+        P_ARR[source_archive]="${P_ARR[source_dir]}/${P_ARR[profile]}-${P_ARR[release]}.tar.xz"
+        P_ARR[bin_dir]="${P_ARR[build_dir]}/bin"
 
         if [[ "${P_ARR[release]}" == "snapshot" ]]; then
             P_ARR[OUT_PREFIX]="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-        else
-            P_ARR[OUT_PREFIX]="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-        fi
-
-        P_ARR[factory_img]=${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-factory.img
-        P_ARR[factory_img_gz]=${P_ARR[factory_img]}.gz
-        P_ARR[sysupgrade_img]=${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-sysupgrade.img
-        P_ARR[sysupgrade_img_gz]=${P_ARR[sysupgrade_img]}.gz
-        #P_ARR[sysupgrade_bin]=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img
-        #P_ARR[sysupgrade_bin_fname]=${P_ARR[sysupgrade_bin]##*/}
-        P_ARR[sysupgrade_bin_gz]=${P_ARR[sysupgrade_bin]}.gz
-        P_ARR[sysupgrade_bin_gz_fname]=${P_ARR[sysupgrade_bin_gz]##*/}
-
-        P_ARR[build_dir]="${BUILDDIR}"
-
-        if [[ "${P_ARR[release]}" == "snapshot" ]]; then
             P_ARR[URL_PREFIX]="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
             P_ARR[FILENAME]="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            P_ARR[IB_URL]="${URL_PREFIX}/$FILENAME"
+            P_ARR[IB_URL]="${P_ARR[URL_PREFIX]}/${P_ARR[FILENAME]}"
         else
+            P_ARR[OUT_PREFIX]="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
             P_ARR[URL_PREFIX]="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}"
             P_ARR[FILENAME]="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            P_ARR[IB_URL]="${URL_PREFIX}/$FILENAME"
+            P_ARR[IB_URL]="${P_ARR[URL_PREFIX]}/${P_ARR[FILENAME]}"
         fi
+
+        P_ARR[factory_img]="${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-factory.img"
+        P_ARR[factory_img_gz]="${P_ARR[factory_img]}.gz"
+        P_ARR[sysupgrade_img]="${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-sysupgrade.img"
+        P_ARR[sysupgrade_img_gz]="${P_ARR[sysupgrade_img]}.gz"
+        #P_ARR[sysupgrade_bin]=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img
+        #P_ARR[sysupgrade_bin_fname]=${P_ARR[sysupgrade_bin]##*/}
+        P_ARR[sysupgrade_bin_gz]="${P_ARR[sysupgrade_bin]}.gz"
+        P_ARR[sysupgrade_bin_gz_fname]="${P_ARR[sysupgrade_bin_gz]##*/}"
 
         P_ARR[SHA256_URL]="${P_ARR[URL_PREFIX]}/sha256sums"
         P_ARR[CONFIG_SEED]="${P_ARR[URL_PREFIX]}"
