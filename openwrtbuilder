@@ -203,6 +203,7 @@ installDependencies() {
                     "which"
                     "zlib"
                 )
+                ;;
         esac
     else
         # For Imagebuilder
@@ -251,18 +252,7 @@ installDependencies() {
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
-    declare url_prefix filename url dl_tool sha256sum
-
-    if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-        url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
-        filename="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-        url="${url_prefix}/$filename"
-    else
-        url_prefix="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}"
-        filename="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-        url="${url_prefix}/$filename"
-        [[ -f "${P_ARR[source_archive]}" ]] && return 0 # Reuse existing ImageBuilders
-    fi
+    declare dl_tool sha256sum
 
     if [[ -f "${P_ARR[source_archive]}" ]]; then
         if askOk "Update ImageBuilder ?"; then
@@ -271,9 +261,6 @@ getImageBuilder() {
             return 0
         fi
     fi
-    
-    # Make sources directory if it does not exist
-    [[ ! -d "$BUILDDIR/sources" ]] && mkdir -p "$BUILDDIR/sources"
 
     if hash axel &>/dev/null; then
         dl_tool="axel"
@@ -286,8 +273,8 @@ getImageBuilder() {
     
     echo "Downloading imagebuilder archive using $dl_tool"
 
-    debug "$dl_tool -o ${P_ARR[source_archive]} $url"
-    if ! "$dl_tool" -o "${P_ARR[source_archive]}" "$url"; then
+    debug "$dl_tool -o ${P_ARR[source_archive]} ${P_ARR[IB_URL]}"
+    if ! "$dl_tool" -o "${P_ARR[source_archive]}" "${P_ARR[IB_URL]}"; then
         echo "Could not download imagebuilder archive"
         exit 1
     fi
@@ -298,13 +285,13 @@ getImageBuilder() {
     fi
 
     
-    if hash sha256sum &>/dev/null; then
-        echo "Verifying checksums"
-        debug "$dl_tool -s $url_prefix/sha256sums | grep $filename | cut -f1 -d' '"
-        sha256sum=$($dl_tool -s "$url_prefix"/sha256sums |grep "$filename" |cut -f1 -d' ')
-        debug "Downloaded sha256sum: $sha256sum"
+    # if hash sha256sum &>/dev/null; then
+    #     echo "Verifying checksums"
+    #     debug "$dl_tool -s "${P_ARR[SHA256_URL]}" | grep $filename | cut -f1 -d' '"
+    #     sha256sum=$($dl_tool -s "${P_ARR[SHA256_URL]}" |grep "$filename" |cut -f1 -d' ')
+    #     debug "Downloaded sha256sum: $sha256sum"
 
-    fi
+    # fi
 
 
     echo "Extracting image archive"
@@ -348,20 +335,20 @@ sshBackup() {
     fi
 
     # Move backup archive locally
-    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname $BUILDDIR/"
-    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
+    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname ${P_ARR[build_dir]}/"
+    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "${P_ARR[build_dir]}/"; then
         echo "Could not copy SSH backup"
         exit 1
     fi
 
     # Extract backup archive
-    debug "tar -C $FILESDIR -xzf $BUILDDIR/$_backup_fname"
-    if ! tar -C "$FILESDIR" -xzf "$BUILDDIR/$_backup_fname"; then
+    debug "tar -C $FILESDIR -xzf ${P_ARR[build_dir]}/$_backup_fname"
+    if ! tar -C "$FILESDIR" -xzf "${P_ARR[build_dir]}/$_backup_fname"; then
         echo "Could not extract SSH backup"
         exit 1
     fi
 
-    rm "$BUILDDIR/$_backup_fname"
+    rm "${P_ARR[build_dir]}/$_backup_fname"
 }
 
 
@@ -457,7 +444,7 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare src_dir="$BUILDDIR/sources/openwrt"
+    declare src_dir="${P_ARR[build_dir]}/sources/openwrt"
     declare -a pkg_list
 
     echo "Building from source is under development"
@@ -477,6 +464,11 @@ fromSource() {
 
     ./scripts/feeds update -a
     ./scripts/feeds install -a
+
+    # Grab the release config.seed
+    k_options=$(curl -s https://downloads.openwrt.org/releases/22.03.3/targets/rockchip/armv8/config.buildinfo)
+    debug "$k_options"
+
 
     make distclean
     make download
@@ -502,9 +494,11 @@ askOk() {
 resetAll() {
     debug "${FUNCNAME[0]}"
     # BUILDDIR may not be set, so fallback to SCRIPTDIR
-    askOk "Remove ${BUILDDIR:-${SCRIPTDIR:?}}/sources and ${BUILDDIR:-${SCRIPTDIR:?}}/bin?" || exit $?
-    debug "rm -rf ${BUILDDIR:-${SCRIPTDIR:?}}/sources ${BUILDDIR:-${SCRIPTDIR:?}}/bin"
-    rm -rf "${BUILDDIR:-${SCRIPTDIR:?}}/sources" "${BUILDDIR:-${SCRIPTDIR:?}}/bin"
+    askOk "Remove ${BUILDDIR}/sources and ${BUILDDIR}/bin?" || exit $?
+    debug "rm -rf ${BUILDDIR}/sources ${BUILDDIR}/bin"
+    find "${BUILDDIR}/sources" "${BUILDDIR}/bin" \
+        ! -dir "$FILESDIR" -type f -delete +
+    #rm -rf "${BUILDDIR}/sources" "${BUILDDIR}/bin"
 }
 
 
@@ -602,13 +596,15 @@ init() {
             pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; }
             ;;
     esac
-
-    SCRIPTDIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P )"
 }
 
 
 main() {
     debug "${FUNCNAME[0]}"
+
+    # Use openwrtbuilder directory as fallback if BUILDDIR cannot be determined
+    declare -g SCRIPTDIR
+    SCRIPTDIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P )"
 
     init
 
@@ -616,6 +612,7 @@ main() {
    
     readInput "$@"
 
+    # Allow --reset without a profile
     if [[ ${#PROFILES} -lt 1 ]]; then
         if (( RESET )); then
             resetAll
@@ -635,29 +632,44 @@ main() {
 
         declare -gn P_ARR="$profile"
 
-        : "${BUILDDIR:=$SCRIPTDIR}"
-        : "${FILESDIR:=$BUILDDIR/files}"
+        # Fallback to SCRIPTDIR if BUILDDIR has not been set
+        BUILDDIR="${BUILDDIR:=$SCRIPTDIR}"
+        FILESDIR="${FILESDIR:=$BUILDDIR/files}"
 
-        : "${P_ARR[release]:=${USER_RELEASE:-$RELEASE}}" # precedence: profile>user input>env>hardcode
-        : "${P_ARR[source_archive]:=$BUILDDIR/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz}"
-        : "${P_ARR[source_dir]:=${P_ARR[source_archive]%.tar.xz}}"
-        : "${P_ARR[bin_dir]:=$BUILDDIR/bin/${P_ARR[profile]}-${P_ARR[release]}}"
+        P_ARR[release]=${USER_RELEASE:=${P_ARR[release]}:=$RELEASE} # precedence: user input>profile>env>hardcode
+        P_ARR[source_archive]=${P_ARR[build_dir]}/sources/${P_ARR[profile]}-${P_ARR[release]}.tar.xz
+        P_ARR[source_dir]=${P_ARR[source_archive]%.tar.xz}
+        P_ARR[bin_dir]=${P_ARR[build_dir]}/bin/${P_ARR[profile]}-${P_ARR[release]}
 
-        declare out_prefix
         if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-            out_prefix="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+            P_ARR[OUT_PREFIX]="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
         else
-            out_prefix="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+            P_ARR[OUT_PREFIX]="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
         fi
 
-        : "${P_ARR[factory_img]:=$out_prefix-${P_ARR[filesystem]}-factory.img}"
-        : "${P_ARR[factory_img_gz]:=${P_ARR[factory_img]}.gz}"
-        : "${P_ARR[sysupgrade_img]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
-        : "${P_ARR[sysupgrade_img_gz]:=${P_ARR[sysupgrade_img]}.gz}"
-        : "${P_ARR[sysupgrade_bin]:=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img}"
-        : "${P_ARR[sysupgrade_bin_fname]:=${P_ARR[sysupgrade_bin]##*/}}"
-        : "${P_ARR[sysupgrade_bin_gz]:=${P_ARR[sysupgrade_bin]}.gz}"
-        : "${P_ARR[sysupgrade_bin_gz_fname]:=${P_ARR[sysupgrade_bin_gz]##*/}}"
+        P_ARR[factory_img]=${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-factory.img
+        P_ARR[factory_img_gz]=${P_ARR[factory_img]}.gz
+        P_ARR[sysupgrade_img]=${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-sysupgrade.img
+        P_ARR[sysupgrade_img_gz]=${P_ARR[sysupgrade_img]}.gz
+        #P_ARR[sysupgrade_bin]=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img
+        #P_ARR[sysupgrade_bin_fname]=${P_ARR[sysupgrade_bin]##*/}
+        P_ARR[sysupgrade_bin_gz]=${P_ARR[sysupgrade_bin]}.gz
+        P_ARR[sysupgrade_bin_gz_fname]=${P_ARR[sysupgrade_bin_gz]##*/}
+
+        P_ARR[build_dir]="${BUILDDIR}"
+
+        if [[ "${P_ARR[release]}" == "snapshot" ]]; then
+            P_ARR[URL_PREFIX]="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
+            P_ARR[FILENAME]="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+            P_ARR[IB_URL]="${URL_PREFIX}/$FILENAME"
+        else
+            P_ARR[URL_PREFIX]="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}"
+            P_ARR[FILENAME]="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+            P_ARR[IB_URL]="${URL_PREFIX}/$FILENAME"
+        fi
+
+        P_ARR[SHA256_URL]="${P_ARR[URL_PREFIX]}/sha256sums"
+        P_ARR[CONFIG_SEED]="${P_ARR[URL_PREFIX]}"
 
         if (( DEBUG )) || (( PROFILE_INFO )); then
             echo "Profile settings:"
