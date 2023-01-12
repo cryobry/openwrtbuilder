@@ -636,7 +636,7 @@ main() {
         FILESDIR="${FILESDIR:=$BUILDROOT/files}"
 
         # precedence: user input>profile>env>hardcode
-        P_ARR[release]="${USER_RELEASE:=${P_ARR[release]}:=$RELEASE}"
+        P_ARR[release]="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
         P_ARR[build_dir]="$BUILDROOT/${P_ARR[profile]}-${P_ARR[release]}"
         P_ARR[sources_dir]="$BUILDROOT/sources"
         P_ARR[ib_archive]="${P_ARR[sources_dir]}/${P_ARR[profile]}-${P_ARR[release]}.tar.xz"
