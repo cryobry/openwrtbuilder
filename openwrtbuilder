@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Copyright 2022 Bryan C. Roessler
+# Copyright 2022-23 Bryan C. Roessler
 #
-# Build and flash/upgrade OpenWRT devices
+# Build and deploy OpenWRT images
 #
 # Apache 2.0 License
 
@@ -254,9 +254,9 @@ getImageBuilder() {
 
     declare dl_tool
 
-    if [[ -f "${P_ARR[source_archive]}" ]]; then
-        if askOk "Update ImageBuilder ?"; then
-            rm -f "${P_ARR[source_archive]}"
+    if [[ -f "${P_ARR[ib_archive]}" ]]; then
+        if askOk "Redownload ImageBuilder archive?"; then
+            rm -f "${P_ARR[ib_archive]}"
         else
             return 0
         fi
@@ -273,13 +273,13 @@ getImageBuilder() {
     
     echo "Downloading imagebuilder archive using $dl_tool"
 
-    debug "$dl_tool -o ${P_ARR[source_archive]} ${P_ARR[IB_URL]}"
-    if ! "$dl_tool" -o "${P_ARR[source_archive]}" "${P_ARR[IB_URL]}"; then
+    debug "$dl_tool -o ${P_ARR[ib_archive]} ${P_ARR[ib_url]}"
+    if ! "$dl_tool" -o "${P_ARR[ib_archive]}" "${P_ARR[ib_url]}"; then
         echo "Could not download imagebuilder archive"
         exit 1
     fi
 
-    if [[ ! -f "${P_ARR[source_archive]}" ]]; then
+    if [[ ! -f "${P_ARR[ib_archive]}" ]]; then
         echo "Archive missing"
         exit 1
     fi
@@ -295,9 +295,9 @@ getImageBuilder() {
 
 
     echo "Extracting image archive"
-    [[ ! -d "${P_ARR[source_dir]}" ]] && mkdir -p "${P_ARR[source_dir]}"
-    debug "tar -xf ${P_ARR[source_archive]} -C ${P_ARR[source_dir]} --strip-components 1"
-    if ! tar -xf "${P_ARR[source_archive]}" -C "${P_ARR[source_dir]}" --strip-components 1; then
+    [[ ! -d "${P_ARR[sources_dir]}" ]] && mkdir -p "${P_ARR[sources_dir]}"
+    debug "tar -xf ${P_ARR[ib_archive]} -C ${P_ARR[sources_dir]} --strip-components 1"
+    if ! tar -xf "${P_ARR[ib_archive]}" -C "${P_ARR[sources_dir]}" --strip-components 1; then
         echo "Extraction failed"
         exit 1
     fi
@@ -308,10 +308,10 @@ addRepos() {
     debug "${FUNCNAME[0]}"
 
     if [[ -v P_ARR[repo] ]]; then
-        if ! grep -q "${P_ARR[repo]}" "${P_ARR[source_dir]}/repositories.conf"; then
-            echo "${P_ARR[repo]}" >> "${P_ARR[source_dir]}/repositories.conf"
+        if ! grep -q "${P_ARR[repo]}" "${P_ARR[sources_dir]}/repositories.conf"; then
+            echo "${P_ARR[repo]}" >> "${P_ARR[sources_dir]}/repositories.conf"
         fi
-        sed -i '/option check_signature/d' "${P_ARR[source_dir]}/repositories.conf"
+        sed -i '/option check_signature/d' "${P_ARR[sources_dir]}/repositories.conf"
     fi
 }
 
@@ -371,7 +371,7 @@ makeImage() {
             PROFILE="${P_ARR[profile]}" \
             PACKAGES="${P_ARR[packages]}" \
             FILES="$FILESDIR" \
-            --directory="${P_ARR[source_dir]}" \
+            --directory="${P_ARR[sources_dir]}" \
             --jobs=$(( $(nproc) - 1 )) \
             > make.log; then
         echo "Make image failed!"
@@ -503,9 +503,9 @@ resetAll() {
 
 resetProfile() {
     debug "${FUNCNAME[0]}"
-    askOk "Remove ${P_ARR[source_dir]} ${P_ARR[bin_dir]}?" || exit $?
-    debug "rm -rf ${P_ARR[source_dir]} ${P_ARR[bin_dir]}"
-    rm -rf "${P_ARR[source_dir]}" "${P_ARR[bin_dir]}"
+    askOk "Remove ${P_ARR[sources_dir]} ${P_ARR[bin_dir]}?" || exit $?
+    debug "rm -rf ${P_ARR[sources_dir]} ${P_ARR[bin_dir]}"
+    rm -rf "${P_ARR[sources_dir]}" "${P_ARR[bin_dir]}"
 }
 
 
@@ -635,34 +635,36 @@ main() {
 
         # precedence: user input>profile>env>hardcode
         P_ARR[release]="${USER_RELEASE:=${P_ARR[release]}:=$RELEASE}"
-        P_ARR[build_dir]="$BUILDROOT/$profile/${P_ARR[release]}"
-        P_ARR[source_dir]="${P_ARR[build_root]}/sources"
-        P_ARR[source_archive]="${P_ARR[source_dir]}/${P_ARR[profile]}-${P_ARR[release]}.tar.xz"
-        P_ARR[bin_dir]="${P_ARR[build_dir]}/bin"
+        P_ARR[build_dir]="$BUILDROOT/${P_ARR[profile]}-${P_ARR[release]}"
+        P_ARR[sources_dir]="$BUILDROOT/sources"
+        P_ARR[ib_archive]="${P_ARR[sources_dir]}/${P_ARR[profile]}-${P_ARR[release]}.tar.xz"
+        P_ARR[bin_dir]="${P_ARR[build_dir]}"
 
+        # shellcheck disable=SC2154
+        # TODO: I don't knwo why shellcheck is catching this
         if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-            P_ARR[OUT_PREFIX]="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-            P_ARR[URL_PREFIX]="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
-            P_ARR[FILENAME]="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            P_ARR[IB_URL]="${P_ARR[URL_PREFIX]}/${P_ARR[FILENAME]}"
+            P_ARR[out_prefix]="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+            P_ARR[url_prefix]="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
+            P_ARR[url_filename]="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+            P_ARR[ib_url]="${P_ARR[url_prefix]}/${P_ARR[url_filename]}"
         else
-            P_ARR[OUT_PREFIX]="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-            P_ARR[URL_PREFIX]="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}"
-            P_ARR[FILENAME]="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            P_ARR[IB_URL]="${P_ARR[URL_PREFIX]}/${P_ARR[FILENAME]}"
+            P_ARR[out_prefix]="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
+            P_ARR[url_prefix]="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}"
+            P_ARR[url_filename]="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+            P_ARR[ib_url]="${P_ARR[url_prefix]}/${P_ARR[url_filename]}"
         fi
 
-        P_ARR[factory_img]="${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-factory.img"
+        P_ARR[factory_img]="${P_ARR[out_prefix]}-${P_ARR[filesystem]}-factory.img"
         P_ARR[factory_img_gz]="${P_ARR[factory_img]}.gz"
-        P_ARR[sysupgrade_img]="${P_ARR[OUT_PREFIX]}-${P_ARR[filesystem]}-sysupgrade.img"
+        P_ARR[sysupgrade_img]="${P_ARR[out_prefix]}-${P_ARR[filesystem]}-sysupgrade.img"
         P_ARR[sysupgrade_img_gz]="${P_ARR[sysupgrade_img]}.gz"
         #P_ARR[sysupgrade_bin]=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img
         #P_ARR[sysupgrade_bin_fname]=${P_ARR[sysupgrade_bin]##*/}
         P_ARR[sysupgrade_bin_gz]="${P_ARR[sysupgrade_bin]}.gz"
         P_ARR[sysupgrade_bin_gz_fname]="${P_ARR[sysupgrade_bin_gz]##*/}"
 
-        P_ARR[SHA256_URL]="${P_ARR[URL_PREFIX]}/sha256sums"
-        P_ARR[CONFIG_SEED]="${P_ARR[URL_PREFIX]}"
+        P_ARR[SHA256_URL]="${P_ARR[url_prefix]}/sha256sums"
+        P_ARR[CONFIG_SEED]="${P_ARR[url_prefix]}"
 
         if (( DEBUG )) || (( PROFILE_INFO )); then
             echo "Profile settings:"
