@@ -13,7 +13,7 @@ printHelp() {
     debug "${FUNCNAME[0]}"
 
     cat <<-'EOF'
-		Create and deploy OpenWRT images using the Image Builder.
+		Build and deploy OpenWRT images
 
 		USAGE:
 		    openwrtbuilder [OPTION [VALUE]] -p PROFILE [-p PROFILE2]...
@@ -128,7 +128,7 @@ readInput() {
     declare -ga PROFILES
     declare -g PROFILE_INFO 
 
-    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l release:,version:,profile:,info:,list-profiles,buildroot:,from-source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
+    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l release:,version:,profile:,info:,list-profiles,buildroot:,source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -147,7 +147,7 @@ readInput() {
                 --buildroot|-b)
                     shift && BUILDROOT="$1"
                     ;;
-                --from-source|-s)
+                --source|-s)
                     FROM_SOURCE=1
                     ;;
                 --ssh-upgrade)
@@ -450,12 +450,12 @@ makeImage() {
     [[ ! -d "$BUILDDIR" ]] && mkdir -p "$BUILDDIR"
 
     if ! make image \
-            BIN_DIR="$BUILDDIR" \
+            BIN_DIR="$BINDIR" \
             PROFILE="${P_ARR[profile]}" \
             PACKAGES="${P_ARR[packages]}" \
             FILES="${FILESDIR}" \
             --directory="$BUILDDIR" \
-            --jobs=$(( $(nproc) - 1 )) \
+            --jobs="$(nproc)"  \
             > make.log; then
         echo "Make image failed!"
         exit 1
@@ -527,7 +527,7 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare src_dir="$BUILDDIR/sources/openwrt"
+    declare src_dir="$SRCDIR/openwrt"
     declare -a pkg_list
 
     echo "Building from source is under development"
@@ -577,9 +577,9 @@ askOk() {
 
 resetAll() {
     debug "${FUNCNAME[0]}"
-    askOk "Remove ${BUILDROOT}/sources and ${BUILDROOT}/bin?" || exit $?
-    debug "rm -rf ${BUILDROOT}/sources ${BUILDROOT}/bin"
-    rm -rf "${BUILDROOT:?}/sources" "${BUILDROOT:?}/bin"
+    askOk "Remove $SRCDIR and $BINDIR?" || exit $?
+    debug "rm -rf $SRCDIR $BINDIR"
+    rm -rf "$SRCDIR" "$BINDIR"
 }
 
 
@@ -612,6 +612,7 @@ main() {
 
     # Fallback to SCRIPTDIR if BUILDROOT has not been set
     declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
+    [[ $BUILDROOT == "/" ]] && echo "Invalid --buildroot" && exit 1
     declare -g FILESDIR="${FILESDIR:=$BUILDROOT/files}"
 
     # Allow --reset without a profile
@@ -636,8 +637,11 @@ main() {
 
         # precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
-        declare -g BUILDDIR="$BUILDROOT/${P_ARR[profile]}-$RELEASE"
-        declare -g IB_ARCHIVE="$BUILDDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
+        declare -g SRCDIR="$BUILDROOT/src"
+        declare -g BINDIR="$BUILDROOT/bin"
+        declare -g BUILDDIR="$SRCDIR/${P_ARR[profile]}-$RELEASE"
+        
+        declare -g IB_ARCHIVE="$SRCDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
 
         if [[ "$RELEASE" == "snapshot" ]]; then
@@ -680,8 +684,8 @@ main() {
 
         (( FROM_SOURCE )) && fromSource
 
-        getImageBuilder &&
-        addRepos &&
+        getImageBuilder || return $?
+        addRepos
         #copyFiles &&
         [[ -v SSH_BACKUP_PATH ]] && sshBackup
         if makeImage; then
