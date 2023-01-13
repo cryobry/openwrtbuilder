@@ -576,10 +576,11 @@ fromSource() {
 
     # Only compile our target
     echo "CONFIG_TARGET_MULTI_PROFILE=n" >> .config
+    make defconfig # normalize .config and remove dupes
+    # make defconfig will add these back    
     sed -i '/CONFIG_TARGET_DEVICE_/d' .config
     echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> .config
 
-    make defconfig # normalize .config and remove dupes
     make targetclean
     make download &&
     make -j"$(nproc)" world
