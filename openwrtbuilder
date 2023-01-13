@@ -13,28 +13,110 @@ printHelp() {
     debug "${FUNCNAME[0]}"
 
     cat <<-'EOF'
-Create and deploy OpenWRT images using the Image Builder.
+		Create and deploy OpenWRT images using the Image Builder.
 
-USAGE:
-openwrtbuilder [OPTION [VALUE]] -p PROFILE [-p PROFILE2]...
+		USAGE:
+		    openwrtbuilder [OPTION [VALUE]] -p PROFILE [-p PROFILE2]...
 
-OPTIONS
-    --profile, -p PROFILE
-    --info, -i (print profile info)
-    --list-profiles, -l
-    --release, -r, --version, -v RELEASE_VERSION ("snapshot", "22.03.3", etc.)
-    --buildroot, -b PATH
-    --ssh-upgrade HOST
-        Example: root@192.168.1.1
-    --ssh-backup SSH_PATH
-        (Enabled by default for --ssh-upgrade)
-    --flash, -f DEVICE
-        Example: /dev/sdX
-    --reset
-        Cleanup all source and output files
-    --debug, -d
-    --help, -h
-EOF
+		OPTIONS
+		    --profile, -p PROFILE
+		    --info, -i (print profile info)
+		    --list-profiles, -l
+		    --release, --version, -r, -v RELEASE ("snapshot", "22.03.3") 
+		    --buildroot, -b PATH
+		    --ssh-upgrade HOST
+		        Example: root@192.168.1.1
+		    --ssh-backup SSH_PATH
+		        (Enabled by default for --ssh-upgrade)
+		    --flash, -f DEVICE
+		        Example: /dev/sdX
+		    --reset
+		        Cleanup all source and output files
+		    --debug, -d
+		    --help, -h
+	EOF
+}
+
+
+init() {
+    debug "${FUNCNAME[0]}"
+
+    declare -g ID RPM_MGR SCRIPTDIR
+
+    debug || echo "To enable debugging output, use --debug or -d"
+
+    # Save the script directory
+    SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
+
+    if [[ -e "/etc/os-release" ]]; then
+        source "/etc/os-release"
+    else
+        err "/etc/os-release not found"
+        err "Your OS is unsupported"
+        printHelp
+        exit 1
+    fi
+
+    debug "Detected host platform: $ID"
+
+    # normalize distro ID
+    case "$ID" in
+        debian|arch)
+            ;;
+        centos|fedora)
+            if hash dnf &>/dev/null; then
+                RPM_MGR="dnf"
+            elif hash yum &>/dev/null; then
+                RPM_MGR="yum"
+            fi
+            ;;
+        rhel)
+            ID="centos"
+            ;;
+        linuxmint|neon|*ubuntu*)
+            ID="ubuntu"
+            ;;
+        *suse*)
+            ID="suse"
+            ;;
+        raspbian)
+            ID="debian"
+            ;;
+        *)
+            echo "Autodetecting distro, this may be unreliable and --compat may also be required"
+            if hash dnf &>/dev/null; then
+                ID="fedora"
+                RPM_MGR="dnf"
+            elif hash yum &>/dev/null; then
+                ID="centos"
+                RPM_MGR="yum"
+            elif hash apt &>/dev/null; then
+                ID="ubuntu"
+            elif hash pacman &>/dev/null; then
+                ID="arch"
+            else
+                return 1
+            fi
+            ;;
+    esac
+
+    debug "Using host platform: $ID"
+
+    # Set distro-specific functions
+    case "$ID" in
+        fedora|centos)
+            pkg_install(){ sudo "$RPM_MGR" install -y "$@"; }
+            ;;
+        debian|ubuntu)
+            pkg_install(){ sudo apt-get install -y -q0 "$@"; }
+            ;;
+        suse)
+            pkg_install(){ sudo zypper --non-interactive -q install --force --no-confirm "$@"; }
+            ;;
+        arch)
+            pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; }
+            ;;
+    esac
 }
 
 
@@ -514,88 +596,6 @@ loadProfiles() {
     PFILE="$SCRIPTDIR/profiles"
     # shellcheck source=./profiles
     ! source "$PFILE" && echo "profiles file missing!" && return 1
-}
-
-
-init() {
-    debug "${FUNCNAME[0]}"
-
-    declare -g ID RPM_MGR SCRIPTDIR
-
-    debug || echo "To enable debugging output, use --debug or -d"
-
-    # Save the script directory
-    SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
-
-    if [[ -e "/etc/os-release" ]]; then
-        source "/etc/os-release"
-    else
-        err "/etc/os-release not found"
-        err "Your OS is unsupported"
-        printHelp
-        exit 1
-    fi
-
-    debug "Detected host platform: $ID"
-
-    # normalize distro ID
-    case "$ID" in
-        debian|arch)
-            ;;
-        centos|fedora)
-            if hash dnf &>/dev/null; then
-                RPM_MGR="dnf"
-            elif hash yum &>/dev/null; then
-                RPM_MGR="yum"
-            fi
-            ;;
-        rhel)
-            ID="centos"
-            ;;
-        linuxmint|neon|*ubuntu*)
-            ID="ubuntu"
-            ;;
-        *suse*)
-            ID="suse"
-            ;;
-        raspbian)
-            ID="debian"
-            ;;
-        *)
-            echo "Autodetecting distro, this may be unreliable and --compat may also be required"
-            if hash dnf &>/dev/null; then
-                ID="fedora"
-                RPM_MGR="dnf"
-            elif hash yum &>/dev/null; then
-                ID="centos"
-                RPM_MGR="yum"
-            elif hash apt &>/dev/null; then
-                ID="ubuntu"
-            elif hash pacman &>/dev/null; then
-                ID="arch"
-            else
-                return 1
-            fi
-            ;;
-    esac
-
-    debug "Using host platform: $ID"
-
-    # Set distro-specific functions
-    case "$ID" in
-        fedora|centos)
-            pkg_install(){ sudo "$RPM_MGR" install -y "$@"; }
-            ;;
-        debian|ubuntu)
-            pkg_install(){ sudo apt-get install -y -q0 "$@"; }
-            ;;
-        suse)
-            pkg_install(){ sudo zypper --non-interactive -q install --force --no-confirm "$@"; }
-            ;;
-        arch)
-            pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; }
-            ;;
-    esac
 }
 
 
