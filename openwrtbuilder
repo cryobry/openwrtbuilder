@@ -538,7 +538,7 @@ fromSource() {
 
     if [[ ! -d "$src_dir" ]]; then
         mkdir -p "$src_dir"
-        git clone  "$src_url" "$src_dir"
+        git clone "$src_url" "$src_dir"
     fi
 
     pushd "$src_dir" || return 1
@@ -552,14 +552,27 @@ fromSource() {
     ./scripts/feeds update -a
     ./scripts/feeds install -a
 
-    # Grab the release config.seed
-    k_options=$(curl -s "$SEED_URL")
-    debug "$k_options"
+    # Grab the release seed config
+    if [[ ! -f .config ]]; then
+        if ! curl -so .config "$SEED_URL"; then
+            echo "Could not obtain seed config"
+        fi
+    else
+        echo "Reusing existing .config"
+    fi
 
+    # Update .config with profile packages
+    for package in ${P_ARR[packages]}; do
+        if [[ $package == -* ]]; then
+            echo "CONFIG_PACKAGE_${package#-}=n" >> .config
+        else
+            echo "CONFIG_PACKAGE_$package=y" >> .config
+        fi
+    done
 
-
-    make distclean
-    make download
+    make defconfig # normalize .config and remove dupes
+    make targetclean
+    make download &&
     make -j"$(nproc)" world
 
     popd || return 1
