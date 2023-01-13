@@ -254,9 +254,9 @@ getImageBuilder() {
 
     declare dl_tool
 
-    if [[ -f "${P_ARR[ib_archive]}" ]]; then
+    if [[ -f "$IB_ARCHIVE" ]]; then
         if askOk "Redownload ImageBuilder archive?"; then
-            rm -f "${P_ARR[ib_archive]}"
+            rm -f "$IB_ARCHIVE"
         else
             return 0
         fi
@@ -273,13 +273,13 @@ getImageBuilder() {
     
     echo "Downloading imagebuilder archive using $dl_tool"
 
-    debug "$dl_tool -o ${P_ARR[ib_archive]} ${P_ARR[ib_url]}"
-    if ! "$dl_tool" -o "${P_ARR[ib_archive]}" "${P_ARR[ib_url]}"; then
+    debug "$dl_tool -o $IB_ARCHIVE $IB_URL"
+    if ! "$dl_tool" -o "$IB_ARCHIVE" "$IB_URL"; then
         echo "Could not download imagebuilder archive"
         exit 1
     fi
 
-    if [[ ! -f "${P_ARR[ib_archive]}" ]]; then
+    if [[ ! -f "$IB_ARCHIVE" ]]; then
         echo "Archive missing"
         exit 1
     fi
@@ -287,17 +287,17 @@ getImageBuilder() {
     
     # if hash sha256sum &>/dev/null; then
     #     echo "Verifying checksums"
-    #     debug "$dl_tool -s "${P_ARR[SHA256_URL]}" | grep $filename | cut -f1 -d' '"
-    #     sha256sum=$($dl_tool -s "${P_ARR[SHA256_URL]}" |grep "$filename" |cut -f1 -d' ')
+    #     debug "$dl_tool -s "${P_ARR[sha256_url]}" | grep $filename | cut -f1 -d' '"
+    #     sha256sum=$($dl_tool -s "${P_ARR[sha256_url]}" |grep "$filename" |cut -f1 -d' ')
     #     debug "Downloaded sha256sum: $sha256sum"
 
     # fi
 
 
     echo "Extracting image archive"
-    [[ ! -d "${P_ARR[sources_dir]}" ]] && mkdir -p "${P_ARR[sources_dir]}"
-    debug "tar -xf ${P_ARR[ib_archive]} -C ${P_ARR[sources_dir]} --strip-components 1"
-    if ! tar -xf "${P_ARR[ib_archive]}" -C "${P_ARR[sources_dir]}" --strip-components 1; then
+    [[ ! -d "$BUILDDIR" ]] && mkdir -p "$BUILDDIR"
+    debug "tar -xf $IB_ARCHIVE -C $BUILDDIR --strip-components 1"
+    if ! tar -xf "$IB_ARCHIVE" -C "$BUILDDIR" --strip-components 1; then
         echo "Extraction failed"
         exit 1
     fi
@@ -308,10 +308,10 @@ addRepos() {
     debug "${FUNCNAME[0]}"
 
     if [[ -v P_ARR[repo] ]]; then
-        if ! grep -q "${P_ARR[repo]}" "${P_ARR[sources_dir]}/repositories.conf"; then
-            echo "${P_ARR[repo]}" >> "${P_ARR[sources_dir]}/repositories.conf"
+        if ! grep -q "${P_ARR[repo]}" "$BUILDDIR/repositories.conf"; then
+            echo "${P_ARR[repo]}" >> "$BUILDDIR/repositories.conf"
         fi
-        sed -i '/option check_signature/d' "${P_ARR[sources_dir]}/repositories.conf"
+        sed -i '/option check_signature/d' "$BUILDDIR/repositories.conf"
     fi
 }
 
@@ -335,20 +335,20 @@ sshBackup() {
     fi
 
     # Move backup archive locally
-    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname ${P_ARR[build_dir]}/"
-    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "${P_ARR[build_dir]}/"; then
+    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname $BUILDDIR/"
+    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
         echo "Could not copy SSH backup"
         exit 1
     fi
 
     # Extract backup archive
-    debug "tar -C $FILESDIR -xzf ${P_ARR[build_dir]}/$_backup_fname"
-    if ! tar -C "$FILESDIR" -xzf "${P_ARR[build_dir]}/$_backup_fname"; then
+    debug "tar -C $FILESDIR -xzf $BUILDDIR/$_backup_fname"
+    if ! tar -C "$FILESDIR" -xzf "$BUILDDIR/$_backup_fname"; then
         echo "Could not extract SSH backup"
         exit 1
     fi
 
-    rm "${P_ARR[build_dir]}/$_backup_fname"
+    rm "$BUILDDIR/$_backup_fname"
 }
 
 
@@ -356,22 +356,22 @@ makeImage() {
     debug "${FUNCNAME[0]}"
 
     # Reuse the existing output
-    if [[ -d "${P_ARR[bin_dir]}" ]]; then
-        if askOk "${P_ARR[bin_dir]} exists. Rebuild?"; then
-            rm -rf "${P_ARR[bin_dir]}"
+    if [[ -d "$BUILDDIR" ]]; then
+        if askOk "$BUILDDIR exists. Rebuild?"; then
+            rm -rf "$BUILDDIR"
         else
             return 0
         fi
     fi
 
-    [[ ! -d "${P_ARR[bin_dir]}" ]] && mkdir -p "${P_ARR[bin_dir]}"
+    [[ ! -d "$BUILDDIR" ]] && mkdir -p "$BUILDDIR"
 
     if ! make image \
-            BIN_DIR="${P_ARR[bin_dir]}" \
+            BIN_DIR="$BUILDDIR" \
             PROFILE="${P_ARR[profile]}" \
             PACKAGES="${P_ARR[packages]}" \
-            FILES="$FILESDIR" \
-            --directory="${P_ARR[sources_dir]}" \
+            FILES="${FILESDIR}" \
+            --directory="$BUILDDIR" \
             --jobs=$(( $(nproc) - 1 )) \
             > make.log; then
         echo "Make image failed!"
@@ -383,7 +383,7 @@ makeImage() {
 flashImage() {
     debug "${FUNCNAME[0]}"
 
-    local _umount
+    declare img img_gz partitions
 
     if [[ ! -e "$FLASH_DEV" ]]; then
         echo "The device specified by --flash could not be found"
@@ -391,12 +391,12 @@ flashImage() {
     fi
 
     # TODO Roughly chooses the correct image
-    if [[ -f "${P_ARR[factory_img_gz]}" ]]; then
-        img_gz="${P_ARR[factory_img_gz]}"
-        img="${P_ARR[factory_img]}"
-    elif [[ -f "${P_ARR[sysupgrade_img_gz]}" ]]; then
-        img_gz="${P_ARR[sysupgrade_img_gz]}"
-        img="${P_ARR[sysupgrade_img]}"
+    if [[ -f "$FACTORYIMGGZ" ]]; then
+        img_gz="$FACTORYIMGGZ"
+        img="$FACTORYIMG"
+    elif [[ -f "$SYSUPGRADEIMGGZ" ]]; then
+        img_gz="$SYSUPGRADEIMGGZ"
+        img="$SYSUPGRADEIMG"
     else
         return 1
     fi
@@ -407,9 +407,9 @@ flashImage() {
     gunzip -qfk "$img_gz"
         
     echo "Unmounting target device $FLASH_DEV partitions"
-    _umount=( "$FLASH_DEV"?* )
-    debug "umount ${_umount[*]}"
-    sudo umount "${_umount[@]}"
+    partitions=( "$FLASH_DEV"?* )
+    debug "umount ${partitions[*]}"
+    sudo umount "${partitions[@]}"
 
     debug "sudo dd if=\"$img\" of=\"$FLASH_DEV\" bs=2M conv=fsync"
     if sudo dd if="$img" of="$FLASH_DEV" bs=2M conv=fsync; then
@@ -425,18 +425,18 @@ flashImage() {
 sshUpgrade() {
     debug "${FUNCNAME[0]}"
 
-    echo "Copying \"${P_ARR[sysupgrade_bin_gz]}\" to $SSH_UPGRADE_PATH/tmp/"
-    debug "scp \"${P_ARR[sysupgrade_bin_gz]}\" \"$SSH_UPGRADE_PATH\":\"/tmp/${P_ARR[sysupgrade_bin_gz_fname]}\""
+    echo "Copying '$SYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
+    debug "scp \"$SYSUPGRADEIMGGZ\" \"$SSH_UPGRADE_PATH\":\"/tmp/$SYSUPGRADEIMGGZFNAME\""
     
-    if ! scp "${P_ARR[sysupgrade_bin_gz]}" "$SSH_UPGRADE_PATH":"/tmp/${P_ARR[sysupgrade_bin_gz_fname]}"; then
+    if ! scp "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
         echo "Could not access the --ssh-upgrade PATH"
         exit 1
     fi
 
     echo "Executing remote sysupgrade"
-    debug "ssh \"$SSH_UPGRADE_PATH\" \"sysupgrade -F /tmp/${P_ARR[sysupgrade_bin_gz_fname]}\""
+    debug "ssh \"$SSH_UPGRADE_PATH\" \"sysupgrade -F /tmp/$SYSUPGRADEIMGGZFNAME\""
     # shellcheck disable=SC2029
-    ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/${P_ARR[sysupgrade_bin_gz_fname]}"
+    ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/$SYSUPGRADEIMGGZFNAME"
 }
 
 
@@ -444,7 +444,7 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare src_dir="${P_ARR[build_dir]}/sources/openwrt"
+    declare src_dir="$BUILDDIR/sources/openwrt"
     declare -a pkg_list
 
     echo "Building from source is under development"
@@ -459,7 +459,7 @@ fromSource() {
     if [[ ${P_ARR['release']} == "snapshot" ]]; then
         git checkout master
     else
-        git checkout "v${P_ARR[release]}"
+        git checkout "v$RELEASE"
     fi
 
     ./scripts/feeds update -a
@@ -496,16 +496,16 @@ resetAll() {
     askOk "Remove ${BUILDROOT}/sources and ${BUILDROOT}/bin?" || exit $?
     debug "rm -rf ${BUILDROOT}/sources ${BUILDROOT}/bin"
     find "${BUILDROOT}/sources" "${BUILDROOT}/bin" \
-        ! -dir "$FILESDIR" -type f -delete +
+        ! -path "$FILESDIR" -type d -delete +
     #rm -rf "${BUILDROOT}/sources" "${BUILDROOT}/bin"
 }
 
 
 resetProfile() {
     debug "${FUNCNAME[0]}"
-    askOk "Remove ${P_ARR[sources_dir]} ${P_ARR[bin_dir]}?" || exit $?
-    debug "rm -rf ${P_ARR[sources_dir]} ${P_ARR[bin_dir]}"
-    rm -rf "${P_ARR[sources_dir]}" "${P_ARR[bin_dir]}"
+    askOk "Remove $BUILDDIR?" || exit $?
+    debug "rm -rf $BUILDDIR"
+    rm -rf "$BUILDDIR"
 }
 
 
@@ -624,58 +624,62 @@ main() {
 
     for profile in "${PROFILES[@]}"; do
 
-        debug "Profile: $profile"
-
-        [[ ! ${!profile@a} = A ]] && echo "Profile does not exist" && return 1
-
-        # Set profile vars in the P_ARR array
+        debug "Starting profile: $profile"
+        [[ ! ${!profile@a} = A ]] && echo "Profile '$profile' does not exist" && return 1
+         # Hold profile settings (from config file) in P_ARR
         declare -gn P_ARR="$profile"
 
         # Fallback to SCRIPTDIR if BUILDROOT has not been set
-        BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
-        FILESDIR="${FILESDIR:=$BUILDROOT/files}"
+        declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
+        declare -g FILESDIR="${FILESDIR:=$BUILDROOT/files}"
 
         # precedence: user input>profile>env>hardcode
-        P_ARR[release]="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
-        P_ARR[build_dir]="$BUILDROOT/${P_ARR[profile]}-${P_ARR[release]}"
-        P_ARR[sources_dir]="$BUILDROOT/sources"
-        P_ARR[ib_archive]="${P_ARR[sources_dir]}/${P_ARR[profile]}-${P_ARR[release]}.tar.xz"
-        P_ARR[bin_dir]="${P_ARR[build_dir]}"
+        declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
+        declare -g BUILDDIR="$BUILDROOT/${P_ARR[profile]}-$RELEASE"
+        declare -g IB_ARCHIVE="$BUILDDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
+        declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
 
         # shellcheck disable=SC2154
         # TODO: I don't know why shellcheck is catching this
-        if [[ "${P_ARR[release]}" == "snapshot" ]]; then
-            P_ARR[out_prefix]="${P_ARR[bin_dir]}/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-            P_ARR[url_prefix]="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
-            P_ARR[url_filename]="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            P_ARR[ib_url]="${P_ARR[url_prefix]}/${P_ARR[url_filename]}"
+        if [[ "$RELEASE" == "snapshot" ]]; then
+            declare url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
+            declare url_filename="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+            declare img_prefix="$BUILDDIR/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM" 
         else
-            P_ARR[out_prefix]="${P_ARR[bin_dir]}/openwrt-${P_ARR[release]}-${P_ARR[target]//\//-}-${P_ARR[profile]}"
-            P_ARR[url_prefix]="https://downloads.openwrt.org/releases/${P_ARR[release]}/targets/${P_ARR[target]}"
-            P_ARR[url_filename]="openwrt-imagebuilder-${P_ARR[release]}-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            P_ARR[ib_url]="${P_ARR[url_prefix]}/${P_ARR[url_filename]}"
+            declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/${P_ARR[target]}"
+            declare url_filename="openwrt-imagebuilder-$RELEASE-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
+            declare img_prefix="$BUILDDIR/openwrt-$RELEASE-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM"
         fi
 
-        P_ARR[factory_img]="${P_ARR[out_prefix]}-${P_ARR[filesystem]}-factory.img"
-        P_ARR[factory_img_gz]="${P_ARR[factory_img]}.gz"
-        P_ARR[sysupgrade_img]="${P_ARR[out_prefix]}-${P_ARR[filesystem]}-sysupgrade.img"
-        P_ARR[sysupgrade_img_gz]="${P_ARR[sysupgrade_img]}.gz"
-        #P_ARR[sysupgrade_bin]=$out_prefix-${P_ARR[filesystem]}-sysupgrade.img
-        #P_ARR[sysupgrade_bin_fname]=${P_ARR[sysupgrade_bin]##*/}
-        P_ARR[sysupgrade_bin_gz]="${P_ARR[sysupgrade_bin]}.gz"
-        P_ARR[sysupgrade_bin_gz_fname]="${P_ARR[sysupgrade_bin_gz]##*/}"
+        declare -g IB_URL="$url_prefix/$url_filename"
+        declare -g SHA256_URL="$url_prefix/sha256sums"
+        declare -g SEED_URL="$url_prefix/config.buildinfo"
 
-        P_ARR[SHA256_URL]="${P_ARR[url_prefix]}/sha256sums"
-        P_ARR[CONFIG_SEED]="${P_ARR[url_prefix]}"
+        declare -g FACTORYIMG="$img_prefix-factory.img"
+        declare -g FACTORYIMGGZ="$img_prefix-factory.img.gz"
+        declare -g SYSUPGRADEIMG="$img_prefix-sysupgrade.img"
+        declare -g SYSUPGRADEIMGGZ="$img_prefix-sysupgrade.img.gz"
+        declare -g SYSUPGRADEIMGGZFNAME="${SYSUPGRADEIMGGZ##*/}"
 
         if (( DEBUG )) || (( PROFILE_INFO )); then
             echo "Profile settings:"
             for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
+            echo "Build settings:"
+            cat <<- EOF
+				ALIAS: $profile
+				BUILDDIR: $BUILDDIR
+				TARGET: ${P_ARR[target]}
+				PROFILE: ${P_ARR[profile]}
+				RELEASE: $RELEASE
+				FILESYSTEM: $FILESYSTEM
+				IB_URL: $IB_URL
+				IB_ARCHIVE: $IB_ARCHIVE
+				IB_ARCHIVE: $IB_ARCHIVE
+			EOF
         fi
 
         (( RESET )) && resetProfile
 
-        # Experimental
         (( FROM_SOURCE )) && fromSource
 
         getImageBuilder
