@@ -456,7 +456,7 @@ fromSource() {
 
     pushd "$src_dir" || return 1
 
-    if [[ ${P_ARR['release']} == "snapshot" ]]; then
+    if [[ ${P_ARR[release]} == "snapshot" ]]; then
         git checkout master
     else
         git checkout "v$RELEASE"
@@ -538,7 +538,7 @@ init() {
         exit 1
     fi
 
-    debug "Detected host platform: $ID $VERSION_ID"
+    debug "Detected host platform: $ID"
 
     # normalize distro ID
     case "$ID" in
@@ -581,7 +581,7 @@ init() {
             ;;
     esac
 
-    debug "Using host platform: $ID $VERSION_ID"
+    debug "Using host platform: $ID"
 
     # Set distro-specific functions
     case "$ID" in
@@ -610,6 +610,10 @@ main() {
    
     readInput "$@"
 
+    # Fallback to SCRIPTDIR if BUILDROOT has not been set
+    declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
+    declare -g FILESDIR="${FILESDIR:=$BUILDROOT/files}"
+
     # Allow --reset without a profile
     if [[ ${#PROFILES} -lt 1 ]]; then
         if (( RESET )); then
@@ -626,12 +630,9 @@ main() {
 
         debug "Starting profile: $profile"
         [[ ! ${!profile@a} = A ]] && echo "Profile '$profile' does not exist" && return 1
-         # Hold profile settings (from config file) in P_ARR
-        declare -gn P_ARR="$profile"
 
-        # Fallback to SCRIPTDIR if BUILDROOT has not been set
-        declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
-        declare -g FILESDIR="${FILESDIR:=$BUILDROOT/files}"
+        # Hold profile settings (from config file) in P_ARR
+        declare -gn P_ARR="$profile"
 
         # precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
