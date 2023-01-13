@@ -560,7 +560,7 @@ fromSource() {
             fi
         fi
     else
-        echo "Reusing existing "$SEED_FILE""
+        echo "Reusing existing $SEED_FILE"
     fi
 
     # Override default .config seed with profile packages
