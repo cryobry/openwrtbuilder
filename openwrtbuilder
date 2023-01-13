@@ -616,7 +616,13 @@ main() {
     # Fallback to SCRIPTDIR if BUILDROOT has not been set
     declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
     [[ $BUILDROOT == "/" ]] && echo "Invalid --buildroot" && exit 1
-    declare -g FILESDIR="${FILESDIR:=$BUILDROOT/files}"
+    declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
+    declare -g SRCDIR="$BUILDROOT/src" # input/build
+    declare -g BINDIR="$BUILDROOT/bin" # output
+
+    for dir in "$SRCDIR" "$BINDIR"; do
+        [[ -d "$dir" ]] || mkdir -p "$dir"
+    done
 
     # Allow --reset without a profile
     if [[ ${#PROFILES} -lt 1 ]]; then
@@ -643,8 +649,6 @@ main() {
 
         # release precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
-        declare -g SRCDIR="$BUILDROOT/src"
-        declare -g BINDIR="$BUILDROOT/bin"
         declare -g BUILDDIR="$SRCDIR/${P_ARR[profile]}-$RELEASE"
         declare -g IB_ARCHIVE="$SRCDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
