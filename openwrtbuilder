@@ -570,8 +570,7 @@ askOk() {
     local _response
     read -r -p "$* [y/N]" _response
     _response=${_response,,}
-    [[ ! "$_response" =~ ^(yes|y)$ ]] && return 1
-    return 0
+    [[ "$_response" =~ ^(yes|y)$ ]]
 }
 
 
