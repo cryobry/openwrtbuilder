@@ -580,7 +580,8 @@ fromSource() {
     # make defconfig will add these back    
     sed -i '/CONFIG_TARGET_DEVICE_/d' .config
     echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> .config
-
+    # output to bindir instead of builddir
+    echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> .config
     make targetclean
     make download &&
     make -j"$(nproc)" world
