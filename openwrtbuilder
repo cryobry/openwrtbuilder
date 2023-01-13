@@ -371,13 +371,22 @@ getImageBuilder() {
     fi
 
     if hash sha256sum &>/dev/null; then
-        # echo "Verifying checksums"
-        # debug "$dl_tool -s "${P_ARR[sha256_url]}" | grep $filename | cut -f1 -d' '"
-        if ! $dl_tool -o "$BUILDDIR" "$SHA256_URL"; then
-            debug "Downloaded sha256sums: $checksum"
-        fi
-    fi
+        debug "Verifying checksums"
 
+        if [[ -f $SHA256_FILE ]] && askOk "$SHA256_FILE exists. Re-download?"; then
+            if ! $dl_tool -so "$SHA256_FILE" "$SHA256_URL"; then
+                debug "Failed to download checksum"
+            fi
+        elif ! $dl_tool -so "$SHA256_FILE" "$SHA256_URL"; then
+            debug "Failed to download checksum"
+        fi
+
+        checksum=$(grep "${IB_ARCHIVE##*/}" "$SHA256_FILE" | cut -f1 -d' ')
+
+        echo "$checksum ${IB_ARCHIVE##*/}" | sha256sum --check --status
+
+        debug "checksum return code: $?"
+    fi
 
     echo "Extracting Image Builder archive"
     [[ ! -d "$BUILDDIR" ]] && mkdir -p "$BUILDDIR"
