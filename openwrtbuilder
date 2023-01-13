@@ -374,10 +374,10 @@ getImageBuilder() {
         debug "Verifying checksums"
 
         if [[ -f $SHA256_FILE ]] && askOk "$SHA256_FILE exists. Re-download?"; then
-            if ! $dl_tool -so "$SHA256_FILE" "$SHA256_URL"; then
+            if ! $dl_tool -o "$SHA256_FILE" "$SHA256_URL"; then
                 debug "Failed to download checksum"
             fi
-        elif ! $dl_tool -so "$SHA256_FILE" "$SHA256_URL"; then
+        elif ! $dl_tool -o "$SHA256_FILE" "$SHA256_URL"; then
             debug "Failed to download checksum"
         fi
 
