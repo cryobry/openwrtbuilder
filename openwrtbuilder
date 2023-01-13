@@ -548,9 +548,10 @@ fromSource() {
     ./scripts/feeds install -a
 
     # Grab the release config.seed
-    k_options=$(curl -s https://downloads.openwrt.org/releases/22.03.3/targets/rockchip/armv8/config.buildinfo)
+    k_options=$(curl -s "$SEED_URL")
     debug "$k_options"
 
+    
 
     make distclean
     make download
