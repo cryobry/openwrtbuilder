@@ -383,6 +383,8 @@ getImageBuilder() {
 
         checksum=$(grep "${IB_ARCHIVE##*/}" "$SHA256_FILE" | cut -f1 -d' ')
 
+        debug "checksum: $checksum"
+
         echo "$checksum ${IB_ARCHIVE##*/}" | sha256sum --check --status
 
         debug "checksum return code: $?"
