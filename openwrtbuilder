@@ -672,7 +672,6 @@ main() {
 				FILESYSTEM: $FILESYSTEM
 				IB_URL: $IB_URL
 				IB_ARCHIVE: $IB_ARCHIVE
-				IB_ARCHIVE: $IB_ARCHIVE
 			EOF
         fi
 
