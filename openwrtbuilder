@@ -549,13 +549,17 @@ fromSource() {
         git checkout "v$RELEASE"
     fi
 
-    ./scripts/feeds update -a
+    # Update packages
+    ./scripts/feeds update -a &&
     ./scripts/feeds install -a
 
     # Grab the release seed config
-    if [[ ! -f .config ]]; then
-        if ! curl -so .config "$SEED_URL"; then
-            echo "Could not obtain seed config"
+    if [[ -f .config ]]; then
+        echo ".config already exists"
+        if askOk "Replace?"; then
+            if ! curl -so .config "$SEED_URL"; then
+                echo "Could not obtain seed config"
+            fi
         fi
     else
         echo "Reusing existing .config"
@@ -569,6 +573,11 @@ fromSource() {
             echo "CONFIG_PACKAGE_$package=y" >> .config
         fi
     done
+
+    # Only compile our target
+    echo "CONFIG_TARGET_MULTI_PROFILE=n" >> .config
+    sed -i '/CONFIG_TARGET_DEVICE_/d' myfile.txt
+    echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> .config
 
     make defconfig # normalize .config and remove dupes
     make targetclean
