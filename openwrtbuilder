@@ -443,9 +443,9 @@ makeImage() {
     debug "${FUNCNAME[0]}"
 
     # Reuse the existing output
-    if [[ -d "$BINDIR" ]]; then
-        if askOk "$BINDIR exists. Rebuild?"; then
-            rm -rf "$BINDIR"
+    if [[ -d "$THIS_BINDIR" ]]; then
+        if askOk "$THIS_BINDIR exists. Rebuild?"; then
+            rm -rf "$THIS_BINDIR"
         else
             return 0
         fi
@@ -454,7 +454,7 @@ makeImage() {
     [[ -d "$BUILDDIR" ]] || mkdir -p "$BUILDDIR"
 
     if ! make image \
-        BIN_DIR="$BINDIR" \
+        BIN_DIR="$THIS_BINDIR" \
         PROFILE="${P_ARR[profile]}" \
         PACKAGES="${P_ARR[packages]}" \
         FILES="${FILESDIR}" \
@@ -588,9 +588,9 @@ resetAll() {
 
 resetProfile() {
     debug "${FUNCNAME[0]}"
-    askOk "Remove $BUILDDIR?" || exit $?
-    debug "rm -rf $BUILDDIR"
-    rm -rf "$BUILDDIR"
+    askOk "Remove $BUILDDIR and $THIS_BINDIR?" || exit $?
+    debug "rm -rf $BUILDDIR $THIS_BINDIR"
+    rm -rf "$BUILDDIR" "$THIS_BINDIR"
 }
 
 
@@ -652,6 +652,7 @@ main() {
         declare -g BUILDDIR="$SRCDIR/${P_ARR[profile]}-$RELEASE"
         declare -g IB_ARCHIVE="$SRCDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
+        declare -g THIS_BINDIR="$BINDIR/${P_ARR[profile]}-$RELEASE"
 
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
@@ -679,7 +680,11 @@ main() {
             echo "Build settings:"
             cat <<- EOF
 				ALIAS: $profile
+				BUILDROOT: $BUILDROOT
 				BUILDDIR: $BUILDDIR
+				SRCDIR: $SRCDIR
+				BINDIR: $BINDIR
+				THIS_BINDIR: $THIS_BINDIR
 				TARGET: ${P_ARR[target]}
 				PROFILE: ${P_ARR[profile]}
 				RELEASE: $RELEASE
