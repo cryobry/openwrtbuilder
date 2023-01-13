@@ -374,8 +374,8 @@ getImageBuilder() {
         # echo "Verifying checksums"
         # debug "$dl_tool -s "${P_ARR[sha256_url]}" | grep $filename | cut -f1 -d' '"
         if ! $dl_tool -o "$BUILDDIR" "$SHA256_URL"; then
-        debug "Downloaded sha256sums: $checksum"
-
+            debug "Downloaded sha256sums: $checksum"
+        fi
     fi
 
 
