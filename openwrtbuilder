@@ -337,7 +337,8 @@ getImageBuilder() {
     declare dl_tool
 
     if [[ -f "$IB_ARCHIVE" ]]; then
-        if askOk "Redownload ImageBuilder archive?"; then
+        echo "Image Builder $IB_ARCHIVE exists"
+        if askOk "Redownload Image Builder archive?"; then
             rm -f "$IB_ARCHIVE"
         else
             return 0
@@ -349,21 +350,21 @@ getImageBuilder() {
     elif hash curl &>/dev/null; then
         dl_tool="curl"
     else
-        echo "Downloading the ImageBuilder requires axel or curl!"
+        echo "Downloading the Image Builder requires axel or curl!"
         return 1
     fi
     
-    echo "Downloading imagebuilder archive using $dl_tool"
+    echo "Downloading Image Builder archive using $dl_tool"
 
     debug "$dl_tool -o $IB_ARCHIVE $IB_URL"
     if ! "$dl_tool" -o "$IB_ARCHIVE" "$IB_URL"; then
-        echo "Could not download imagebuilder archive"
-        exit 1
+        echo "Could not download Image Builder archive"
+        return 1
     fi
 
     if [[ ! -f "$IB_ARCHIVE" ]]; then
         echo "Archive missing"
-        exit 1
+        return 1
     fi
 
     
@@ -376,12 +377,12 @@ getImageBuilder() {
     # fi
 
 
-    echo "Extracting image archive"
+    echo "Extracting Image Builder archive"
     [[ ! -d "$BUILDDIR" ]] && mkdir -p "$BUILDDIR"
     debug "tar -xf $IB_ARCHIVE -C $BUILDDIR --strip-components 1"
     if ! tar -xf "$IB_ARCHIVE" -C "$BUILDDIR" --strip-components 1; then
         echo "Extraction failed"
-        exit 1
+        return 1
     fi
 }
 
@@ -679,12 +680,9 @@ main() {
 
         (( FROM_SOURCE )) && fromSource
 
-        getImageBuilder
-
-        addRepos
-
-        #copyFiles
-
+        getImageBuilder &&
+        addRepos &&
+        #copyFiles &&
         [[ -v SSH_BACKUP_PATH ]] && sshBackup
         if makeImage; then
             [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
