@@ -495,9 +495,7 @@ resetAll() {
     debug "${FUNCNAME[0]}"
     askOk "Remove ${BUILDROOT}/sources and ${BUILDROOT}/bin?" || exit $?
     debug "rm -rf ${BUILDROOT}/sources ${BUILDROOT}/bin"
-    find "${BUILDROOT}/sources" "${BUILDROOT}/bin" \
-        ! -path "$FILESDIR" -type d -delete +
-    #rm -rf "${BUILDROOT}/sources" "${BUILDROOT}/bin"
+    rm -rf "${BUILDROOT:?}/sources" "${BUILDROOT:?}/bin"
 }
 
 
