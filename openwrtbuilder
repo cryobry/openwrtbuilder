@@ -83,7 +83,7 @@ init() {
             ID="debian"
             ;;
         *)
-            echo "Autodetecting distro, this may be unreliable and --compat may also be required"
+            echo "Autodetecting distro, this may be unreliable"
             if hash dnf &>/dev/null; then
                 ID="fedora"
                 RPM_MGR="dnf"
@@ -126,9 +126,12 @@ readInput() {
     unset RESET
 
     declare -ga PROFILES
-    declare -g PROFILE_INFO 
+    declare -g PROFILE_INFO
+    declare long_opts
+    long_opts='release:,version:,profile:,info:,list-profiles,buildroot:,'
+    long_opts+='source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help'
 
-    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l release:,version:,profile:,info:,list-profiles,buildroot:,source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help -- "$@"); then
+    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l $long_opts -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -419,7 +422,8 @@ sshBackup() {
 
     # Move backup archive locally
     debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname $BUILDDIR/"
-    if ! rsync -avz --remove-source-files "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
+    if ! rsync -avz --remove-source-files \
+        "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
         echo "Could not copy SSH backup"
         exit 1
     fi
@@ -627,19 +631,21 @@ main() {
     installDependencies
 
     for profile in "${PROFILES[@]}"; do
-
         debug "Starting profile: $profile"
-        [[ ! ${!profile@a} = A ]] && echo "Profile '$profile' does not exist" && return 1
 
-        # Hold profile settings (from config file) in P_ARR
+        if [[ ! ${!profile@a} = A ]]; then 
+            echo "Profile '$profile' does not exist"
+            return 1
+        fi
+
+        # Store profile settings in P_ARR
         declare -gn P_ARR="$profile"
 
-        # precedence: user input>profile>env>hardcode
+        # release precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
         declare -g SRCDIR="$BUILDROOT/src"
         declare -g BINDIR="$BUILDROOT/bin"
         declare -g BUILDDIR="$SRCDIR/${P_ARR[profile]}-$RELEASE"
-        
         declare -g IB_ARCHIVE="$SRCDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
 
@@ -685,7 +691,7 @@ main() {
 
         getImageBuilder || return $?
         addRepos
-        #copyFiles &&
+        #copyFiles
         [[ -v SSH_BACKUP_PATH ]] && sshBackup
         if makeImage; then
             [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
