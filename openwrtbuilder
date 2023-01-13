@@ -551,7 +551,7 @@ fromSource() {
     k_options=$(curl -s "$SEED_URL")
     debug "$k_options"
 
-    
+
 
     make distclean
     make download
@@ -639,8 +639,6 @@ main() {
         declare -g IB_ARCHIVE="$BUILDDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
 
-        # shellcheck disable=SC2154
-        # TODO: I don't know why shellcheck is catching this
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
             declare url_filename="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
