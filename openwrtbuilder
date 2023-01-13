@@ -337,7 +337,7 @@ installDependencies() {
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
-    declare dl_tool
+    declare dl_tool checksum
 
     if [[ -f "$IB_ARCHIVE" ]]; then
         echo "Image Builder $IB_ARCHIVE exists"
@@ -370,14 +370,13 @@ getImageBuilder() {
         return 1
     fi
 
-    
-    # if hash sha256sum &>/dev/null; then
-    #     echo "Verifying checksums"
-    #     debug "$dl_tool -s "${P_ARR[sha256_url]}" | grep $filename | cut -f1 -d' '"
-    #     sha256sum=$($dl_tool -s "${P_ARR[sha256_url]}" |grep "$filename" |cut -f1 -d' ')
-    #     debug "Downloaded sha256sum: $sha256sum"
+    if hash sha256sum &>/dev/null; then
+        # echo "Verifying checksums"
+        # debug "$dl_tool -s "${P_ARR[sha256_url]}" | grep $filename | cut -f1 -d' '"
+        if ! $dl_tool -o "$BUILDDIR" "$SHA256_URL"; then
+        debug "Downloaded sha256sums: $checksum"
 
-    # fi
+    fi
 
 
     echo "Extracting Image Builder archive"
@@ -531,17 +530,16 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare src_dir="$SRCDIR/openwrt"
     declare -a pkg_list
 
     echo "Building from source is under development"
 
-    if [[ ! -d "$src_dir" ]]; then
-        mkdir -p "$src_dir"
-        git clone "$src_url" "$src_dir"
+    if [[ ! -d "$GITSRCDIR" ]]; then
+        mkdir -p "$GITSRCDIR"
+        git clone "$src_url" "$GITSRCDIR"
     fi
 
-    pushd "$src_dir" || return 1
+    pushd "$GITSRCDIR" || return 1
 
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
         git checkout master
@@ -554,34 +552,34 @@ fromSource() {
     ./scripts/feeds install -a
 
     # Grab the release seed config
-    if [[ -f .config ]]; then
-        echo ".config already exists"
+    if [[ -f "$SEED_FILE" ]]; then
+        echo "$SEED_FILE already exists"
         if askOk "Replace?"; then
-            if ! curl -so .config "$SEED_URL"; then
+            if ! curl -so "$SEED_FILE" "$SEED_URL"; then
                 echo "Could not obtain seed config"
             fi
         fi
     else
-        echo "Reusing existing .config"
+        echo "Reusing existing "$SEED_FILE""
     fi
 
     # Update .config with profile packages
     for package in ${P_ARR[packages]}; do
         if [[ $package == -* ]]; then
-            echo "CONFIG_PACKAGE_${package#-}=n" >> .config
+            echo "CONFIG_PACKAGE_${package#-}=n" >> "$SEED_FILE"
         else
-            echo "CONFIG_PACKAGE_$package=y" >> .config
+            echo "CONFIG_PACKAGE_$package=y" >> "$SEED_FILE"
         fi
     done
 
     # Only compile our target
-    echo "CONFIG_TARGET_MULTI_PROFILE=n" >> .config
+    echo "CONFIG_TARGET_MULTI_PROFILE=n" >> "$SEED_FILE"
     make defconfig # normalize .config and remove dupes
-    # make defconfig will add these back    
-    sed -i '/CONFIG_TARGET_DEVICE_/d' .config
-    echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> .config
+    # Causes a "configuration is out of sync" error
+    sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
+    echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
     # output to bindir instead of builddir
-    echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> .config
+    echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
     make targetclean
     make download &&
     make -j"$(nproc)" world
@@ -643,6 +641,7 @@ main() {
     declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
     declare -g SRCDIR="$BUILDROOT/src" # input/build
     declare -g BINDIR="$BUILDROOT/bin" # output
+    declare -g GITSRCDIR="$SRCDIR/openwrt"
 
     for dir in "$SRCDIR" "$BINDIR"; do
         [[ -d "$dir" ]] || mkdir -p "$dir"
@@ -690,7 +689,9 @@ main() {
 
         declare -g IB_URL="$url_prefix/$url_filename"
         declare -g SHA256_URL="$url_prefix/sha256sums"
+        declare -g SHA256_FILE="$BUILDDIR/sha256sums"
         declare -g SEED_URL="$url_prefix/config.buildinfo"
+        declare -g SEED_FILE="$GITSRCDIR/.config"
 
         declare -g FACTORYIMG="$img_prefix-factory.img"
         declare -g FACTORYIMGGZ="$img_prefix-factory.img.gz"
@@ -708,6 +709,7 @@ main() {
 				BUILDDIR: $BUILDDIR
 				SRCDIR: $SRCDIR
 				BINDIR: $BINDIR
+				GITSRCDIR: $GITSRCDIR
 				THIS_BINDIR: $THIS_BINDIR
 				TARGET: ${P_ARR[target]}
 				PROFILE: ${P_ARR[profile]}
@@ -715,6 +717,10 @@ main() {
 				FILESYSTEM: $FILESYSTEM
 				IB_URL: $IB_URL
 				IB_ARCHIVE: $IB_ARCHIVE
+				SEED_URL: $SEED_URL
+				SEED_FILE: $SEED_FILE
+				SHA256_URL: $SHA256_URL
+				SHA256_FILE: $SHA256_FILE
 			EOF
         fi
 
