@@ -539,7 +539,7 @@ fromSource() {
         git clone "$src_url" "$GITSRCDIR"
     fi
 
-    pushd "$GITSRCDIR" || return 1
+    pushd "$GITSRCDIR" &>/dev/null || return 1
 
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
         git checkout master
@@ -563,7 +563,7 @@ fromSource() {
         echo "Reusing existing "$SEED_FILE""
     fi
 
-    # Update .config with profile packages
+    # Override default .config seed with profile packages
     for package in ${P_ARR[packages]}; do
         if [[ $package == -* ]]; then
             echo "CONFIG_PACKAGE_${package#-}=n" >> "$SEED_FILE"
@@ -572,10 +572,11 @@ fromSource() {
         fi
     done
 
-    # Only compile our target
-    echo "CONFIG_TARGET_MULTI_PROFILE=n" >> "$SEED_FILE"
     make defconfig # normalize .config and remove dupes
+
+    # Only compile our target
     # Causes a "configuration is out of sync" error
+    echo "CONFIG_TARGET_MULTI_PROFILE=n" >> "$SEED_FILE"
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
     echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
     # output to bindir instead of builddir
@@ -584,7 +585,7 @@ fromSource() {
     make download &&
     make -j"$(nproc)" world
 
-    popd || return 1
+    popd &>/dev/null || return 1
     exit # TODO exit here for fromSource() testing
 }
 
@@ -662,7 +663,7 @@ main() {
     for profile in "${PROFILES[@]}"; do
         debug "Starting profile: $profile"
 
-        if [[ ! ${!profile@a} = A ]]; then 
+        if [[ ! ${!profile@a} = A ]]; then
             echo "Profile '$profile' does not exist"
             return 1
         fi
