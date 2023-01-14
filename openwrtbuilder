@@ -389,6 +389,7 @@ verifyImage() {
         fi
 
         for file in "$FACTORYIMGGZFNAME" "$SYSUPGRADEIMGGZFNAME"; do
+            [[ -f $file ]] || break
             checksum=$(grep "$file" "$SHA256_FILE" | cut -f1 -d' ')
             debug "checksum: $checksum"
             echo "$checksum $file" | sha256sum --check --status
@@ -745,6 +746,8 @@ main() {
 				SEED_FILE=$SEED_FILE
 				SHA256_URL=$SHA256_URL
 				SHA256_FILE=$SHA256_FILE
+				FACTORIMGGZFNAME: $FACTORYIMGGZFNAME
+				SYSUPGRADEIMGGZFNAME: $SYSUPGRADEIMGGZFNAME
 			EOF
         fi
 
