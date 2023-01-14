@@ -388,11 +388,11 @@ verifyImage() {
             debug "Failed to download checksum"
         fi
 
-        for file in "$FACTORYIMGGZFNAME" "$SYSUPGRADEIMGGZFNAME"; do
+        for file in "$FACTORYIMGGZ" "$SYSUPGRADEIMGGZ"; do
             [[ -f $file ]] || break
-            checksum=$(grep "$file" "$SHA256_FILE" | cut -f1 -d' ')
+            checksum=$(grep "${file##*/}" "$SHA256_FILE" | cut -f1 -d' ')
             debug "checksum: $checksum"
-            echo "$checksum $file" | sha256sum --check --status
+            echo -n "$checksum $file" | sha256sum --check --status
             debug "checksum return code: $?"
         done
     fi
