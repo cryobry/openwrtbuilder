@@ -388,12 +388,9 @@ verifyImage() {
             debug "Failed to download checksum"
         fi
 
-
-
         checksum=$(grep "${IB_ARCHIVE##*/}" "$SHA256_FILE" | cut -f1 -d' ')
-        debug "checksum: $checksum"
+        debug "$IB_ARCHIVE checksum: $checksum"
         echo -n "$checksum $IB_ARCHIVE" | sha256sum --check --status
-        debug "checksum return code: $?"
     fi
 }
 
@@ -757,8 +754,8 @@ main() {
         (( FROM_SOURCE )) && fromSource
 
         getImageBuilder || return $?
-        verifyImage &&
-        extractImage
+        verifyImage || getImageBuilder || verifyImage || return $?
+        extractImage || return $?
         addRepos
         #copyFiles
         [[ -v SSH_BACKUP_PATH ]] && sshBackup
