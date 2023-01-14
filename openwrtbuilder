@@ -235,6 +235,7 @@ installDependencies() {
                     "perl-File-Copy"
                     "perl-FindBin"
                     "perl-Thread-Queue"
+                    "clang" # for qosify
                 )
                 ;;
             debian|ubuntu)
@@ -596,6 +597,10 @@ fromSource() {
     
     # output to bindir instead of builddir
     echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
+
+    # TODO symlink clang for qosify
+    ln -s /usr/bin/clang /home/bryan/develop-local/openwrt/staging_dir/host/llvm-bpf/bin/clang
+
     make targetclean
     make download &&
     make -j"$(nproc)" world
