@@ -600,6 +600,7 @@ fromSource() {
     echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
 
     # TODO symlink clang for qosify
+    [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -s "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
     make targetclean
