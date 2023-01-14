@@ -561,14 +561,15 @@ fromSource() {
     # Grab the release seed config
     if [[ -f "$SEED_FILE" ]]; then
         if askOk "$SEED_FILE exists. Re-download?"; then
-            if ! curl -so "$SEED_FILE" "$SEED_URL"; then
-                echo "Could not obtain seed config"
-            fi
-        else
-            echo "Reusing existing $SEED_FILE"
+            rm -f "$SEED_FILE"
         fi
-    elif ! curl -so "$SEED_FILE" "$SEED_URL"; then
-        echo "Could not obtain seed config"
+    fi
+    if [[ -f "$SEED_FILE" ]]; then
+        echo "Reusing existing $SEED_FILE"
+    else
+        if ! curl -so "$SEED_FILE" "$SEED_URL"; then
+            echo "Could not obtain seed config"
+        fi
     fi
 
     # Override default .config seed with profile packages
