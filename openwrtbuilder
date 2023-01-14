@@ -267,6 +267,7 @@ installDependencies() {
                     "binutils"
                     "bison"
                     "bzip2"
+                    "clang"
                     "fakeroot"
                     "file"
                     "findutils"
@@ -599,7 +600,7 @@ fromSource() {
     echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
 
     # TODO symlink clang for qosify
-    ln -s /usr/bin/clang /home/bryan/develop-local/openwrt/staging_dir/host/llvm-bpf/bin/clang
+    ln -s "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
     make targetclean
     make download &&
