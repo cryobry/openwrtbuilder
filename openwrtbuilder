@@ -388,6 +388,8 @@ verifyImage() {
             debug "Failed to download checksum"
         fi
 
+
+
         checksum=$(grep "${IB_ARCHIVE##*/}" "$SHA256_FILE" | cut -f1 -d' ')
         debug "checksum: $checksum"
         echo -n "$checksum $IB_ARCHIVE" | sha256sum --check --status
@@ -694,7 +696,6 @@ main() {
         # release precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
         declare -g BUILDDIR="$SRCDIR/${P_ARR[profile]}-$RELEASE"
-        declare -g IB_ARCHIVE="$SRCDIR/${P_ARR[profile]}-$RELEASE.tar.xz"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
         declare -g THIS_BINDIR="$BINDIR/${P_ARR[profile]}-$RELEASE"
 
@@ -709,6 +710,7 @@ main() {
         fi
 
         declare -g IB_URL="$url_prefix/$url_filename"
+        declare -g IB_ARCHIVE="$SRCDIR/$url_filename"
         declare -g SHA256_URL="$url_prefix/sha256sums"
         declare -g SHA256_FILE="$BUILDDIR/sha256sums"
         declare -g SEED_URL="$url_prefix/config.buildinfo"
