@@ -454,7 +454,7 @@ makeImages() {
     make image \
         BIN_DIR="$THIS_BINDIR" \
         PROFILE="${P_ARR[profile]}" \
-        PACKAGES="${P_ARR[packages]}" \
+        PACKAGES="${P_ARR[packages]:+"${P_ARR[packages]}"}" \
         FILES="${FILESDIR}" \
         --directory="$BUILDDIR" \
         --jobs="$(nproc)"  \
@@ -537,7 +537,7 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare -a pkg_list
+    declare pkg kopt
 
     echo "Building from source is under development"
 
@@ -554,7 +554,7 @@ fromSource() {
         git checkout "v$RELEASE"
     fi
 
-    # Update packages
+    # Update package feed
     ./scripts/feeds update -a &&
     ./scripts/feeds install -a
 
@@ -571,18 +571,23 @@ fromSource() {
     fi
 
     # Override default .config seed with profile packages
-    for package in ${P_ARR[packages]}; do
-        if [[ $package == -* ]]; then
-            echo "CONFIG_PACKAGE_${package#-}=n" >> "$SEED_FILE"
+    for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
+        if [[ $pkg == -* ]]; then
+            echo "CONFIG_PACKAGE_${pkg#-}=n" >> "$SEED_FILE" # remove package
         else
-            echo "CONFIG_PACKAGE_$package=y" >> "$SEED_FILE"
+            echo "CONFIG_PACKAGE_$pkg=y" >> "$SEED_FILE" # add package
         fi
+    done
+
+    # Add custom kernel config options
+    for kopt in ${P_ARR[kopts]:+${P_ARR[kopts]}}; do
+        echo "$kopt" >> "$SEED_FILE"
     done
 
     make defconfig # normalize .config and remove dupes
 
     # Only compile our target
-    # Causes a "configuration is out of sync" error
+    # TODO causes a "configuration is out of sync" error w/o defconfig
     echo "CONFIG_TARGET_MULTI_PROFILE=n" >> "$SEED_FILE"
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
     echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
