@@ -337,7 +337,7 @@ installDependencies() {
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
-    declare dl_tool checksum
+    declare dl_tool
 
     if [[ -f "$IB_ARCHIVE" ]]; then
         echo "Image Builder $IB_ARCHIVE exists"
@@ -369,9 +369,16 @@ getImageBuilder() {
         echo "Archive missing"
         return 1
     fi
+}
+
+
+verifyImage() {
+    debug "${FUNCNAME[0]}"
+
+    declare checksum
 
     if hash sha256sum &>/dev/null; then
-        debug "Verifying checksums"
+        debug "Verifying Image Builder checksums"
 
         if [[ -f $SHA256_FILE ]] && askOk "$SHA256_FILE exists. Re-download?"; then
             if ! curl -so "$SHA256_FILE" "$SHA256_URL"; then
@@ -389,6 +396,11 @@ getImageBuilder() {
 
         debug "checksum return code: $?"
     fi
+}
+
+
+extractImage() {
+    debug "${FUNCNAME[0]}"
 
     echo "Extracting Image Builder archive"
     [[ ! -d "$BUILDDIR" ]] && mkdir -p "$BUILDDIR"
@@ -741,6 +753,8 @@ main() {
         (( FROM_SOURCE )) && fromSource
 
         getImageBuilder || return $?
+        verifyImage &&
+        extractImage
         addRepos
         #copyFiles
         [[ -v SSH_BACKUP_PATH ]] && sshBackup
