@@ -16,7 +16,7 @@ printHelp() {
 		Build and deploy OpenWRT images
 
 		USAGE:
-		    openwrtbuilder [OPTION [VALUE]] -p PROFILE [-p PROFILE2]...
+		    openwrtbuilder [OPTION [VALUE]]... -p PROFILE [-p PROFILE]...
 
 		OPTIONS
 		    --profile,-p PROFILE
