@@ -565,7 +565,7 @@ fromSource() {
         fi
     fi
     if [[ -f "$SEED_FILE" ]]; then
-        echo "Reusing existing $SEED_FILE"
+        echo "Reusing existing $SEED_FILE seed config"
     else
         if ! curl -so "$SEED_FILE" "$SEED_URL"; then
             echo "Could not obtain seed config"
@@ -593,6 +593,7 @@ fromSource() {
     echo "CONFIG_TARGET_MULTI_PROFILE=n" >> "$SEED_FILE"
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
     echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
+    
     # output to bindir instead of builddir
     echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
     make targetclean
