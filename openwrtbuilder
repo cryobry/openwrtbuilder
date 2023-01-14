@@ -728,23 +728,23 @@ main() {
             for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
             echo "Build settings:"
             cat <<- EOF
-				ALIAS: $profile
-				BUILDROOT: $BUILDROOT
-				BUILDDIR: $BUILDDIR
-				SRCDIR: $SRCDIR
-				BINDIR: $BINDIR
-				GITSRCDIR: $GITSRCDIR
-				THIS_BINDIR: $THIS_BINDIR
-				TARGET: ${P_ARR[target]}
-				PROFILE: ${P_ARR[profile]}
-				RELEASE: $RELEASE
-				FILESYSTEM: $FILESYSTEM
-				IB_URL: $IB_URL
-				IB_ARCHIVE: $IB_ARCHIVE
-				SEED_URL: $SEED_URL
-				SEED_FILE: $SEED_FILE
-				SHA256_URL: $SHA256_URL
-				SHA256_FILE: $SHA256_FILE
+				ALIAS=$profile
+				BUILDROOT=$BUILDROOT
+				BUILDDIR=$BUILDDIR
+				SRCDIR=$SRCDIR
+				BINDIR=$BINDIR
+				GITSRCDIR=$GITSRCDIR
+				THIS_BINDIR=$THIS_BINDIR
+				TARGET=${P_ARR[target]}
+				PROFILE=${P_ARR[profile]}
+				RELEASE=$RELEASE
+				FILESYSTEM=$FILESYSTEM
+				IB_URL=$IB_URL
+				IB_ARCHIVE=$IB_ARCHIVE
+				SEED_URL=$SEED_URL
+				SEED_FILE=$SEED_FILE
+				SHA256_URL=$SHA256_URL
+				SHA256_FILE=$SHA256_FILE
 			EOF
         fi
 
