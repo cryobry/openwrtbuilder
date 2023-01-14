@@ -375,7 +375,7 @@ getImageBuilder() {
 verifyImage() {
     debug "${FUNCNAME[0]}"
 
-    declare checksum
+    declare checksum file
 
     if hash sha256sum &>/dev/null; then
         debug "Verifying Image Builder checksums"
@@ -388,13 +388,12 @@ verifyImage() {
             debug "Failed to download checksum"
         fi
 
-        checksum=$(grep "${IB_ARCHIVE##*/}" "$SHA256_FILE") # | cut -f1 -d' ')
-
-        debug "checksum: $checksum"
-
-        echo "$checksum ${IB_ARCHIVE##*/}" | sha256sum --check --status
-
-        debug "checksum return code: $?"
+        for file in "$FACTORYIMGGZFNAME" "$SYSUPGRADEIMGGZFNAME"; do
+            checksum=$(grep "$file" "$SHA256_FILE" | cut -f1 -d' ')
+            debug "checksum: $checksum"
+            echo "$checksum $file" | sha256sum --check --status
+            debug "checksum return code: $?"
+        done
     fi
 }
 
@@ -719,6 +718,7 @@ main() {
 
         declare -g FACTORYIMG="$img_prefix-factory.img"
         declare -g FACTORYIMGGZ="$img_prefix-factory.img.gz"
+        declare -g FACTORYIMGGZFNAME="${FACTORYIMGGZ##*/}"
         declare -g SYSUPGRADEIMG="$img_prefix-sysupgrade.img"
         declare -g SYSUPGRADEIMGGZ="$img_prefix-sysupgrade.img.gz"
         declare -g SYSUPGRADEIMGGZFNAME="${SYSUPGRADEIMGGZ##*/}"
