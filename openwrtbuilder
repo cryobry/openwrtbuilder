@@ -19,21 +19,22 @@ printHelp() {
 		    openwrtbuilder [OPTION [VALUE]] -p PROFILE [-p PROFILE2]...
 
 		OPTIONS
-		    --profile, -p PROFILE
-		    --info, -i (print profile info)
-		    --list-profiles, -l
-		    --release, --version, -r, -v RELEASE ("snapshot", "22.03.3") 
-		    --buildroot, -b PATH
+		    --profile,-p PROFILE
+		    --release,-r,--version,-v RELEASE ("snapshot", "22.03.3") 
+		    --buildroot,-b PATH
+		        Defaults to location of openwrtbuilder script
+		    --source
+		        Build image from source, not from Image Builder
 		    --ssh-upgrade HOST
 		        Example: root@192.168.1.1
 		    --ssh-backup SSH_PATH
 		        (Enabled by default for --ssh-upgrade)
-		    --flash, -f DEVICE
+		    --flash,-f DEVICE
 		        Example: /dev/sdX
 		    --reset
 		        Cleanup all source and output files
-		    --debug, -d
-		    --help, -h
+		    --debug,-d
+		    --help,-h
 	EOF
 }
 
@@ -46,6 +47,7 @@ init() {
     debug || echo "To enable debugging output, use --debug or -d"
 
     # Save the script directory
+    # https://stackoverflow.com/a/4774063
     SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
 
     if [[ -e "/etc/os-release" ]]; then
@@ -135,12 +137,10 @@ readInput() {
     unset RESET
 
     declare -ga PROFILES
-    declare -g PROFILE_INFO
-    declare long_opts
-    long_opts='release:,version:,profile:,info:,list-profiles,buildroot:,'
-    long_opts+='source,ssh-upgrade:,ssh-backup:,flash:,reset,debug,help'
+    declare long_opts='release:,version:,profile:,buildroot:,source,'
+    long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,debug,help'
 
-    if _input=$(getopt -o +r:v:p:i:lb:sf:dh -l $long_opts -- "$@"); then
+    if _input=$(getopt -o +r:v:p:b:sf:dh -l $long_opts -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -149,12 +149,6 @@ readInput() {
                     ;;
                 --profile|-p)
                     shift && PROFILES+=("$1")
-                    ;;
-                --info|-i)
-                    PROFILE_INFO=1
-                    ;;
-                --list-profiles|-l)
-                    listProfiles && exit $?
                     ;;
                 --buildroot|-b)
                     shift && BUILDROOT="$1"
@@ -192,12 +186,6 @@ readInput() {
         echo "Incorrect options provided"
         printHelp && exit 1
     fi
-}
-
-
-listProfiles() {
-    debug "${FUNCNAME[0]}"
-    grep "declare -Ag" "$PFILE" | cut -d" " -f3
 }
 
 
@@ -556,6 +544,8 @@ fromSource() {
         git checkout "v$RELEASE"
     fi
 
+    # git pull # TODO, necessary?
+
     # Update package feed
     ./scripts/feeds update -a &&
     ./scripts/feeds install -a
@@ -642,7 +632,6 @@ resetProfile() {
 loadProfiles() {
     debug "${FUNCNAME[0]}"
     declare -g PFILE
-    # https://stackoverflow.com/a/4774063
     PFILE="$SCRIPTDIR/profiles"
     # shellcheck source=./profiles
     ! source "$PFILE" && echo "profiles file missing!" && return 1
@@ -737,7 +726,7 @@ main() {
         declare -g SYSUPGRADEIMGGZ="$img_prefix-sysupgrade.img.gz"
         declare -g SYSUPGRADEIMGGZFNAME="${SYSUPGRADEIMGGZ##*/}"
 
-        if (( DEBUG )) || (( PROFILE_INFO )); then
+        if (( DEBUG )); then
             echo "Profile settings:"
             for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
             echo "Build settings:"
