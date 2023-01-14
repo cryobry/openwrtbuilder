@@ -41,7 +41,7 @@ printHelp() {
 init() {
     debug "${FUNCNAME[0]}"
 
-    declare -g ID RPM_MGR SCRIPTDIR
+    declare -g ID RPM_MGR SCRIPTDIR DL_TOOL
 
     debug || echo "To enable debugging output, use --debug or -d"
 
@@ -117,6 +117,15 @@ init() {
             pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; }
             ;;
     esac
+
+    if hash axel &>/dev/null; then
+        DL_TOOL="axel"
+    elif hash curl &>/dev/null; then
+        DL_TOOL="curl"
+    else
+        echo "Downloading the Image Builder requires axel or curl!"
+        return 1
+    fi
 }
 
 
@@ -337,67 +346,36 @@ installDependencies() {
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
-    declare dl_tool
-
     if [[ -f "$IB_ARCHIVE" ]]; then
-        echo "Image Builder $IB_ARCHIVE exists"
-        if askOk "Redownload Image Builder archive?"; then
+        if askOK "$IB_ARCHIVE exists. Re-download?"; then
             rm -f "$IB_ARCHIVE"
         else
             return 0
         fi
     fi
 
-    if hash axel &>/dev/null; then
-        dl_tool="axel"
-    elif hash curl &>/dev/null; then
-        dl_tool="curl"
-    else
-        echo "Downloading the Image Builder requires axel or curl!"
-        return 1
-    fi
-    
-    echo "Downloading Image Builder archive using $dl_tool"
-
-    debug "$dl_tool -o $IB_ARCHIVE $IB_URL"
-    if ! "$dl_tool" -o "$IB_ARCHIVE" "$IB_URL"; then
-        echo "Could not download Image Builder archive"
-        return 1
-    fi
-
-    if [[ ! -f "$IB_ARCHIVE" ]]; then
-        echo "Archive missing"
-        return 1
-    fi
+    echo "Downloading Image Builder archive using $DL_TOOL"
+    debug "$DL_TOOL -o $IB_ARCHIVE $IB_URL"
+    "$DL_TOOL" -o "$IB_ARCHIVE" "$IB_URL"
 }
 
 
-verifyImage() {
+getImageBuilderChecksum() {
     debug "${FUNCNAME[0]}"
 
-    declare checksum
-
-    if hash sha256sum &>/dev/null; then
-        debug "Verifying Image Builder checksums"
-
-        if [[ -f $SHA256_FILE ]]; then
-            if askOk "$SHA256_FILE exists. Re-download?"; then
-                if ! curl -so "$SHA256_FILE" "$SHA256_URL"; then
-                    debug "Failed to download checksum"
-                fi
-            fi
-        elif ! curl -so "$SHA256_FILE" "$SHA256_URL"; then
-            debug "Failed to download checksum"
+    if [[ -f $IB_SHA256_FILE ]]; then
+        if askOk "$IB_SHA256_FILE exists. Re-download?"; then
+            rm -f "$IB_SHA256_FILE"
+        else
+            return 0
         fi
-
-        checksum=$(grep "${IB_ARCHIVE##*/}" "$SHA256_FILE" | cut -f1 -d' ')
-        debug "$IB_ARCHIVE $checksum"
-        echo -n "$checksum $IB_ARCHIVE" | sha256sum --check --status
     fi
+
+    "$DL_TOOL" -o "$IB_SHA256_FILE" "$IB_SHA256_URL"
 }
 
 
-extractImage() {
+extractImageBuilder() {
     debug "${FUNCNAME[0]}"
 
     echo "Extracting Image Builder archive"
@@ -459,7 +437,7 @@ sshBackup() {
 }
 
 
-makeImage() {
+makeImages() {
     debug "${FUNCNAME[0]}"
 
     # Reuse the existing output
@@ -473,17 +451,25 @@ makeImage() {
 
     [[ -d "$BUILDDIR" ]] || mkdir -p "$BUILDDIR"
 
-    if ! make image \
+    make image \
         BIN_DIR="$THIS_BINDIR" \
         PROFILE="${P_ARR[profile]}" \
         PACKAGES="${P_ARR[packages]}" \
         FILES="${FILESDIR}" \
         --directory="$BUILDDIR" \
         --jobs="$(nproc)"  \
-        > "$BUILDDIR/make.log"; then
-            echo "Make image failed!"
-            exit 1
-    fi
+        > "$BUILDDIR/make.log"
+}
+
+
+verifyImages() {
+    debug "${FUNCNAME[0]}"
+
+    declare outfile
+
+    for outfile in "$THIS_BINDIR"/*.img.gz; do
+        verify "$outfile" "$IB_OUT_SHA256_FILE" || return 1
+    done
 }
 
 
@@ -648,6 +634,19 @@ loadProfiles() {
 }
 
 
+verify() {
+    debug "${FUNCNAME[0]}"
+    declare file_to_check="$1"
+    declare sumfile="$2"
+    declare checksum
+
+    hash sha256sum &>/dev/null || return 1
+    [[ -f $sumfile && -f $file_to_check ]] || return 1
+    checksum=$(grep "${file_to_check##*/}" "$sumfile" | cut -f1 -d' ')
+    echo -n "$checksum $file_to_check" | sha256sum --check --status
+}
+
+
 main() {
     debug "${FUNCNAME[0]}"
 
@@ -710,8 +709,9 @@ main() {
 
         declare -g IB_URL="$url_prefix/$url_filename"
         declare -g IB_ARCHIVE="$SRCDIR/$url_filename"
-        declare -g SHA256_URL="$url_prefix/sha256sums"
-        declare -g SHA256_FILE="$BUILDDIR/sha256sums"
+        declare -g IB_SHA256_URL="$url_prefix/sha256sums"
+        declare -g IB_SHA256_FILE="$BUILDDIR/sha256sums"
+        declare -g IB_OUT_SHA256_FILE="$THIS_BINDIR/sha256sums"
         declare -g SEED_URL="$url_prefix/config.buildinfo"
         declare -g SEED_FILE="$GITSRCDIR/.config"
 
@@ -742,10 +742,11 @@ main() {
 				IB_ARCHIVE=$IB_ARCHIVE
 				SEED_URL=$SEED_URL
 				SEED_FILE=$SEED_FILE
-				SHA256_URL=$SHA256_URL
-				SHA256_FILE=$SHA256_FILE
-				FACTORIMGGZ: $FACTORYIMGGZ
-				FACTORIMGGZFNAME: $FACTORYIMGGZFNAME
+				IB_SHA256_URL=$IB_SHA256_URL
+				IB_SHA256_FILE=$IB_SHA256_FILE
+				IB_OUT_SHA256_FILE=$IB_OUT_SHA256_FILE
+				FACTORYIMGGZ: $FACTORYIMGGZ
+				FACTORYIMGGZFNAME: $FACTORYIMGGZFNAME
 				SYSUPGRADEIMGGZ: $SYSUPGRADEIMGGZ
 				SYSUPGRADEIMGGZFNAME: $SYSUPGRADEIMGGZFNAME
 			EOF
@@ -755,13 +756,21 @@ main() {
 
         (( FROM_SOURCE )) && fromSource
 
-        getImageBuilder || return $?
-        verifyImage || getImageBuilder || verifyImage || return $?
-        extractImage || return $?
+        # Acquire and verify Image Builder
+        getImageBuilder && 
+        getImageBuilderChecksum &&
+        verify "$IB_ARCHIVE" "$IB_SHA256_FILE" || 
+        return $?
+        
+        extractImageBuilder || return $?
+
         addRepos
+
         #copyFiles
+
         [[ -v SSH_BACKUP_PATH ]] && sshBackup
-        if makeImage; then
+
+        if makeImages && verifyImages; then
             [[ -v SSH_UPGRADE_PATH ]] && sshUpgrade
             [[ -v FLASH_DEV ]] && flashImage
         fi
