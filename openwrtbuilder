@@ -375,7 +375,7 @@ getImageBuilder() {
 verifyImage() {
     debug "${FUNCNAME[0]}"
 
-    declare checksum file
+    declare checksum file_to_check
 
     if hash sha256sum &>/dev/null; then
         debug "Verifying Image Builder checksums"
@@ -389,7 +389,7 @@ verifyImage() {
         fi
 
         for file in "$FACTORYIMGGZ" "$SYSUPGRADEIMGGZ"; do
-            debug "file: $file"
+            debug "file_to_check: $file_to_check"
             [[ -f $file ]] || break
             checksum=$(grep "${file##*/}" "$SHA256_FILE" | cut -f1 -d' ')
             debug "checksum: $checksum"
