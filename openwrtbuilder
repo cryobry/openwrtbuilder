@@ -390,7 +390,7 @@ verifyImage() {
 
         for file_to_check in "$FACTORYIMGGZ" "$SYSUPGRADEIMGGZ"; do
             debug "file_to_check: $file_to_check"
-            [[ -f $file_to_check ]] || break
+            [[ -f $file_to_check ]] || continue
             checksum=$(grep "${file_to_check##*/}" "$SHA256_FILE" | cut -f1 -d' ')
             debug "checksum: $checksum"
             echo -n "$checksum $file_to_check" | sha256sum --check --status
