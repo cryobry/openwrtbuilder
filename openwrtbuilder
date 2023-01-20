@@ -551,8 +551,6 @@ fromSource() {
     ./scripts/feeds update -a &&
     ./scripts/feeds install -a
 
-    make defconfig # normalize .config and remove dupes
-
     # Grab the release seed config
     if [[ -f "$SEED_FILE" ]]; then
         if askOk "$SEED_FILE exists. Re-download?"; then
@@ -566,6 +564,8 @@ fromSource() {
             echo "Could not obtain seed config"
         fi
     fi
+
+    make defconfig # normalize .config and remove dupes
 
     for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
         if [[ $pkg == -* ]]; then
