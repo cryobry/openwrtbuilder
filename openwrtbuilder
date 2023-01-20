@@ -527,7 +527,8 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare pkg kopt
+    declare pkg kopt 
+    declare -a make_opts
 
     echo "Building from source is under development"
 
@@ -544,11 +545,13 @@ fromSource() {
         git checkout "v$RELEASE"
     fi
 
-    # git pull # TODO, necessary?
+    git pull
 
     # Update package feed
     ./scripts/feeds update -a &&
     ./scripts/feeds install -a
+
+    make defconfig # normalize .config and remove dupes
 
     # Grab the release seed config
     if [[ -f "$SEED_FILE" ]]; then
@@ -564,38 +567,52 @@ fromSource() {
         fi
     fi
 
-    # Override default .config seed with profile packages
     for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
         if [[ $pkg == -* ]]; then
-            echo "CONFIG_PACKAGE_${pkg#-}=n" >> "$SEED_FILE" # remove package
+            make_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
         else
-            echo "CONFIG_PACKAGE_$pkg=y" >> "$SEED_FILE" # add package
+            make_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
         fi
     done
 
-    # Add custom kernel config options
     for kopt in ${P_ARR[kopts]:+${P_ARR[kopts]}}; do
-        echo "$kopt" >> "$SEED_FILE"
+        make_opts+=("$kopt")
     done
 
-    make defconfig # normalize .config and remove dupes
+    make_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
+    make_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
+    make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
+
+    # Override default .config seed with profile packages
+    # for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
+    #     if [[ $pkg == -* ]]; then
+    #         echo "CONFIG_PACKAGE_${pkg#-}=n" >> "$SEED_FILE" # remove package
+    #     else
+    #         echo "CONFIG_PACKAGE_$pkg=y" >> "$SEED_FILE" # add package
+    #     fi
+    # done
+
+    # Add custom kernel config options
+    # for kopt in ${P_ARR[kopts]:+${P_ARR[kopts]}}; do
+    #     echo "$kopt" >> "$SEED_FILE"
+    # done
+
 
     # Only compile our target
     # TODO causes a "configuration is out of sync" error w/o defconfig
-    echo "CONFIG_TARGET_MULTI_PROFILE=n" >> "$SEED_FILE"
-    sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
-    echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
+    # sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
+    # echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
     
     # output to bindir instead of builddir
-    echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
+    # echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
 
     # TODO symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -s "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
     make targetclean
-    make download &&
-    make -j"$(nproc)" world
+    make "${make_opts[@]}" download &&
+    make "${make_opts[@]}" -j"$(nproc)" world
 
     popd &>/dev/null || return 1
     exit # TODO exit here for fromSource() testing
@@ -783,3 +800,12 @@ main() {
 
 main "$@"
 exit
+
+
+# VM setup (for testing)
+# sudo sgdisk -N 0 /dev/vda && 
+# sudo mkfs.ext4 /dev/vda1
+
+# mkdir ~/mnt
+# sudo mount /dev/vda1 ~/mnt
+# sudo chown liveuser:liveuser -R ~/mnt
