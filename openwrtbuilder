@@ -580,6 +580,7 @@ fromSource() {
     done
 
     make_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
+    make_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
     make_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
 
@@ -608,7 +609,7 @@ fromSource() {
 
     # TODO symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
-    ln -s "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
+    ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
     make targetclean
     make "${make_opts[@]}" download &&
