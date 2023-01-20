@@ -108,7 +108,8 @@ r4s['packages']="\
 	ethtool \
 	ca-bundle"
 r4s['kopts']="\
-	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y"
+	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
+"
 
 
 declare -Ag ax6000_stock
