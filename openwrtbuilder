@@ -584,6 +584,8 @@ fromSource() {
     make_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
 
+    (( DEBUG )) && make_opts+=("V=s")
+
     # Override default .config seed with profile packages
     # for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
     #     if [[ $pkg == -* ]]; then
@@ -606,6 +608,8 @@ fromSource() {
     
     # output to bindir instead of builddir
     # echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
+
+
 
     # TODO symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
