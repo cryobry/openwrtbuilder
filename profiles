@@ -9,7 +9,6 @@ default_packages="\
 	luci-ssl \
 	nano \
 	htop \
-	tcpdump \
 	diffutils \
 	tar \
 	iperf \

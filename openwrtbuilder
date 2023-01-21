@@ -613,6 +613,7 @@ fromSource() {
 
     make targetclean
     make "${make_opts[@]}" download &&
+    debug "${make_opts[*]} -j$(nproc) world" &&
     make "${make_opts[@]}" -j"$(nproc)" world
 
     popd &>/dev/null || return 1
