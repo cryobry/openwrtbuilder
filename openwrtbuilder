@@ -553,8 +553,8 @@ fromSource() {
 
     # Grab the release seed config
     if [[ -f "$SEED_FILE" ]]; then
-        if askOk "$SEED_FILE exists. Re-download?"; then
-            rm -f "$SEED_FILE"
+        if askOk "$SEED_FILE exists. Recreate?"; then
+            make distclean
         fi
     fi
     if [[ -f "$SEED_FILE" ]]; then
@@ -567,7 +567,7 @@ fromSource() {
 
     make defconfig # normalize .config and remove dupes
 
-    for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
+    for pkg in ${P_ARR[packages]:+}; do
         if [[ $pkg == -* ]]; then
             make_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
         else
@@ -575,7 +575,7 @@ fromSource() {
         fi
     done
 
-    for kopt in ${P_ARR[kopts]:+${P_ARR[kopts]}}; do
+    for kopt in ${P_ARR[kopts]:+}; do
         make_opts+=("$kopt")
     done
 
@@ -615,7 +615,6 @@ fromSource() {
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
-    #make targetclean
     make "${make_opts[@]}" download &&
     debug "${make_opts[*]} -j$(nproc) world" &&
     make "${make_opts[@]}" -j"$(nproc)" world
