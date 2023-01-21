@@ -615,7 +615,7 @@ fromSource() {
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
-    make targetclean
+    #make targetclean
     make "${make_opts[@]}" download &&
     debug "${make_opts[*]} -j$(nproc) world" &&
     make "${make_opts[@]}" -j"$(nproc)" world
