@@ -103,7 +103,6 @@ r4s['packages']="\
 	btrfs-progs \
 	block-mount \
 	smcroute \
-	curl \
 	ethtool \
 	ca-bundle"
 r4s['kopts']="\
