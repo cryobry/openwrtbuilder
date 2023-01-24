@@ -532,20 +532,31 @@ fromSource() {
 
     echo "Building from source is under development"
 
+    # Update source code
     if [[ ! -d "$GITSRCDIR" ]]; then
         mkdir -p "$GITSRCDIR"
         git clone "$src_url" "$GITSRCDIR"
     fi
-
-    pushd "$GITSRCDIR" &>/dev/null || return 1
-
+    git -C "$GITSRCDIR" pull
+ 
+    
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
-        git checkout master
+        git -C "$GITSRCDIR" worktree -d add "$GITWORKTREEDIR" master
     else
-        git checkout "v$RELEASE"
+        git -C "$GITSRCDIR" worktree -d add "$GITWORKTREEDIR" "v$RELEASE"
     fi
 
-    git pull
+    pushd "$GITWORKTREEDIR" &>/dev/null || return 1
+
+    SEED_FILE="$GITWORKTREEDIR/.config"
+
+    # if [[ ${P_ARR[release]} == "snapshot" ]]; then
+    #     git checkout master
+    # else
+    #     git checkout "v$RELEASE"
+    # fi
+
+    # git pull
 
     # Update package feed
     ./scripts/feeds update -a &&
@@ -586,7 +597,6 @@ fromSource() {
     make_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
     make_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
-
     (( DEBUG )) && make_opts+=("V=s")
 
     # Override default .config seed with profile packages
@@ -611,8 +621,6 @@ fromSource() {
     
     # output to bindir instead of builddir
     # echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
-
-
 
     # TODO symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
@@ -722,9 +730,9 @@ main() {
 
         # release precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
-        declare -g BUILDDIR="$SRCDIR/${P_ARR[profile]}-$RELEASE"
+        declare -g BUILDDIR="$SRCDIR/$profile/${P_ARR[profile]}-$RELEASE"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
-        declare -g THIS_BINDIR="$BINDIR/${P_ARR[profile]}-$RELEASE"
+        declare -g THIS_BINDIR="$BINDIR/$profile/${P_ARR[profile]}-$RELEASE"
 
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
@@ -750,6 +758,8 @@ main() {
         declare -g SYSUPGRADEIMG="$img_prefix-sysupgrade.img"
         declare -g SYSUPGRADEIMGGZ="$img_prefix-sysupgrade.img.gz"
         declare -g SYSUPGRADEIMGGZFNAME="${SYSUPGRADEIMGGZ##*/}"
+
+        declare -g GITWORKTREEDIR="$GITSRCDIR/$profile/$RELEASE"
 
         if (( DEBUG )); then
             echo "Profile settings:"
