@@ -541,9 +541,9 @@ fromSource() {
  
     
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
-        git -C "$GITSRCDIR" worktree -d add "$GITWORKTREEDIR" master
+        git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" master
     else
-        git -C "$GITSRCDIR" worktree -d add "$GITWORKTREEDIR" "v$RELEASE"
+        git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" "v$RELEASE"
     fi
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
