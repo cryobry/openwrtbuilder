@@ -565,34 +565,36 @@ flashImage() {
 sshUpgrade() {
     debug "${FUNCNAME[0]}"
 
+    declare img_gz img_fname
+
     if (( FROM_SOURCE )); then
         if [[ -f $SOURCESYSUPGRADEIMGGZ ]]; then
-            echo "Copying '$SOURCESYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
-            debug "scp $SOURCESYSUPGRADEIMGGZ $SSH_UPGRADE_PATH:/tmp/$SYSUPGRADEIMGGZFNAME"
-            if ! scp "$SOURCESYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
-                echo "Could not access the --ssh-upgrade PATH"
-                return 1
-            fi
-        else
-            echo "No source image found, check $SOURCESYSUPGRADEIMGGZ"
-            return 1
+            img_gz="$SOURCESYSUPGRADEIMGGZ"
+            img_fname="$SOURCESYSUPGRADEIMGGZFNAME"
         fi
     elif [[ -f $SYSUPGRADEIMGGZ ]]; then
-        echo "Copying '$SYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
-        debug "scp $SYSUPGRADEIMGGZ $SSH_UPGRADE_PATH:/tmp/$SYSUPGRADEIMGGZFNAME"
-        if ! scp "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
-            echo "Could not access the --ssh-upgrade PATH"
-            return 1
-        fi
-    else
-        echo "No source image found"
+        img_gz="$SYSUPGRADEIMGGZ"
+        img_fname="$SYSUPGRADEIMGGZFNAME"
+    fi
+
+    if [[ ! -f $img_gz ]]; then
+        echo "$img_gz is missing, check build output"
         return 1
     fi
 
+    echo "Copying '$img_gz' to $SSH_UPGRADE_PATH/tmp/$img_fname"
+    debug "scp $img_gz $SSH_UPGRADE_PATH:/tmp/$img_fname"
+    if ! scp "$img_gz" "$SSH_UPGRADE_PATH":"/tmp/$img_fname"; then
+        echo "Could not copy $img_gz to $SSH_UPGRADE_PATH:/tmp/$img_fname"
+        return 1
+    fi
+            
     echo "Executing remote sysupgrade"
-    debug "ssh $SSH_UPGRADE_PATH sysupgrade -F /tmp/$SYSUPGRADEIMGGZFNAME"
+    debug "ssh $SSH_UPGRADE_PATH sysupgrade -F /tmp/$img_fname"
     # shellcheck disable=SC2029
-    ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/$SYSUPGRADEIMGGZFNAME"
+    # execute remotely
+    ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/$img_fname"
+    # this will probably be a weird exit code from closed connection
 }
 
 
@@ -612,7 +614,6 @@ fromSource() {
     fi
     git -C "$GITSRCDIR" pull
  
-    
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
         git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" master
     else
@@ -643,7 +644,13 @@ fromSource() {
 
     make defconfig # normalize .config and remove dupes
 
-    make_opts+=("PACKAGES=${P_ARR[packages]}")
+    for pkg in ${P_ARR[packages]:+}; do
+        if [[ $pkg == -* ]]; then
+            make_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
+        else
+            make_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
+        fi
+    done
 
     for kopt in ${P_ARR[kopts]:+}; do
         make_opts+=("$kopt")
@@ -658,12 +665,36 @@ fromSource() {
     make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
     (( DEBUG )) && make_opts+=("V=s")
 
+    # Override default .config seed with profile packages
+    # for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
+    #     if [[ $pkg == -* ]]; then
+    #         echo "CONFIG_PACKAGE_${pkg#-}=n" >> "$SEED_FILE" # remove package
+    #     else
+    #         echo "CONFIG_PACKAGE_$pkg=y" >> "$SEED_FILE" # add package
+    #     fi
+    # done
+
+    # Add custom kernel config options
+    # for kopt in ${P_ARR[kopts]:+${P_ARR[kopts]}}; do
+    #     echo "$kopt" >> "$SEED_FILE"
+    # done
+
+
+    # Only compile our target
+    # TODO causes a "configuration is out of sync" error w/o defconfig
+    # sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
+    # echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
+    
+    # output to bindir instead of builddir
+    # echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
+
     # TODO symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
-    debug "${make_opts[*]} -j$(nproc) download world"
-    make "${make_opts[@]}" -j"$(nproc)" download world
+    make "${make_opts[@]}" download &&
+    debug "${make_opts[*]} -j$(nproc) world" &&
+    make "${make_opts[@]}" -j"$(nproc)" world
 
     popd &>/dev/null || return 1
     exit # TODO exit here for fromSource() testing
@@ -797,8 +828,9 @@ main() {
         declare -g SOURCEFACTORYIMGGZ="$THIS_BINDIR/$img_fname-factory.img.gz"
         declare -g SOURCESYSUPGRADEIMG="$THIS_BINDIR/targets/$img_fname-sysupgrade.img"
         declare -g SOURCESYSUPGRADEIMGGZ="$THIS_BINDIR/targets/$img_fname-sysupgrade.img.gz"
+        declare -g SOURCESYSUPGRADEIMGGZFNAME="${SOURCESYSUPGRADEIMGGZ##*/}"
 
-        declare -g GITWORKTREEDIR="$GITSRCDIR/$profile/$RELEASE"
+        declare -g GITWORKTREEDIR="$SRCDIR/$profile/$RELEASE"
 
         if (( DEBUG )); then
             echo "Profile settings:"
