@@ -593,8 +593,8 @@ sshUpgrade() {
     debug "ssh $SSH_UPGRADE_PATH sysupgrade -F /tmp/$img_fname"
     # shellcheck disable=SC2029
     # execute remotely
-    ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/$img_fname"
     # this will probably be a weird exit code from closed connection
+    ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/$img_fname"
 }
 
 
@@ -604,6 +604,7 @@ fromSource() {
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare pkg kopt 
     declare -a make_opts
+    declare -g SEED_FILE="$GITWORKTREEDIR/.config"
 
     echo "Building from source is under development"
 
@@ -612,6 +613,7 @@ fromSource() {
         mkdir -p "$GITSRCDIR"
         git clone "$src_url" "$GITSRCDIR"
     fi
+
     git -C "$GITSRCDIR" pull
  
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
@@ -622,24 +624,13 @@ fromSource() {
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
 
-    SEED_FILE="$GITWORKTREEDIR/.config"
-
     # Update package feed
     ./scripts/feeds update -a &&
     ./scripts/feeds install -a
 
     # Grab the release seed config
-    if [[ -f "$SEED_FILE" ]]; then
-        if askOk "$SEED_FILE exists. Recreate?"; then
-            make distclean
-        fi
-    fi
-    if [[ -f "$SEED_FILE" ]]; then
-        echo "Reusing existing $SEED_FILE seed config"
-    else
-        if ! curl -so "$SEED_FILE" "$SEED_URL"; then
-            echo "Could not obtain seed config"
-        fi
+    if ! curl -so "$SEED_FILE" "$SEED_URL"; then
+        echo "Could not obtain seed config"
     fi
 
     make defconfig # normalize .config and remove dupes
