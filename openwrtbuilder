@@ -22,7 +22,7 @@ printHelp() {
 		    --profile,-p PROFILE
 		    --release,-r,--version,-v RELEASE ("snapshot", "22.03.3") 
 		    --buildroot,-b PATH
-		        Defaults to location of openwrtbuilder script
+		        Default: location of openwrtbuilder script
 		    --source
 		        Build image from source, not from Image Builder
 		    --ssh-upgrade HOST
