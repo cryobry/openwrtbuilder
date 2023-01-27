@@ -89,6 +89,7 @@ r4s['packages']="\
 	$default_packages \
 	luci-app-upnp \
 	luci-app-wireguard \
+	luci-proto-wireguard \
 	luci-app-ddns \
 	luci-app-sqm \
 	irqbalance \
