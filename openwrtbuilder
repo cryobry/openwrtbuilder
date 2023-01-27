@@ -662,8 +662,8 @@ fromSource() {
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
-    debug "${make_opts[*]} -j$(nproc) download image"
-    make "${make_opts[@]}" -j"$(nproc)" download image
+    debug "${make_opts[*]} -j$(nproc) download world"
+    make "${make_opts[@]}" -j"$(nproc)" download world
 
     popd &>/dev/null || return 1
     exit # TODO exit here for fromSource() testing
