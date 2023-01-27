@@ -111,6 +111,9 @@ r4s['packages']="\
 r4s['kopts']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
 "
+r4s['files']="\
+	/mnt/backup \
+"
 
 
 declare -Ag ax6000_stock

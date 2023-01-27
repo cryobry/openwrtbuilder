@@ -5,6 +5,9 @@
 # Build and deploy OpenWRT images
 #
 # Apache 2.0 License
+#
+# See README.md and ./profiles
+#
 
 # Set default release
 : "${RELEASE:="22.03.3"}"
@@ -570,16 +573,20 @@ sshUpgrade() {
                 echo "Could not access the --ssh-upgrade PATH"
                 return 1
             fi
+        else
+            echo "No source image found, check $SOURCESYSUPGRADEIMGGZ"
+            return 1
+        fi
+    elif [[ -f $SYSUPGRADEIMGGZ ]]; then
+        echo "Copying '$SYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
+        debug "scp $SYSUPGRADEIMGGZ $SSH_UPGRADE_PATH:/tmp/$SYSUPGRADEIMGGZFNAME"
+        if ! scp "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
+            echo "Could not access the --ssh-upgrade PATH"
+            return 1
         fi
     else
-        if [[ -f $SYSUPGRADEIMGGZ ]]; then
-            echo "Copying '$SYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
-            debug "scp $SYSUPGRADEIMGGZ $SSH_UPGRADE_PATH:/tmp/$SYSUPGRADEIMGGZFNAME"
-            if ! scp "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
-                echo "Could not access the --ssh-upgrade PATH"
-                return 1
-            fi
-        fi
+        echo "No source image found"
+        return 1
     fi
 
     echo "Executing remote sysupgrade"
@@ -615,14 +622,6 @@ fromSource() {
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
 
     SEED_FILE="$GITWORKTREEDIR/.config"
-
-    # if [[ ${P_ARR[release]} == "snapshot" ]]; then
-    #     git checkout master
-    # else
-    #     git checkout "v$RELEASE"
-    # fi
-
-    # git pull
 
     # Update package feed
     ./scripts/feeds update -a &&
@@ -664,29 +663,6 @@ fromSource() {
     make_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
     (( DEBUG )) && make_opts+=("V=s")
-
-    # Override default .config seed with profile packages
-    # for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
-    #     if [[ $pkg == -* ]]; then
-    #         echo "CONFIG_PACKAGE_${pkg#-}=n" >> "$SEED_FILE" # remove package
-    #     else
-    #         echo "CONFIG_PACKAGE_$pkg=y" >> "$SEED_FILE" # add package
-    #     fi
-    # done
-
-    # Add custom kernel config options
-    # for kopt in ${P_ARR[kopts]:+${P_ARR[kopts]}}; do
-    #     echo "$kopt" >> "$SEED_FILE"
-    # done
-
-
-    # Only compile our target
-    # TODO causes a "configuration is out of sync" error w/o defconfig
-    # sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
-    # echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
-    
-    # output to bindir instead of builddir
-    # echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
 
     # TODO symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
