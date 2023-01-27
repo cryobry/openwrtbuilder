@@ -603,7 +603,7 @@ fromSource() {
 
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare pkg kopt 
-    declare -a make_opts
+    declare -a make_opts config_opts
     declare -g SEED_FILE="$GITWORKTREEDIR/.config"
 
     echo "Building from source is under development"
@@ -637,26 +637,30 @@ fromSource() {
     # Add custom packages
     for pkg in ${P_ARR[packages]:+}; do
         if [[ $pkg == -* ]]; then
-            make_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
+            config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
         else
-            make_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
+            config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
         fi
     done
 
     # Add kopts from profile
     for kopt in ${P_ARR[kopts]:+}; do
-        make_opts+=("$kopt")
+        config_opts+=("$kopt")
     done
 
     # Only compile this target
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
-    make_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
-    make_opts+=("CONFIG_TARGET_ALL_PROFILES=n")
-    make_opts+=("CONFIG_SDK=n")
-    make_opts+=("CONFIG_SDK_LLVM_BPF=n")
-    make_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
-    make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
-    (( DEBUG )) && make_opts+=("V=s")
+    config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
+    config_opts+=("CONFIG_TARGET_ALL_PROFILES=n")
+    config_opts+=("CONFIG_SDK=n")
+    config_opts+=("CONFIG_SDK_LLVM_BPF=n")
+    config_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
+    config_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
+
+    # Write options to config seed file
+    for opt in "${config_opts[@]}"; do
+        echo "$opt" >> "$SEED_FILE"
+    done 
 
     # normalize .config and remove dupes
     make defconfig
@@ -665,9 +669,10 @@ fromSource() {
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
-    make download &&
-    debug "make -j$(nproc) world" &&
-    make -j"$(nproc)" world
+    (( DEBUG )) && make_opts+=("V=s")
+    make "${make_opts[@]}" download &&
+    debug "make ${make_opts[*]} -j$(nproc) world" &&
+    make "${make_opts[@]}" -j"$(nproc)" world
 
     popd &>/dev/null || return 1
     exit # TODO exit here for fromSource() testing
