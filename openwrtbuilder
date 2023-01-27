@@ -474,14 +474,62 @@ flashImage() {
     fi
 
     # TODO Roughly choose the correct image
-    if [[ -f "$FACTORYIMGGZ" ]]; then
-        img_gz="$FACTORYIMGGZ"
-        img="$FACTORYIMG"
-    elif [[ -f "$SYSUPGRADEIMGGZ" ]]; then
-        img_gz="$SYSUPGRADEIMGGZ"
-        img="$SYSUPGRADEIMG"
+
+
+    if (( FROM_SOURCE )); then
+        if [[ -f $SOURCEFACTORYIMGGZ && 
+        -f $SOURCESYSUPGRADEIMGGZ ]]; then
+            local _response
+            echo "$SOURCEFACTORYIMGGZ and $SOURCESYSUPGRADEIMGGZ both exist"
+            read -r -p "Flash factory or sysupgrade image? [(f)actory/(s)ysupgrade]" _response
+            _response=${_response,,}
+            if [[ "$_response" =~ ^(f|factory)$ ]]; then
+                img_gz="$SOURCEFACTORYIMGGZ"
+                img="$SOURCEFACTORYIMG"
+            elif [[ "$_response" =~ ^(s|sysupgrade)$ ]]; then
+                img_gz="$SOURCESYSUPGRADEIMGGZ"
+                img="$SOURCESYSUPGRADEIMG"
+            else
+                echo "Invalid input, you must enter f or s"
+            fi
+        elif [[ -f $SOURCEFACTORYIMGGZ ]]; then
+            img_gz="$SOURCEFACTORYIMGGZ"
+            img="$SOURCEFACTORYIMG"
+        elif [[ -f $SOURCESYSUPGRADEIMGGZ ]]; then
+            img_gz="$SOURCESYSUPGRADEIMGGZ"
+            img="$SOURCESYSUPGRADEIMG"
+        else
+            echo "No files found at $SOURCEFACTORYIMGGZ or $SOURCESYSUPGRADEIMGGZ"
+            echo "Check your build output"
+            return 1
+        fi
     else
-        return 1
+        if [[ -f $FACTORYIMGGZ && 
+        -f $SYSUPGRADEIMGGZ ]]; then
+            local _response
+            echo "$FACTORYIMGGZ and $SYSUPGRADEIMGGZ both exist"
+            read -r -p "Flash factory or sysupgrade image? [(f)actory/(s)ysupgrade]" _response
+            _response=${_response,,}
+            if [[ "$_response" =~ ^(f|factory)$ ]]; then
+                img_gz="$FACTORYIMGGZ"
+                img="$FACTORYIMG"
+            elif [[ "$_response" =~ ^(s|sysupgrade)$ ]]; then
+                img_gz="$SYSUPGRADEIMGGZ"
+                img="$SYSUPGRADEIMG"
+            else
+                echo "Invalid input, you must enter f or s"
+            fi
+        elif [[ -f $FACTORYIMGGZ ]]; then
+            img_gz="$FACTORYIMGGZ"
+            img="$FACTORYIMG"
+        elif [[ -f $SYSUPGRADEIMGGZ ]]; then
+            img_gz="$SYSUPGRADEIMGGZ"
+            img="$SYSUPGRADEIMG"
+        else
+            echo "No files found at $FACTORYIMGGZ or $SYSUPGRADEIMGGZ"
+            echo "Check your build output"
+            return 1
+        fi
     fi
 
     debug "$img_gz $img"
@@ -494,7 +542,7 @@ flashImage() {
     debug "umount ${partitions[*]}"
     sudo umount "${partitions[@]}"
 
-    debug "sudo dd if=\"$img\" of=\"$FLASH_DEV\" bs=2M conv=fsync"
+    debug "sudo dd if=$img of=$FLASH_DEV bs=2M conv=fsync"
     if sudo dd if="$img" of="$FLASH_DEV" bs=2M conv=fsync; then
         sync
         echo "Image flashed sucessfully!"
@@ -508,16 +556,28 @@ flashImage() {
 sshUpgrade() {
     debug "${FUNCNAME[0]}"
 
-    echo "Copying '$SYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
-    debug "scp \"$SYSUPGRADEIMGGZ\" \"$SSH_UPGRADE_PATH\":\"/tmp/$SYSUPGRADEIMGGZFNAME\""
-    
-    if ! scp "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
-        echo "Could not access the --ssh-upgrade PATH"
-        exit 1
+    if (( FROM_SOURCE )); then
+        if [[ -f $SOURCESYSUPGRADEIMGGZ ]]; then
+            echo "Copying '$SOURCESYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
+            debug "scp $SOURCESYSUPGRADEIMGGZ $SSH_UPGRADE_PATH:/tmp/$SYSUPGRADEIMGGZFNAME"
+            if ! scp "$SOURCESYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
+                echo "Could not access the --ssh-upgrade PATH"
+                return 1
+            fi
+        fi
+    else
+        if [[ -f $SYSUPGRADEIMGGZ ]]; then
+            echo "Copying '$SYSUPGRADEIMGGZ' to $SSH_UPGRADE_PATH/tmp/"
+            debug "scp $SYSUPGRADEIMGGZ $SSH_UPGRADE_PATH:/tmp/$SYSUPGRADEIMGGZFNAME"
+            if ! scp "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH":"/tmp/$SYSUPGRADEIMGGZFNAME"; then
+                echo "Could not access the --ssh-upgrade PATH"
+                return 1
+            fi
+        fi
     fi
 
     echo "Executing remote sysupgrade"
-    debug "ssh \"$SSH_UPGRADE_PATH\" \"sysupgrade -F /tmp/$SYSUPGRADEIMGGZFNAME\""
+    debug "ssh $SSH_UPGRADE_PATH sysupgrade -F /tmp/$SYSUPGRADEIMGGZFNAME"
     # shellcheck disable=SC2029
     ssh "$SSH_UPGRADE_PATH" "sysupgrade -F /tmp/$SYSUPGRADEIMGGZFNAME"
 }
@@ -737,11 +797,11 @@ main() {
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
             declare url_filename="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            declare img_prefix="$BUILDDIR/openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM" 
+            declare img_fname="openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM" 
         else
             declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/${P_ARR[target]}"
             declare url_filename="openwrt-imagebuilder-$RELEASE-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            declare img_prefix="$BUILDDIR/openwrt-$RELEASE-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM"
+            declare img_fname="openwrt-$RELEASE-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM"
         fi
 
         declare -g IB_URL="$url_prefix/$url_filename"
@@ -752,12 +812,16 @@ main() {
         declare -g SEED_URL="$url_prefix/config.buildinfo"
         declare -g SEED_FILE="$GITSRCDIR/.config"
 
-        declare -g FACTORYIMG="$img_prefix-factory.img"
-        declare -g FACTORYIMGGZ="$img_prefix-factory.img.gz"
+        declare -g FACTORYIMG="$BUILDDIR/$img_fname-factory.img"
+        declare -g FACTORYIMGGZ="$BUILDDIR/$img_fname-factory.img.gz"
         declare -g FACTORYIMGGZFNAME="${FACTORYIMGGZ##*/}"
-        declare -g SYSUPGRADEIMG="$img_prefix-sysupgrade.img"
-        declare -g SYSUPGRADEIMGGZ="$img_prefix-sysupgrade.img.gz"
+        declare -g SYSUPGRADEIMG="$BUILDDIR/$img_fname-sysupgrade.img"
+        declare -g SYSUPGRADEIMGGZ="$BUILDDIR/$img_fname-sysupgrade.img.gz"
         declare -g SYSUPGRADEIMGGZFNAME="${SYSUPGRADEIMGGZ##*/}"
+        declare -g SOURCEFACTORYIMG="$THIS_BINDIR/$img_fname-factory.img"
+        declare -g SOURCEFACTORYIMGGZ="$THIS_BINDIR/$img_fname-factory.img.gz"
+        declare -g SOURCESYSUPGRADEIMG="$THIS_BINDIR/targets/$img_fname-sysupgrade.img"
+        declare -g SOURCESYSUPGRADEIMGGZ="$THIS_BINDIR/targets/$img_fname-sysupgrade.img.gz"
 
         declare -g GITWORKTREEDIR="$GITSRCDIR/$profile/$RELEASE"
 
