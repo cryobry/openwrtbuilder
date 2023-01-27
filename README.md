@@ -19,7 +19,7 @@ Sanely build and deploy OpenWRT images using the Image Builder (or git source)
 --ssh-upgrade HOST
     Example: root@192.168.1.1
 --ssh-backup SSH_PATH
-    (Enabled by default for --ssh-upgrade)
+    Enabled by default for --ssh-upgrade
 --flash,-f DEVICE
     Example: /dev/sdX
 --reset
