@@ -643,13 +643,7 @@ fromSource() {
 
     make defconfig # normalize .config and remove dupes
 
-    for pkg in ${P_ARR[packages]:+}; do
-        if [[ $pkg == -* ]]; then
-            make_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
-        else
-            make_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
-        fi
-    done
+    make_opts+=("PACKAGES=${P_ARR[packages]}")
 
     for kopt in ${P_ARR[kopts]:+}; do
         make_opts+=("$kopt")
@@ -668,9 +662,8 @@ fromSource() {
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
-    make "${make_opts[@]}" download &&
-    debug "${make_opts[*]} -j$(nproc) world" &&
-    make "${make_opts[@]}" -j"$(nproc)" world
+    debug "${make_opts[*]} -j$(nproc) download image"
+    make "${make_opts[@]}" -j"$(nproc)" download image
 
     popd &>/dev/null || return 1
     exit # TODO exit here for fromSource() testing
