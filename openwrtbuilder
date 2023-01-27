@@ -630,11 +630,11 @@ fromSource() {
 
     # Grab the release seed config
     if ! curl -so "$SEED_FILE" "$SEED_URL"; then
-        echo "Could not obtain seed config"
+        echo "Could not obtain .config seed from $SEED_FILE"
+        return 1
     fi
 
-    make defconfig # normalize .config and remove dupes
-
+    # Add custom packages
     for pkg in ${P_ARR[packages]:+}; do
         if [[ $pkg == -* ]]; then
             make_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
@@ -643,49 +643,31 @@ fromSource() {
         fi
     done
 
+    # Add kopts from profile
     for kopt in ${P_ARR[kopts]:+}; do
         make_opts+=("$kopt")
     done
 
+    # Only compile this target
+    sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
     make_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
     make_opts+=("CONFIG_TARGET_ALL_PROFILES=n")
     make_opts+=("CONFIG_SDK=n")
     make_opts+=("CONFIG_SDK_LLVM_BPF=n")
-    make_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
     make_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     make_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
     (( DEBUG )) && make_opts+=("V=s")
 
-    # Override default .config seed with profile packages
-    # for pkg in ${P_ARR[packages]:+${P_ARR[packages]}}; do
-    #     if [[ $pkg == -* ]]; then
-    #         echo "CONFIG_PACKAGE_${pkg#-}=n" >> "$SEED_FILE" # remove package
-    #     else
-    #         echo "CONFIG_PACKAGE_$pkg=y" >> "$SEED_FILE" # add package
-    #     fi
-    # done
+    # normalize .config and remove dupes
+    make defconfig
 
-    # Add custom kernel config options
-    # for kopt in ${P_ARR[kopts]:+${P_ARR[kopts]}}; do
-    #     echo "$kopt" >> "$SEED_FILE"
-    # done
-
-
-    # Only compile our target
-    # TODO causes a "configuration is out of sync" error w/o defconfig
-    # sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
-    # echo "CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y" >> "$SEED_FILE"
-    
-    # output to bindir instead of builddir
-    # echo "CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"" >> "$SEED_FILE"
-
-    # TODO symlink clang for qosify
+    # TODO for now symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
-    make "${make_opts[@]}" download &&
-    debug "${make_opts[*]} -j$(nproc) world" &&
-    make "${make_opts[@]}" -j"$(nproc)" world
+    make download &&
+    debug "make -j$(nproc) world" &&
+    make -j"$(nproc)" world
 
     popd &>/dev/null || return 1
     exit # TODO exit here for fromSource() testing
@@ -806,9 +788,6 @@ main() {
         declare -g IB_SHA256_URL="$url_prefix/sha256sums"
         declare -g IB_SHA256_FILE="$BUILDDIR/sha256sums"
         declare -g IB_OUT_SHA256_FILE="$THIS_BINDIR/sha256sums"
-        declare -g SEED_URL="$url_prefix/config.buildinfo"
-        declare -g SEED_FILE="$GITSRCDIR/.config"
-
         declare -g FACTORYIMG="$BUILDDIR/$img_fname-factory.img"
         declare -g FACTORYIMGGZ="$BUILDDIR/$img_fname-factory.img.gz"
         declare -g FACTORYIMGGZFNAME="${FACTORYIMGGZ##*/}"
@@ -820,8 +799,9 @@ main() {
         declare -g SOURCESYSUPGRADEIMG="$THIS_BINDIR/targets/$img_fname-sysupgrade.img"
         declare -g SOURCESYSUPGRADEIMGGZ="$THIS_BINDIR/targets/$img_fname-sysupgrade.img.gz"
         declare -g SOURCESYSUPGRADEIMGGZFNAME="${SOURCESYSUPGRADEIMGGZ##*/}"
-
         declare -g GITWORKTREEDIR="$SRCDIR/$profile/$RELEASE"
+        declare -g SEED_URL="$url_prefix/config.buildinfo"
+        declare -g SEED_FILE="$GITWORKTREEDIR/.config"
 
         if (( DEBUG )); then
             echo "Profile settings:"
