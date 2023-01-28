@@ -663,7 +663,7 @@ fromSource() {
     done 
 
     # normalize .config and remove dupes
-    make defconfig
+    # make defconfig # TODO
 
     # TODO for now symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
