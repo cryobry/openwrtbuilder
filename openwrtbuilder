@@ -624,10 +624,6 @@ fromSource() {
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
 
-    # Update package feed
-    ./scripts/feeds update -a &&
-    ./scripts/feeds install -a
-
     # Grab the release seed config
     if ! curl -so "$SEED_FILE" "$SEED_URL"; then
         echo "Could not obtain .config seed from $SEED_FILE"
@@ -660,7 +656,11 @@ fromSource() {
     # Write options to config seed file
     for opt in "${config_opts[@]}"; do
         echo "$opt" >> "$SEED_FILE"
-    done 
+    done
+
+    # Update package feed
+    ./scripts/feeds update -a &&
+    ./scripts/feeds install -a
 
     # normalize .config and remove dupes
     # make defconfig # TODO
