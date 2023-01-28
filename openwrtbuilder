@@ -617,9 +617,9 @@ fromSource() {
     git -C "$GITSRCDIR" pull
  
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
-        git -C "$GITSRCDIR" worktree add -f -d "$GITWORKTREEDIR" master
+        git -C "$GITSRCDIR" worktree add -q -d "$GITWORKTREEDIR" master
     else
-        git -C "$GITSRCDIR" worktree add -f -d "$GITWORKTREEDIR" "v$RELEASE"
+        git -C "$GITSRCDIR" worktree add -q -d "$GITWORKTREEDIR" "v$RELEASE"
     fi
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
