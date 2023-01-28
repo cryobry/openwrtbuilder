@@ -602,7 +602,7 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare pkg kopt 
+    declare pkg kopt opt
     declare -a make_opts config_opts
     declare -g SEED_FILE="$GITWORKTREEDIR/.config"
 
@@ -617,9 +617,9 @@ fromSource() {
     git -C "$GITSRCDIR" pull
  
     if [[ ${P_ARR[release]} == "snapshot" ]]; then
-        git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" master
+        git -C "$GITSRCDIR" worktree add -f -d "$GITWORKTREEDIR" master
     else
-        git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" "v$RELEASE"
+        git -C "$GITSRCDIR" worktree add -f -d "$GITWORKTREEDIR" "v$RELEASE"
     fi
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
@@ -670,8 +670,9 @@ fromSource() {
     ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
 
     (( DEBUG )) && make_opts+=("V=s")
-    make "${make_opts[@]}" download &&
-    debug "make ${make_opts[*]} -j$(nproc) world" &&
+    debug "make ${make_opts[*]} download"
+    make "${make_opts[@]}" download
+    debug "make ${make_opts[*]} -j$(nproc) world"
     make "${make_opts[@]}" -j"$(nproc)" world
 
     popd &>/dev/null || return 1
