@@ -624,14 +624,8 @@ fromSource() {
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
 
-    # TODO for now remove the SEED_FILE, see notes below
-    [[ -f $SEED_FILE ]] && rm -f "$SEED_FILE"
-
-    # Update package feed
-    # ./scripts/feeds install will create defaults (make defconfig) 
-    # for an exiting .config so make sure it doesn't exist first
-    ./scripts/feeds update -a &&
-    ./scripts/feeds install -a
+    # If we don't distclean, make sure to remove existing .config
+    make distclean
 
     # Grab the release seed config
     if ! curl -so "$SEED_FILE" "$SEED_URL"; then
@@ -671,7 +665,11 @@ fromSource() {
     done
 
     # normalize .config and remove dupes
-    make defconfig # TODO
+    # Update package feed
+    # ./scripts/feeds install will create defaults (make defconfig) 
+    # for an exiting .config so make sure it doesn't exist first
+    ./scripts/feeds update -a &&
+    ./scripts/feeds install -a
 
     # TODO for now symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
