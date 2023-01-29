@@ -643,7 +643,9 @@ fromSource() {
     fi
 
     # Add custom packages
+
     for pkg in ${P_ARR[packages]:+}; do
+        debug HERE1
         if [[ $pkg == -* ]]; then
             debug "Removing package ${pkg#-}"
             config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
@@ -655,6 +657,7 @@ fromSource() {
 
     # Add kopts from profile
     for kopt in ${P_ARR[kopts]:+}; do
+        debug HERE2
         config_opts+=("$kopt")
     done
 
