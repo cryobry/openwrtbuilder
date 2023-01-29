@@ -624,11 +624,6 @@ fromSource() {
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
 
-    # make clean # compiled output
-    # make targetclean # compiled output, toolchain
-    # make dirclean # compiled output, toolchain, build tools
-    make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
-
     # Grab the release seed config
     if ! curl -so "$SEED_FILE" "$SEED_URL"; then
         echo "Could not obtain $SEED_FILE from $SEED_URL"
@@ -690,6 +685,15 @@ fromSource() {
 
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
+
+    # Cleaning modes
+    # make clean # compiled output
+    # make targetclean # compiled output, toolchain
+    # make dirclean # compiled output, toolchain, build tools
+    # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
+
+    debug "make ${make_opts[*]} dirclean"
+    make "${make_opts[@]}" dirclean
     debug "make ${make_opts[*]} download"
     make "${make_opts[@]}" download
     debug "make ${make_opts[*]} -j$(nproc) world"
