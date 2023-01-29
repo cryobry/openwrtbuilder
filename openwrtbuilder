@@ -370,6 +370,7 @@ getImageBuilderChecksum() {
         fi
     fi
 
+    debug "$DL_TOOL -o $IB_SHA256_FILE $IB_SHA256_URL"
     "$DL_TOOL" -o "$IB_SHA256_FILE" "$IB_SHA256_URL"
 }
 
@@ -818,7 +819,7 @@ main() {
         declare -g IB_URL="$url_prefix/$url_filename"
         declare -g IB_ARCHIVE="$SRCDIR/$url_filename"
         declare -g IB_SHA256_URL="$url_prefix/sha256sums"
-        declare -g IB_SHA256_FILE="$BUILDDIR/sha256sums"
+        declare -g IB_SHA256_FILE="$IB_ARCHIVE.sha256sums"
         declare -g IB_OUT_SHA256_FILE="$THIS_BINDIR/sha256sums"
         declare -g FACTORYIMG="$BUILDDIR/$img_fname-factory.img"
         declare -g FACTORYIMGGZ="$BUILDDIR/$img_fname-factory.img.gz"
