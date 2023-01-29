@@ -642,10 +642,8 @@ fromSource() {
     # Add custom packages
     for pkg in ${P_ARR[packages]}; do
         if [[ $pkg == -* ]]; then
-            debug "Removing package ${pkg#-}"
             config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
         else
-            debug "Adding package $pkg"
             config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
         fi
     done
