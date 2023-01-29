@@ -627,17 +627,28 @@ fromSource() {
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
 
+    # TODO for now remove the SEED_FILE, see notes below
+    [[ -f $SEED_FILE ]] && rm -f "$SEED_FILE"
+
+    # Update package feed
+    # ./scripts/feeds install will create defaults (make defconfig) 
+    # for an exiting .config so make sure it doesn't exist first
+    ./scripts/feeds update -a &&
+    ./scripts/feeds install -a
+
     # Grab the release seed config
     if ! curl -so "$SEED_FILE" "$SEED_URL"; then
-        echo "Could not obtain .config seed from $SEED_FILE"
+        echo "Could not obtain $SEED_FILE from $SEED_URL"
         return 1
     fi
 
     # Add custom packages
     for pkg in ${P_ARR[packages]:+}; do
         if [[ $pkg == -* ]]; then
+            debug "Removing package ${pkg#-}"
             config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
         else
+            debug "Adding package $pkg"
             config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
         fi
     done
@@ -658,15 +669,12 @@ fromSource() {
 
     # Write options to config seed file
     for opt in "${config_opts[@]}"; do
+        debug "Writing $opt to $SEED_FILE"
         echo "$opt" >> "$SEED_FILE"
     done
 
-    # Update package feed
-    ./scripts/feeds update -a &&
-    ./scripts/feeds install -a
-
     # normalize .config and remove dupes
-    # make defconfig # TODO
+    make defconfig # TODO
 
     # TODO for now symlink clang for qosify
     [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
