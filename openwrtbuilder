@@ -629,7 +629,6 @@ fromSource() {
     # make dirclean # compiled output, toolchain, build tools
     make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
-
     # Grab the release seed config
     if ! curl -so "$SEED_FILE" "$SEED_URL"; then
         echo "Could not obtain $SEED_FILE from $SEED_URL"
@@ -663,17 +662,13 @@ fromSource() {
 
     # Only compile selected target
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
-    # config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
     config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
-    # config_opts+=("CONFIG_TARGET_ALL_PROFILES=n")
     config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
     config_opts+=("CONFIG_TARGET_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
-    # config_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     config_opts+=("CONFIG_SDK=n")
     config_opts+=("CONFIG_SDK_LLVM_BPF=n")
     config_opts+=("CONFIG_IB=n")
     config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
-    
     
     # Write options to config seed file
     for opt in "${config_opts[@]}"; do
@@ -688,9 +683,11 @@ fromSource() {
     ./scripts/feeds install -a
 
     # TODO for now symlink clang for qosify
-    [[ -d "$GITSRCDIR/staging_dir/host/llvm-bpf/bin" ]] || mkdir -p "$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
-    ln -fs "$(which clang)" "$GITSRCDIR/staging_dir/host/llvm-bpf/bin/clang"
+    declare llvm_dir="$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
+    [[ -d "$llvm_dir" ]] || mkdir -p "$llvm_dir"
+    ln -fs "$(which clang)" "$llvm_dir/clang"
 
+    # Make image
     (( DEBUG )) && make_opts+=("V=s")
     debug "make ${make_opts[*]} download"
     make "${make_opts[@]}" download
@@ -698,7 +695,7 @@ fromSource() {
     make "${make_opts[@]}" -j"$(nproc)" world
 
     popd &>/dev/null || return 1
-    exit # TODO exit here for fromSource() testing
+    exit
 }
 
 
