@@ -110,6 +110,7 @@ r4s['packages']="\
 	tailscale"
 r4s['kopts']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
+	CONFIG_BTRFS_PROGS_ZSTD=y
 "
 r4s['files']="\
 	/mnt/backup \
