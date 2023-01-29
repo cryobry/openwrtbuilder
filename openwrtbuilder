@@ -624,14 +624,20 @@ fromSource() {
 
     pushd "$GITWORKTREEDIR" &>/dev/null || return 1
 
-    # If we don't distclean, make sure to remove existing .config
-    make distclean
+    # make clean # compiled output
+    # make targetclean # compiled output, toolchain
+    # make dirclean # compiled output, toolchain, build tools
+    make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
+
 
     # Grab the release seed config
     if ! curl -so "$SEED_FILE" "$SEED_URL"; then
         echo "Could not obtain $SEED_FILE from $SEED_URL"
         return 1
     fi
+
+    # Set compilation output dir
+    config_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
 
     # Add custom packages
     for pkg in ${P_ARR[packages]}; do
@@ -649,25 +655,37 @@ fromSource() {
         config_opts+=("$kopt")
     done
 
-    # Only compile this target
+    # Only compile selected fs
+    sed -i '/CONFIG_TARGET_ROOTFS_/d' "$SEED_FILE"
+    if [[ $FILESYSTEM == "squashfs" ]]; then
+        config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y")
+    elif [[ $FILESYSTEM == "ext4" ]]; then
+        config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=y")
+    fi
+
+    # Only compile selected target
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
+    # config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
     config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
-    config_opts+=("CONFIG_TARGET_ALL_PROFILES=n")
+    # config_opts+=("CONFIG_TARGET_ALL_PROFILES=n")
+    config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
+    config_opts+=("CONFIG_TARGET_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
+    # config_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     config_opts+=("CONFIG_SDK=n")
     config_opts+=("CONFIG_SDK_LLVM_BPF=n")
-    config_opts+=("CONFIG_TARGET_DEVICE_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
-    config_opts+=("CONFIG_BINARY_FOLDER=\"$THIS_BINDIR\"")
-
+    config_opts+=("CONFIG_IB=n")
+    config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
+    
+    
     # Write options to config seed file
     for opt in "${config_opts[@]}"; do
         debug "Writing $opt to $SEED_FILE"
         echo "$opt" >> "$SEED_FILE"
     done
 
-    # normalize .config and remove dupes
     # Update package feed
-    # ./scripts/feeds install will create defaults (make defconfig) 
-    # for an exiting .config so make sure it doesn't exist first
+    # ./scripts/feeds install will run make defconfig for us
+    # to normalize and expand .config
     ./scripts/feeds update -a &&
     ./scripts/feeds install -a
 
