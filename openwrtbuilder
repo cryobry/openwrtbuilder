@@ -654,6 +654,7 @@ fromSource() {
 
     # Only compile selected fs
     sed -i '/CONFIG_TARGET_ROOTFS_/d' "$SEED_FILE"
+    config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
     if [[ $FILESYSTEM == "squashfs" ]]; then
         config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y")
     elif [[ $FILESYSTEM == "ext4" ]]; then
