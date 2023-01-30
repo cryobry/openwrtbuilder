@@ -700,7 +700,20 @@ fromSource() {
     make "${make_opts[@]}" -j"$(nproc)" world
 
     popd &>/dev/null || return 1
+
+    moveSourceImage
+
     exit
+}
+
+
+# Make the output tree match Image Builder's (non-destructively) 
+moveSourceImage() {
+    declare out_file
+    declare -a out_files=("$THIS_BINDIR/targets/${P_ARR[target]}/"*.{img,img.gz,ubi})
+    for out_file in "${out_files[@]}"; do
+        [[ -f $out_file ]] && ln -s "$out_file" "$THIS_BINDIR/${out_file##*/}"
+    done
 }
 
 

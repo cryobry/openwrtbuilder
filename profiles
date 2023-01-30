@@ -11,7 +11,7 @@ default_packages="\
 	htop \
 	diffutils \
 	tar \
-	iperf \
+	iperf3 \
 	bash \
 	rsync \
 	openssh-sftp-server \
