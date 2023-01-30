@@ -614,7 +614,7 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare pkg kopt opt
+    declare pkg kopt opt commit
     declare -a make_opts config_opts
     declare -g SEED_FILE="$GITWORKTREEDIR/.config"
 
@@ -627,6 +627,9 @@ fromSource() {
     fi
 
     git -C "$GITSRCDIR" pull
+
+    commit=$(git -C "$GITSRCDIR" rev-parse HEAD)
+    debug "commit hash: $commit"
  
     if [[ $RELEASE == "snapshot" ]]; then
         git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" master
