@@ -715,14 +715,14 @@ fromSource() {
 
     popd &>/dev/null || return 1
 
-    moveSourceImage
+    linkSourceImage
 
     exit
 }
 
 
 # Make the output tree match Image Builder's (non-destructively) 
-moveSourceImage() {
+linkSourceImage() {
     declare out_file
     declare -a out_files=("$THIS_BINDIR/targets/${P_ARR[target]}/"*.{img,img.gz,ubi})
     for out_file in "${out_files[@]}"; do
