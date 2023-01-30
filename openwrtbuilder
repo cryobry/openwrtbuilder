@@ -707,7 +707,7 @@ fromSource() {
     # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
     debug "make ${make_opts[*]} dirclean"
-    make "${make_opts[@]}" dirclean
+    make "${make_opts[@]}" targetclean
     debug "make ${make_opts[*]} download"
     make "${make_opts[@]}" download
     debug "make ${make_opts[*]} -j$(nproc) world"
