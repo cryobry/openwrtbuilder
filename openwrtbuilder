@@ -379,7 +379,6 @@ extractImageBuilder() {
     debug "${FUNCNAME[0]}"
 
     echo "Extracting Image Builder archive"
-    [[ ! -d "$BUILDDIR" ]] && mkdir -p "$BUILDDIR"
     debug "tar -xf $IB_ARCHIVE -C $BUILDDIR --strip-components 1"
     if ! tar -xf "$IB_ARCHIVE" -C "$BUILDDIR" --strip-components 1; then
         echo "Extraction failed"
@@ -448,8 +447,6 @@ makeImages() {
             return 0
         fi
     fi
-
-    [[ -d "$BUILDDIR" ]] || mkdir -p "$BUILDDIR"
 
     make image \
         BIN_DIR="$THIS_BINDIR" \
@@ -802,7 +799,7 @@ main() {
 
         # release precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
-        declare -g BUILDDIR="$SRCDIR/$profile/${P_ARR[profile]}-$RELEASE"
+        declare -g BUILDDIR="$SRCDIR/$profile/$RELEASE"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
         declare -g THIS_BINDIR="$BINDIR/$profile/${P_ARR[profile]}-$RELEASE"
 
@@ -817,7 +814,7 @@ main() {
         fi
 
         declare -g IB_URL="$url_prefix/$url_filename"
-        declare -g IB_ARCHIVE="$SRCDIR/$url_filename"
+        declare -g IB_ARCHIVE="$BUILDDIR/$url_filename"
         declare -g IB_SHA256_URL="$url_prefix/sha256sums"
         declare -g IB_SHA256_FILE="$IB_ARCHIVE.sha256sums"
         declare -g IB_OUT_SHA256_FILE="$THIS_BINDIR/sha256sums"
@@ -867,6 +864,8 @@ main() {
         fi
 
         (( RESET )) && resetProfile
+
+        [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
 
         (( FROM_SOURCE )) && fromSource
 
