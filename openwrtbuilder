@@ -8,6 +8,9 @@
 #
 # See README.md and ./profiles
 #
+# This will install a lot of system dependencies by default, so I recommend to
+# run it in `toolbox`
+#
 
 # Set default release
 : "${RELEASE:="22.03.3"}"
@@ -29,7 +32,7 @@ printHelp() {
 		    --source
 		        Build image from source, not from Image Builder
 		    --ssh-upgrade HOST
-		        Example: root@192.168.1.1
+		        Examples: root@192.168.1.1, root@router.lan
 		    --ssh-backup SSH_PATH
 		        Enabled by default for --ssh-upgrade
 		    --flash,-f DEVICE
@@ -297,6 +300,10 @@ installDependencies() {
                     "zlib"
                 )
                 ;;
+            *)
+                debug "Skipping dependency install, your OS is unsupported"
+                return 1
+                ;;
         esac
     else
         # For Imagebuilder
@@ -334,6 +341,10 @@ installDependencies() {
                     "python"
                     "axel"
                 )
+                ;;
+            *)
+                debug "Skipping dependency install, your OS is unsupported"
+                return 1
                 ;;
         esac
     fi
