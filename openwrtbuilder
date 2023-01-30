@@ -8,8 +8,11 @@
 #
 # See README.md and ./profiles
 #
-# This will install a lot of system dependencies by default, so I recommend to
-# run it in `toolbox`
+# This will install a lot of system dependencies by default so I
+# recommend running it in `toolbox`, container, or VM
+#
+# Some PROFILE options are incompatible with Image Builder mode (kopts) and
+# will be ignored
 #
 
 # Set default release
@@ -862,7 +865,7 @@ main() {
             for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
             echo "Build settings:"
             cat <<- EOF
-				ALIAS=$profile
+				ALIAS (\$profile, \$P_ARR)=$profile, $P_ARR
 				BUILDROOT=$BUILDROOT
 				BUILDDIR=$BUILDDIR
 				SRCDIR=$SRCDIR
@@ -880,10 +883,16 @@ main() {
 				IB_SHA256_URL=$IB_SHA256_URL
 				IB_SHA256_FILE=$IB_SHA256_FILE
 				IB_OUT_SHA256_FILE=$IB_OUT_SHA256_FILE
-				FACTORYIMGGZ: $FACTORYIMGGZ
-				FACTORYIMGGZFNAME: $FACTORYIMGGZFNAME
-				SYSUPGRADEIMGGZ: $SYSUPGRADEIMGGZ
-				SYSUPGRADEIMGGZFNAME: $SYSUPGRADEIMGGZFNAME
+				FACTORYIMGGZ=$FACTORYIMGGZ
+				FACTORYIMGGZFNAME=$FACTORYIMGGZFNAME
+				SYSUPGRADEIMGGZ=$SYSUPGRADEIMGGZ
+				SYSUPGRADEIMGGZFNAME=$SYSUPGRADEIMGGZFNAME
+				SOURCEFACTORYIMG=$SOURCEFACTORYIMG
+				SOURCEFACTORYIMGGZ=$SOURCEFACTORYIMGGZ
+				SOURCESYSUPGRADEIMG=$SOURCESYSUPGRADEIMG
+				SOURCESYSUPGRADEIMGGZ=$SOURCESYSUPGRADEIMGGZ
+				SOURCESYSUPGRADEIMGGZFNAME=$SOURCESYSUPGRADEIMGGZFNAME
+				GITWORKTREEDIR=$GITWORKTREEDIR
 			EOF
         fi
 
@@ -896,8 +905,7 @@ main() {
         # Acquire and verify Image Builder
         getImageBuilder && 
         getImageBuilderChecksum &&
-        verify "$IB_ARCHIVE" "$IB_SHA256_FILE" || 
-        return $?
+        verify "$IB_ARCHIVE" "$IB_SHA256_FILE" || return $?
         
         extractImageBuilder || return $?
 
