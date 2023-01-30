@@ -801,7 +801,7 @@ main() {
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
         declare -g BUILDDIR="$SRCDIR/$profile/$RELEASE"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
-        declare -g THIS_BINDIR="$BINDIR/$profile/${P_ARR[profile]}-$RELEASE"
+        declare -g THIS_BINDIR="$BINDIR/$profile/$RELEASE"
 
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
