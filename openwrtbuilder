@@ -631,7 +631,7 @@ fromSource() {
     debug "commit hash: $commit"
  
     if [[ $RELEASE == "snapshot" ]]; then
-        gitworktreedir="$SRCDIR/$profile/$RELEASE-$commit"
+        gitworktreedir="$SRCDIR/$profile/$RELEASE"
         git -C "$GITSRCDIR" worktree add -d "$gitworktreedir" master
     else
         gitworktreedir="$SRCDIR/$profile/$RELEASE"
