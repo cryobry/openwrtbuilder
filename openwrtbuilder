@@ -706,9 +706,11 @@ fromSource() {
     # Write options to config seed file
     for opt in "${config_opts[@]}"; do
         debug "Writing $opt to $seed_file"
-        # Respect nested quotes (ex. in kopts)
-        echo "$opt" | xargs >> "$seed_file"
+        echo "$opt" >> "$seed_file"
     done
+
+    [[ -v P_ARR[nested_kopts] ]] &&
+    echo "${P_ARR[nested_kopts]}" >> "$seed_file"
 
     # TODO for now symlink clang for qosify
     # declare llvm_dir="$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
