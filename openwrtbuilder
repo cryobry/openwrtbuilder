@@ -706,7 +706,7 @@ fromSource() {
     # Write options to config seed file
     for opt in "${config_opts[@]}"; do
         debug "Writing $opt to $seed_file"
-        echo "$opt" >> "$seed_file"
+        echo "$opt" | xargs args >> "$seed_file"
     done
 
     # TODO for now symlink clang for qosify
