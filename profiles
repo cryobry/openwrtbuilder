@@ -21,7 +21,7 @@ default_packages="\
 	collectd-mod-sensors \
 	collectd-mod-thermal \
 	collectd-mod-conntrack \
-	collectd-mod-cpu " # Leave trailing whitespace
+	collectd-mod-cpu"
 
 
 declare -Ag archer
@@ -106,15 +106,13 @@ r4s['packages']="\
 	smcroute \
 	curl \
 	ethtool \
-	ca-bundle \
-	tailscale"
+	ca-bundle"
+#	tailscale
 r4s['kopts']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
-	CONFIG_BTRFS_PROGS_ZSTD=y
-"
+	CONFIG_BTRFS_PROGS_ZSTD=y"
 r4s['files']="\
-	/mnt/backup \
-"
+	/mnt/backup"
 
 declare -Ag ax6000_stock
 ax6000_stock['profile']="xiaomi_redmi-router-ax6000-stock"
