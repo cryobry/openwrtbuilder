@@ -635,7 +635,7 @@ fromSource() {
         git -C "$GITSRCDIR" worktree add -fd "$gitworktreedir" master
     else
         gitworktreedir="$SRCDIR/$profile/$RELEASE"
-        git -C "$GITSRCDIR" worktree add -fd "$gitworktreedir" "v$RELEASE"
+        git -C "$GITSRCDIR" worktree add -fd "$gitworktreedir" "openwrt-${RELEASE%.*}"
     fi
 
     seed_file="$gitworktreedir/.config"
