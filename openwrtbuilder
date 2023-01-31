@@ -632,10 +632,10 @@ fromSource() {
  
     if [[ $RELEASE == "snapshot" ]]; then
         gitworktreedir="$SRCDIR/$profile/$RELEASE"
-        git -C "$GITSRCDIR" worktree add -d "$gitworktreedir" master
+        git -C "$GITSRCDIR" worktree add -fd "$gitworktreedir" master
     else
         gitworktreedir="$SRCDIR/$profile/$RELEASE"
-        git -C "$GITSRCDIR" worktree add -d "$gitworktreedir" "v$RELEASE"
+        git -C "$GITSRCDIR" worktree add -fd "$gitworktreedir" "v$RELEASE"
     fi
 
     seed_file="$gitworktreedir/.config"
@@ -685,7 +685,7 @@ fromSource() {
     config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
     config_opts+=("CONFIG_TARGET_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
     config_opts+=("CONFIG_SDK=n")
-    config_opts+=("CONFIG_SDK_LLVM_BPF=n")
+    # config_opts+=("CONFIG_SDK_LLVM_BPF=n")
     config_opts+=("CONFIG_IB=n")
     config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
     
@@ -702,9 +702,9 @@ fromSource() {
     ./scripts/feeds install -a
 
     # TODO for now symlink clang for qosify
-    declare llvm_dir="$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
-    [[ -d "$llvm_dir" ]] || mkdir -p "$llvm_dir"
-    ln -fs "$(which clang)" "$llvm_dir/clang"
+    # declare llvm_dir="$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
+    # [[ -d "$llvm_dir" ]] || mkdir -p "$llvm_dir"
+    # ln -fs "$(which clang)" "$llvm_dir/clang"
 
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
@@ -715,7 +715,7 @@ fromSource() {
     # make dirclean # compiled output, toolchain, build tools
     # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
-    debug "make ${make_opts[*]} dirclean"
+    debug "make ${make_opts[*]} targetclean"
     make "${make_opts[@]}" targetclean
     debug "make ${make_opts[*]} download"
     make "${make_opts[@]}" download
