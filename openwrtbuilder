@@ -614,9 +614,8 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare pkg kopt opt commit
+    declare pkg kopt opt commit gitworktreedir seed_file
     declare -a make_opts config_opts
-    declare -g SEED_FILE="$GITWORKTREEDIR/.config"
 
     echo "Building from source is under development"
 
@@ -632,16 +631,23 @@ fromSource() {
     debug "commit hash: $commit"
  
     if [[ $RELEASE == "snapshot" ]]; then
-        git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" master
+        gitworktreedir="$SRCDIR/$profile/$RELEASE-$commit"
+        git -C "$GITSRCDIR" worktree add -d "$gitworktreedir" master
     else
-        git -C "$GITSRCDIR" worktree add -d "$GITWORKTREEDIR" "v$RELEASE"
+        gitworktreedir="$SRCDIR/$profile/$RELEASE"
+        git -C "$GITSRCDIR" worktree add -d "$gitworktreedir" "v$RELEASE"
     fi
 
-    pushd "$GITWORKTREEDIR" &>/dev/null || return 1
+    seed_file="$gitworktreedir/.config"
+
+    debug "gitworktreedir: $gitworktreedir"
+    debug "seed_file: $seed_file"
+
+    pushd "$gitworktreedir" &>/dev/null || return 1
 
     # Grab the release seed config
-    if ! curl -so "$SEED_FILE" "$SEED_URL"; then
-        echo "Could not obtain $SEED_FILE from $SEED_URL"
+    if ! curl -so "$seed_file" "$SEED_URL"; then
+        echo "Could not obtain $seed_file from $SEED_URL"
         return 1
     fi
 
@@ -663,7 +669,7 @@ fromSource() {
     done
 
     # Only compile selected fs
-    sed -i '/CONFIG_TARGET_ROOTFS_/d' "$SEED_FILE"
+    sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
     config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
     if [[ $FILESYSTEM == "squashfs" ]]; then
         config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=n")
@@ -674,7 +680,7 @@ fromSource() {
     fi
 
     # Only compile selected target
-    sed -i '/CONFIG_TARGET_DEVICE_/d' "$SEED_FILE"
+    sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
     config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
     config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
     config_opts+=("CONFIG_TARGET_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
@@ -685,8 +691,8 @@ fromSource() {
     
     # Write options to config seed file
     for opt in "${config_opts[@]}"; do
-        debug "Writing $opt to $SEED_FILE"
-        echo "$opt" >> "$SEED_FILE"
+        debug "Writing $opt to $seed_file"
+        echo "$opt" >> "$seed_file"
     done
 
     # Update package feed
@@ -726,10 +732,11 @@ fromSource() {
 
 # Make the output tree match Image Builder's (non-destructively) 
 linkSourceImage() {
+    debug "${FUNCNAME[0]}"
     declare out_file
     declare -a out_files=("$THIS_BINDIR/targets/${P_ARR[target]}/"*.{img,img.gz,ubi})
     for out_file in "${out_files[@]}"; do
-        [[ -f $out_file ]] && ln -s "$out_file" "$THIS_BINDIR/${out_file##*/}"
+        [[ -f $out_file ]] && ln -fs "$out_file" "$THIS_BINDIR/${out_file##*/}"
     done
 }
 
@@ -859,9 +866,7 @@ main() {
         declare -g SOURCESYSUPGRADEIMG="$THIS_BINDIR/targets/$img_fname-sysupgrade.img"
         declare -g SOURCESYSUPGRADEIMGGZ="$THIS_BINDIR/targets/$img_fname-sysupgrade.img.gz"
         declare -g SOURCESYSUPGRADEIMGGZFNAME="${SOURCESYSUPGRADEIMGGZ##*/}"
-        declare -g GITWORKTREEDIR="$SRCDIR/$profile/$RELEASE"
         declare -g SEED_URL="$url_prefix/config.buildinfo"
-        declare -g SEED_FILE="$GITWORKTREEDIR/.config"
 
         if (( DEBUG )); then
             echo "Profile settings:"
@@ -882,7 +887,6 @@ main() {
 				IB_URL=$IB_URL
 				IB_ARCHIVE=$IB_ARCHIVE
 				SEED_URL=$SEED_URL
-				SEED_FILE=$SEED_FILE
 				IB_SHA256_URL=$IB_SHA256_URL
 				IB_SHA256_FILE=$IB_SHA256_FILE
 				IB_OUT_SHA256_FILE=$IB_OUT_SHA256_FILE
@@ -894,8 +898,7 @@ main() {
 				SOURCEFACTORYIMGGZ=$SOURCEFACTORYIMGGZ
 				SOURCESYSUPGRADEIMG=$SOURCESYSUPGRADEIMG
 				SOURCESYSUPGRADEIMGGZ=$SOURCESYSUPGRADEIMGGZ
-				SOURCESYSUPGRADEIMGGZFNAME=$SOURCESYSUPGRADEIMGGZFNAME
-				GITWORKTREEDIR=$GITWORKTREEDIR
+				SOURCESYSUPGRADEIMGGZFNAME=$SOURCESYSUPGRADEIMGGZFNAME	
 			EOF
         fi
 

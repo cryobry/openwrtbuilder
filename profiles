@@ -14,10 +14,10 @@ default_packages="\
 	iperf3 \
 	bash \
 	rsync \
-	openssh-sftp-server \
 	luci-app-wireguard \
 	luci-proto-wireguard \
 	luci-app-statistics \
+	luci-app-attendedsysupgrade \
 	collectd-mod-sensors \
 	collectd-mod-thermal \
 	collectd-mod-conntrack \
@@ -90,8 +90,6 @@ r4s['filesystem']="ext4"
 r4s['packages']="\
 	$default_packages \
 	luci-app-upnp \
-	luci-app-wireguard \
-	luci-proto-wireguard \
 	luci-app-ddns \
 	luci-app-sqm \
 	irqbalance \
