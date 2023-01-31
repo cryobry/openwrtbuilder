@@ -645,6 +645,10 @@ fromSource() {
 
     pushd "$gitworktreedir" &>/dev/null || return 1
 
+    # Update package feed
+    ./scripts/feeds update -a &&
+    ./scripts/feeds install -a
+
     # Grab the release seed config
     if ! curl -so "$seed_file" "$SEED_URL"; then
         echo "Could not obtain $seed_file from $SEED_URL"
@@ -695,12 +699,6 @@ fromSource() {
         echo "$opt" >> "$seed_file"
     done
 
-    # Update package feed
-    # ./scripts/feeds install will run make defconfig for us
-    # to normalize and expand .config
-    ./scripts/feeds update -a &&
-    ./scripts/feeds install -a
-
     # TODO for now symlink clang for qosify
     # declare llvm_dir="$GITSRCDIR/staging_dir/host/llvm-bpf/bin"
     # [[ -d "$llvm_dir" ]] || mkdir -p "$llvm_dir"
@@ -715,6 +713,8 @@ fromSource() {
     # make dirclean # compiled output, toolchain, build tools
     # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
+    debug "make ${make_opts[*]} defconfig"
+    make "${make_opts[@]}" defconfig
     debug "make ${make_opts[*]} targetclean"
     make "${make_opts[@]}" targetclean
     debug "make ${make_opts[*]} download"

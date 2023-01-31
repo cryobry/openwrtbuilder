@@ -1,6 +1,1 @@
-sources/
-bin/
-files/
-patches/
-.lock
-make.log
+src/
