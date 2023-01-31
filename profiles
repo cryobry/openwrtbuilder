@@ -23,7 +23,6 @@ default_packages="\
 	collectd-mod-conntrack \
 	collectd-mod-cpu"
 
-
 declare -Ag archer
 archer['profile']="tplink_archer-c7-v2"
 archer['target']="ath79/generic"
@@ -89,14 +88,9 @@ r4s['target']="rockchip/armv8"
 r4s['filesystem']="ext4"
 r4s['packages']="\
 	$default_packages \
-	luci-app-upnp \
 	luci-app-ddns \
-	luci-app-sqm \
 	irqbalance \
-	collectd-mod-sqm \
 	collectd-mod-df \
-	pbr \
-	luci-app-pbr \
 	usbutils \
 	kmod-usb-storage \
 	kmod-usb-storage-uas \
