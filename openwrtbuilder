@@ -632,10 +632,20 @@ fromSource() {
  
     if [[ $RELEASE == "snapshot" ]]; then
         gitworktreedir="$SRCDIR/$profile/$RELEASE"
-        git -C "$GITSRCDIR" worktree add -fd "$gitworktreedir" master
+        git -C "$GITSRCDIR" \
+            worktree add \
+            --force \
+            --detach \
+            "$gitworktreedir" \
+            "master"
     else
         gitworktreedir="$SRCDIR/$profile/$RELEASE"
-        git -C "$GITSRCDIR" worktree add -fd "$gitworktreedir" "openwrt-${RELEASE%.*}"
+        git -C "$GITSRCDIR" \
+            worktree add \
+            --force \
+            --detach \
+            "$gitworktreedir" \
+            "origin/openwrt-${RELEASE%.*}"
     fi
 
     seed_file="$gitworktreedir/.config"
