@@ -389,18 +389,6 @@ getImageBuilderChecksum() {
 }
 
 
-extractImageBuilder() {
-    debug "${FUNCNAME[0]}"
-
-    echo "Extracting Image Builder archive"
-    debug "tar -xf $IB_ARCHIVE -C $BUILDDIR --strip-components 1"
-    if ! tar -xf "$IB_ARCHIVE" -C "$BUILDDIR" --strip-components 1; then
-        echo "Extraction failed"
-        return 1
-    fi
-}
-
-
 addRepos() {
     debug "${FUNCNAME[0]}"
 
@@ -559,25 +547,27 @@ fromSource() {
     declare pkg kopt opt commit gitworktreedir seed_file
     declare -a make_opts config_opts
 
+    declare src_dir="$BUILDROOT/src/openwrt"
+
     echo "Building from source is under development"
 
     # Update source code
-    if [[ ! -d "$GITSRCDIR" ]]; then
-        mkdir -p "$GITSRCDIR"
-        git clone "$src_url" "$GITSRCDIR"
+    if [[ ! -d "$src_dir" ]]; then
+        mkdir -p "$src_dir"
+        git clone "$src_url" "$src_dir"
     fi
 
-    git -C "$GITSRCDIR" pull
+    git -C "$src_dir" pull
     debug "Current commit:"
-    (( DEBUG )) && git -C "$GITSRCDIR" log -1
-    (( DEBUG )) && git -C "$GITSRCDIR" describe
+    (( DEBUG )) && git -C "$src_dir" log -1
+    (( DEBUG )) && git -C "$src_dir" describe
 
-    commit=$(git -C "$GITSRCDIR" rev-parse HEAD)
+    commit=$(git -C "$src_dir" rev-parse HEAD)
     debug "Current commit hash: $commit"
  
     if [[ $RELEASE == "snapshot" ]]; then
         gitworktreedir="$BUILDROOT/src/$profile/$RELEASE"
-        git -C "$GITSRCDIR" \
+        git -C "$src_dir" \
             worktree add \
             --force \
             --detach \
@@ -585,7 +575,7 @@ fromSource() {
             "master"
     else
         gitworktreedir="$BUILDROOT/src/$profile/$RELEASE"
-        git -C "$GITSRCDIR" \
+        git -C "$src_dir" \
             worktree add \
             --force \
             --detach \
@@ -682,42 +672,24 @@ fromSource() {
     return 0
 }
 
+# Generic helpers
 debug() { (( DEBUG )) && echo "Debug: $*"; }
-
-
 askOk() {
     local _response
     read -r -p "$* [y/N]" _response
     _response=${_response,,}
     [[ "$_response" =~ ^(yes|y)$ ]]
 }
-
-
-resetAll() {
+extract() {
     debug "${FUNCNAME[0]}"
-    askOk "Remove $BUILDROOT/src and $BUILDROOT/bin?" || exit $?
-    debug "rm -rf $BUILDROOT/src $BUILDROOT/bin"
-    rm -rf "${BUILDROOT:?}/src" "${BUILDROOT:?}/bin"
+    declare archive="$1"
+    declare out_dir="$2"
+    debug "tar -xf $archive -C $out_dir --strip-components 1"
+    if ! tar -xf "$archive" -C "$out_dir" --strip-components 1; then
+        echo "Extraction failed"
+        return 1
+    fi
 }
-
-
-resetProfile() {
-    debug "${FUNCNAME[0]}"
-    askOk "Remove $BUILDDIR and $BINDIR?" || exit $?
-    debug "rm -rf $BUILDDIR $BINDIR"
-    rm -rf "$BUILDDIR" "$BINDIR"
-}
-
-
-loadProfiles() {
-    debug "${FUNCNAME[0]}"
-    declare -g PFILE
-    PFILE="$SCRIPTDIR/profiles"
-    # shellcheck source=./profiles
-    ! source "$PFILE" && echo "profiles file missing!" && return 1
-}
-
-
 verify() {
     debug "${FUNCNAME[0]}"
     declare file_to_check="$1"
@@ -729,6 +701,12 @@ verify() {
     checksum=$(grep "${file_to_check##*/}" "$sumfile" | cut -f1 -d' ')
     echo -n "$checksum $file_to_check" | sha256sum --check --status
 }
+load() {
+    debug "${FUNCNAME[0]}"
+    declare source_file="$1"
+    # shellcheck disable=SC1090
+    [[ -f $source_file ]] && source "$source_file"
+}
 
 
 main() {
@@ -736,7 +714,8 @@ main() {
 
     init
 
-    loadProfiles
+    # shellcheck source=./profiles
+    load "$SCRIPTDIR/profiles"
    
     readInput "$@"
 
@@ -744,21 +723,17 @@ main() {
     declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
     [[ $BUILDROOT == "/" ]] && echo "Invalid --buildroot" && exit 1
     declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
-    declare -g BINDIR="$BUILDROOT/bin" # output
-    declare -g GITSRCDIR="$BUILDROOT/src/openwrt"
 
     for dir in "$BUILDROOT/src" "$BUILDROOT/bin"; do
         [[ -d "$dir" ]] || mkdir -p "$dir"
     done
 
     # Allow --reset without a profile
-    if [[ ${#PROFILES} -lt 1 ]]; then
-        if (( RESET )); then
-            resetAll
-            exit
-        else
-            echo "No profile supplied" && return 1
-        fi
+    if (( RESET )) && [[ ${#PROFILES} -lt 1 ]]; then
+        askOk "Remove $BUILDROOT/src and $BUILDROOT/bin?" || exit $?
+        debug "rm -rf $BUILDROOT/src $BUILDROOT/bin"
+        rm -rf "${BUILDROOT:?}/src" "${BUILDROOT:?}/bin"
+        exit $?
     fi
 
     installDependencies
@@ -810,7 +785,6 @@ main() {
 				ALIAS (\$profile, \$P_ARR)=$profile, $P_ARR
 				BUILDROOT=$BUILDROOT
 				BUILDDIR=$BUILDDIR
-				GITSRCDIR=$GITSRCDIR
 				BINDIR=$BINDIR
 				TARGET=${P_ARR[target]}
 				PROFILE=${P_ARR[profile]}
@@ -820,7 +794,11 @@ main() {
 			EOF
         fi
 
-        (( RESET )) && resetProfile
+        if (( RESET )); then
+            askOk "Remove $BUILDDIR and $BINDIR?" || exit $?
+            debug "rm -rf $BUILDDIR $BINDIR"
+            rm -rf "$BUILDDIR" "$BINDIR"
+        fi
 
         [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
 
@@ -829,13 +807,12 @@ main() {
         else
             getImageBuilder && 
             getImageBuilderChecksum &&
-            verify "$IB_ARCHIVE" "$IB_SHA256_FILE" || return $?
-            extractImageBuilder || return $?
+            verify "$IB_ARCHIVE" "$IB_SHA256_FILE" &&
+            extract "$IB_ARCHIVE" "$BUILDDIR" || return $?
             addRepos
             makeImages &&
             verifyImages
             #copyFiles
-
         fi
 
         [[ -v SSH_BACKUP_PATH ]] && 
