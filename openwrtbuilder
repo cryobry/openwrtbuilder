@@ -46,9 +46,9 @@ printHelp() {
 		    --help,-h
 
 		EXAMPLES
-		    ./openwrtbuilder -p r4s -r snapshot --debug
-		    ./openwrtbuilder -p ax6000_stock -r 23.03.3 --source --debug
-		    ./openwrtbuilder -p rpi4 -r 23.03.3 --flash /dev/sdX
+		    ./openwrtbuilder -p r4s -r snapshot
+		    ./openwrtbuilder -p ax6000_stock -r 22.03.3 --source --debug
+		    ./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX
 		    ./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		    
 	EOF
 }
@@ -59,7 +59,7 @@ init() {
 
     declare -g ID RPM_MGR SCRIPTDIR DL_TOOL
 
-    debug || echo "To enable debugging output, use --debug or -d"
+    (( DEBUG )) || echo "To enable debugging output, use --debug or -d"
 
     # Save the script directory
     # https://stackoverflow.com/a/4774063
@@ -140,7 +140,7 @@ init() {
     elif hash curl &>/dev/null; then
         DL_TOOL="curl"
     else
-        echo "Downloading the Image Builder requires axel or curl!"
+        echo "Downloading the Image Builder requires axel or curl"
         return 1
     fi
 }
@@ -359,6 +359,8 @@ installDependencies() {
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
+    declare url="$1"
+
     if [[ -f "$IB_ARCHIVE" ]]; then
         if askOK "$IB_ARCHIVE exists. Re-download?"; then
             rm -f "$IB_ARCHIVE"
@@ -368,8 +370,8 @@ getImageBuilder() {
     fi
 
     echo "Downloading Image Builder archive using $DL_TOOL"
-    debug "$DL_TOOL -o $IB_ARCHIVE $IB_URL"
-    "$DL_TOOL" -o "$IB_ARCHIVE" "$IB_URL"
+    debug "$DL_TOOL -o $IB_ARCHIVE $url"
+    "$DL_TOOL" -o "$IB_ARCHIVE" "$url"
 }
 
 
@@ -384,8 +386,7 @@ getImageBuilderChecksum() {
         fi
     fi
 
-    debug "$DL_TOOL -o $IB_SHA256_FILE $IB_SHA256_URL"
-    "$DL_TOOL" -o "$IB_SHA256_FILE" "$IB_SHA256_URL"
+    execute "$DL_TOOL -o $IB_SHA256_FILE $IB_SHA256_URL"
 }
 
 
@@ -404,37 +405,33 @@ addRepos() {
 sshBackup() {
     debug "${FUNCNAME[0]}"
 
-    local _date _hostname _backup_fname
+    declare date hostname backup_fname
 
     [[ -d "$FILESDIR" ]] || mkdir -p "$FILESDIR"
 
-    printf -v _date '%(%Y-%m-%d-%H-%M-%S)T'
-    _hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
-    _backup_fname="backup-$_hostname-$_date.tar.gz"
+    printf -v date '%(%Y-%m-%d-%H-%M-%S)T'
+    hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
+    backup_fname="backup-$hostname-$date.tar.gz"
 
     # Make backup archive on remote
-    debug "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$_backup_fname"
-    if ! ssh -t "$SSH_BACKUP_PATH" "sysupgrade -b /tmp/$_backup_fname"; then
+    if ! execute "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$backup_fname"; then
         echo "SSH backup failed"
         exit 1
     fi
 
     # Move backup archive locally
-    debug "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$_backup_fname $BUILDDIR/"
-    if ! rsync -avz --remove-source-files \
-        "$SSH_BACKUP_PATH":"/tmp/$_backup_fname" "$BUILDDIR/"; then
+    if ! execute "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$backup_fname $BUILDDIR/"; then
         echo "Could not copy SSH backup"
         exit 1
     fi
 
     # Extract backup archive
-    debug "tar -C $FILESDIR -xzf $BUILDDIR/$_backup_fname"
-    if ! tar -C "$FILESDIR" -xzf "$BUILDDIR/$_backup_fname"; then
+    if ! execute "tar -C $FILESDIR -xzf $BUILDDIR/$backup_fname"; then
         echo "Could not extract SSH backup"
         exit 1
     fi
 
-    rm "$BUILDDIR/$_backup_fname"
+    execute "rm $BUILDDIR/$backup_fname"
 }
 
 
@@ -452,8 +449,8 @@ makeImages() {
 
     make image \
         BIN_DIR="$BINDIR" \
-        PROFILE="${P_ARR[profile]}" \
-        PACKAGES="${P_ARR[packages]:+"${P_ARR[packages]}"}" \
+        PROFILE="$PROFILE" \
+        PACKAGES="$PACKAGES" \
         FILES="${FILESDIR}" \
         --directory="$BUILDDIR" \
         --jobs="$(nproc)"  \
@@ -526,7 +523,7 @@ sshUpgrade() {
 
     echo "Copying '$img_gz' to $ssh_path/tmp/$img_fname"
     debug "scp $img_gz $ssh_path:/tmp/$img_fname"
-    if ! scp "$img_gz" "$ssh_path":"/tmp/$img_fname"; then
+    if ! scp "$img_gz" "$ssh_path:/tmp/$img_fname"; then
         echo "Could not copy $img_gz to $ssh_path:/tmp/$img_fname"
         return 1
     fi
@@ -543,11 +540,10 @@ sshUpgrade() {
 fromSource() {
     debug "${FUNCNAME[0]}"
 
+    declare src_dir="$BUILDROOT/src/openwrt"
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare pkg kopt opt commit gitworktreedir seed_file
     declare -a make_opts config_opts
-
-    declare src_dir="$BUILDROOT/src/openwrt"
 
     echo "Building from source is under development"
 
@@ -602,7 +598,7 @@ fromSource() {
     config_opts+=("CONFIG_BINARY_FOLDER=\"$BINDIR\"")
 
     # Add custom packages
-    for pkg in ${P_ARR[packages]}; do
+    for pkg in $PACKAGES; do
         if [[ $pkg == -* ]]; then
             config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
         else
@@ -629,8 +625,8 @@ fromSource() {
     # Only compile selected target image
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
     config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
-    config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_${P_ARR[profile]}")
-    config_opts+=("CONFIG_TARGET_${P_ARR[target]//\//_}_DEVICE_${P_ARR[profile]}=y")
+    config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_$PROFILE")
+    config_opts+=("CONFIG_TARGET_${TARGET//\//_}_DEVICE_$PROFILE=y")
     config_opts+=("CONFIG_SDK=n")
     config_opts+=("CONFIG_SDK_LLVM_BPF=n")
     config_opts+=("CONFIG_IB=n")
@@ -665,7 +661,7 @@ fromSource() {
     popd &>/dev/null || return 1
 
     # Provide symlinks to images in root of BINDIR (to match Image Builder)
-    for image in "$BINDIR/targets/${P_ARR[target]}/"*.{img,img.gz,ubi}; do
+    for image in "$BINDIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
         ln -fs "$image" "$BINDIR/${image##*/}"
     done
 
@@ -707,6 +703,11 @@ load() {
     # shellcheck disable=SC1090
     [[ -f $source_file ]] && source "$source_file"
 }
+execute() {
+    declare cmd="$*"
+    debug "$cmd" || cmd+=" &>/dev/null"
+    eval "${cmd[*]}"
+}
 
 
 main() {
@@ -714,15 +715,19 @@ main() {
 
     init
 
-    # shellcheck source=./profiles
     load "$SCRIPTDIR/profiles"
    
     readInput "$@"
 
     # Fallback to SCRIPTDIR if BUILDROOT has not been set
     declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
-    [[ $BUILDROOT == "/" ]] && echo "Invalid --buildroot" && exit 1
     declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
+
+    # This could be dangerous
+    if [[ $BUILDROOT == "/" ]]; then
+        echo "Invalid --buildroot"
+        exit 1
+    fi
 
     for dir in "$BUILDROOT/src" "$BUILDROOT/bin"; do
         [[ -d "$dir" ]] || mkdir -p "$dir"
@@ -754,23 +759,35 @@ main() {
         declare -g BUILDDIR="$BUILDROOT/src/$profile/$RELEASE"
         declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
+        declare -g TARGET="${P_ARR[target]}"
+        declare -g PROFILE="${P_ARR[profile]}"
+        declare -g PACKAGES="${P_ARR[packages]:-}"
+
+        if (( RESET )); then
+            askOk "Remove $BUILDDIR and $BINDIR?" || exit $?
+            debug "rm -rf $BUILDDIR $BINDIR"
+            rm -rf "$BUILDDIR" "$BINDIR"
+        fi
+
+        [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
 
         if [[ "$RELEASE" == "snapshot" ]]; then
-            declare url_prefix="https://downloads.openwrt.org/snapshots/targets/${P_ARR[target]}"
-            declare url_filename="openwrt-imagebuilder-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            declare img_fname="openwrt-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM" 
+            declare url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
+            declare url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.xz"
+            declare img_fname="openwrt-${TARGET//\//-}-$PROFILE-$FILESYSTEM" 
         else
-            declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/${P_ARR[target]}"
-            declare url_filename="openwrt-imagebuilder-$RELEASE-${P_ARR[target]//\//-}.Linux-x86_64.tar.xz"
-            declare img_fname="openwrt-$RELEASE-${P_ARR[target]//\//-}-${P_ARR[profile]}-$FILESYSTEM"
+            declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
+            declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
+            declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$PROFILE-$FILESYSTEM"
         fi
+
+        declare ib_url="$url_prefix/$url_filename"
 
         if (( FROM_SOURCE )); then
             declare -g SYSUPGRADEIMGGZ="$BINDIR/targets/$img_fname-sysupgrade.img.gz"
             declare -g SEED_URL="$url_prefix/config.buildinfo"
         else
             declare -g SYSUPGRADEIMGGZ="$BUILDDIR/$img_fname-sysupgrade.img.gz"
-            declare -g IB_URL="$url_prefix/$url_filename"
             declare -g IB_ARCHIVE="$BUILDDIR/$url_filename"
             declare -g IB_SHA256_URL="$url_prefix/sha256sums"
             declare -g IB_SHA256_FILE="$IB_ARCHIVE.sha256sums"
@@ -782,30 +799,23 @@ main() {
             for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
             echo "Build settings:"
             cat <<- EOF
-				ALIAS (\$profile, \$P_ARR)=$profile, $P_ARR
+				ALIAS (\$profile, \$P_ARR -- should match)=$profile, $P_ARR
 				BUILDROOT=$BUILDROOT
 				BUILDDIR=$BUILDDIR
 				BINDIR=$BINDIR
-				TARGET=${P_ARR[target]}
-				PROFILE=${P_ARR[profile]}
+				TARGET=$TARGET
+				PROFILE=$PROFILE
 				RELEASE=$RELEASE
 				FILESYSTEM=$FILESYSTEM
 				SYSUPGRADEIMGGZ=$SYSUPGRADEIMGGZ
+                ib_url=$ib_url
 			EOF
         fi
-
-        if (( RESET )); then
-            askOk "Remove $BUILDDIR and $BINDIR?" || exit $?
-            debug "rm -rf $BUILDDIR $BINDIR"
-            rm -rf "$BUILDDIR" "$BINDIR"
-        fi
-
-        [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
 
         if (( FROM_SOURCE )); then
             fromSource || return $?
         else
-            getImageBuilder && 
+            getImageBuilder "$ib_url" && 
             getImageBuilderChecksum &&
             verify "$IB_ARCHIVE" "$IB_SHA256_FILE" &&
             extract "$IB_ARCHIVE" "$BUILDDIR" || return $?
