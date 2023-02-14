@@ -55,7 +55,7 @@ rpi4['packages']="\
 	kmod-usb-net-rtl8152 \
 	luci-app-upnp \
 	luci-app-wireguard \
-	luci-app-vpn-policy-routing \
+	luci-app-pbr \
 	-dnsmasq \
 	dnsmasq-full \
 	luci-app-ddns \
@@ -69,7 +69,7 @@ r2s['packages']="\
 	$default_packages \
 	luci-app-upnp \
 	luci-app-wireguard \
-	luci-app-vpn-policy-routing \
+	luci-app-pbr \
 	-dnsmasq \
 	dnsmasq-full \
 	luci-app-ddns \
@@ -81,6 +81,24 @@ r2s['packages']="\
 	smcroute \
 	curl \
 	ethtool"
+
+declare -Ag r2s_tr
+r2s_tr['profile']="friendlyarm_nanopi-r2s"
+r2s_tr['target']="rockchip/armv8"
+r2s_tr['filesystem']="ext4"
+r2s_tr['packages']="\
+	$default_packages \
+	luci-app-upnp \
+	luci-app-wireguard \
+	luci-app-pbr \
+	luci-app-ddns \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	curl \
+	ethtool \
+	travelmate"
 
 declare -Ag r4s
 r4s['profile']="friendlyarm_nanopi-r4s"
@@ -101,7 +119,6 @@ r4s['packages']="\
 	curl \
 	ethtool \
 	ca-bundle"
-#	tailscale
 r4s['kopts']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
 	CONFIG_BTRFS_PROGS_ZSTD=y \
@@ -109,6 +126,33 @@ r4s['kopts']="\
 r4s['nested_kopts']="CONFIG_TARGET_OPTIMIZATION=\"-O3 -pipe -mcpu=cortex-a72.cortex-a53+crypto+crc\""
 r4s['files']="\
 	/mnt/backup"
+
+declare -Ag r4s_stock
+r4s_stock['profile']="friendlyarm_nanopi-r4s"
+r4s_stock['target']="rockchip/armv8"
+r4s_stock['filesystem']="ext4"
+# r4s_stock['packages']="\
+# 	$default_packages \
+# 	luci-app-ddns \
+# 	irqbalance \
+# 	collectd-mod-df \
+# 	usbutils \
+# 	kmod-usb-storage \
+# 	kmod-usb-storage-uas \
+# 	kmod-fs-btrfs \
+# 	btrfs-progs \
+# 	block-mount \
+# 	smcroute \
+# 	curl \
+# 	ethtool \
+# 	ca-bundle"
+# r4s_stock['kopts']="\
+# 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
+# 	CONFIG_BTRFS_PROGS_ZSTD=y \
+# 	CONFIG_TARGET_ROOTFS_PARTSIZE=1024"
+# r4s_stock['nested_kopts']="CONFIG_TARGET_OPTIMIZATION=\"-O3 -pipe -mcpu=cortex-a72.cortex-a53+crypto+crc\""
+# r4s_stock['files']="\
+# 	/mnt/backup"
 
 declare -Ag ax6000_stock
 ax6000_stock['profile']="xiaomi_redmi-router-ax6000-stock"
