@@ -36,8 +36,8 @@ See `./profiles` for example device profile definitions.
 ## Examples
 
 * `./openwrtbuilder -p r4s -r snapshot --debug`
-* `./openwrtbuilder -p ax6000_stock -r 23.03.3 --source --debug`
-* `./openwrtbuilder -p rpi4 -r 23.03.3 --flash /dev/sdX`
+* `./openwrtbuilder -p ax6000_stock -r 22.03.3 --source --debug`
+* `./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX`
 * `./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1`
 
 ## Additional Info
