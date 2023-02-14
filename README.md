@@ -1,6 +1,6 @@
 # openwrtbuilder
 
-Sanely build and deploy OpenWRT images using the Image Builder (or git source)
+Sanely build and deploy OpenWRT images using the Image Builder or from source code
 
 ## Usage
 
@@ -42,4 +42,4 @@ See `./profiles` for example device profile definitions.
 
 ## Additional Info
 
-Did you find `openwrtbuilder` useful? [Buy me a coffee!](https://paypal.me/bryanroessler?locale.x=en_US)
+Did you find `openwrtbuilder` useful? [Buy me a coffee!](https://paypal.me/bryanroessler)
