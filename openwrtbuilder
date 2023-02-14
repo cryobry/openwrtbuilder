@@ -661,9 +661,11 @@ fromSource() {
     popd &>/dev/null || return 1
 
     # Provide symlinks to images in root of BINDIR (to match Image Builder)
+    shopt -s nullglob
     for image in "$BINDIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
         ln -fs "$image" "$BINDIR/${image##*/}"
     done
+    shopt -u nullglob
 
     return 0
 }
