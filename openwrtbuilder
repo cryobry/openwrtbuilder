@@ -759,6 +759,7 @@ main() {
         declare -g TARGET="${P_ARR[target]}"
         declare -g PROFILE="${P_ARR[profile]}"
         declare -g PACKAGES="${P_ARR[packages]:-}"
+        IFS=" " read -r -a PACKAGES <<< "$PACKAGES"
 
         if (( RESET )); then
             askOk "Remove $BUILDDIR and $BINDIR?" || exit $?
