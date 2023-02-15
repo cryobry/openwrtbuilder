@@ -542,7 +542,7 @@ fromSource() {
 
     declare src_dir="$BUILDROOT/src/openwrt"
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare pkg kopt opt commit gitworktreedir seed_file
+    declare pkg kopt opt commit gitworktreedir seed_file wt_cmd
     declare -a make_opts config_opts
 
     echo "Building from source is under development"
@@ -560,29 +560,24 @@ fromSource() {
 
     commit=$(git -C "$src_dir" rev-parse HEAD)
     debug "Current commit hash: $commit"
+
+    gitworktreedir="$BUILDROOT/src/$profile/$RELEASE-src"
+    wt_cmd=(git -C "$src_dir"
+            worktree add
+            --force
+            --detach
+            "$gitworktreedir")
  
     if [[ $RELEASE == "snapshot" ]]; then
-        gitworktreedir="$BUILDROOT/src/$profile/$RELEASE"
-        git -C "$src_dir" \
-            worktree add \
-            --force \
-            --detach \
-            "$gitworktreedir" \
-            "master"
+        execute "${wt_cmd[@]}" master
     else
-        gitworktreedir="$BUILDROOT/src/$profile/$RELEASE"
-        git -C "$src_dir" \
-            worktree add \
-            --force \
-            --detach \
-            "$gitworktreedir" \
-            "origin/openwrt-${RELEASE%.*}"
+        execute "${wt_cmd[@]}" "origin/openwrt-${RELEASE%.*}"
     fi
 
     seed_file="$gitworktreedir/.config"
     debug "seed_file: $seed_file"
 
-    pushd "$gitworktreedir" &>/dev/null || return 1
+    execute pushd "$gitworktreedir" || return 1
 
     # Update package feed
     ./scripts/feeds update -a &&
@@ -611,16 +606,16 @@ fromSource() {
         config_opts+=("$kopt")
     done
 
-    # Only compile selected fs
-    # sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
-    # config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
-    # if [[ $FILESYSTEM == "squashfs" ]]; then
-    #     config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=n")
-    #     config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y")
-    # elif [[ $FILESYSTEM == "ext4" ]]; then
-    #     config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=n")
-    #     config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=y")
-    # fi
+    Only compile selected fs
+    sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
+    config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
+    if [[ $FILESYSTEM == "squashfs" ]]; then
+        config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=n")
+        config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y")
+    elif [[ $FILESYSTEM == "ext4" ]]; then
+        config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=n")
+        config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=y")
+    fi
 
     # Only compile selected target image
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
@@ -658,7 +653,7 @@ fromSource() {
     debug "make ${make_opts[*]} -j$(nproc) world"
     make "${make_opts[@]}" -j"$(nproc)" world
 
-    popd &>/dev/null || return 1
+    execute popd || return 1
 
     # Provide symlinks to images in root of BINDIR (to match Image Builder)
     shopt -s nullglob

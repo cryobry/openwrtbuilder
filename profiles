@@ -131,6 +131,7 @@ declare -Ag r4s_stock
 r4s_stock['profile']="friendlyarm_nanopi-r4s"
 r4s_stock['target']="rockchip/armv8"
 r4s_stock['filesystem']="ext4"
+r4s_stock['release']="snapshot"
 # r4s_stock['packages']="\
 # 	$default_packages \
 # 	luci-app-ddns \
