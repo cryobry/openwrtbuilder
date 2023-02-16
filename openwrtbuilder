@@ -572,7 +572,7 @@ fromSource() {
     seed_file="$SOURCEDIR/.config"
     debug "seed_file: $seed_file"
 
-    execute pushd "$SOURCEDIR" || return 1
+    pushd "$SOURCEDIR" || return 1
 
     # Update package feed
     ./scripts/feeds update -a &&
@@ -648,7 +648,7 @@ fromSource() {
     debug "make ${make_opts[*]} -j$(nproc) world"
     make "${make_opts[@]}" -j"$(nproc)" world
 
-    execute popd || return 1
+    popd || return 1
 
     # Provide symlinks to images in root of BINDIR (to match Image Builder)
     shopt -s nullglob
@@ -758,11 +758,11 @@ main() {
         declare -g GITDIR="$BUILDROOT/src/openwrt"
 
         if (( RESET )); then
-            if [[ -d $SOURCEDIR ]] && askOk "Remove $SOURCEDIR?"; then
-                execute git worktree remove --force "$SOURCEDIR"
-                execute rm -rf "$SOURCEDIR"
-            fi
-            if [[ -d $BUILDDIR ]] && askOk "Remove $BUILDDIR?"; then
+            if (( FROM_SOURCE )); then
+                [[ -d $SOURCEDIR ]] && askOk "Remove $SOURCEDIR?"
+                    execute git worktree remove --force "$SOURCEDIR"
+                    execute rm -rf "$SOURCEDIR"
+            elif [[ -d $BUILDDIR ]] && askOk "Remove $BUILDDIR?"; then
                 execute rm -rf "$BUILDDIR"
             fi
         fi
