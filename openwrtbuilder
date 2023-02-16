@@ -537,7 +537,6 @@ sshUpgrade() {
 fromSource() {
     debug "${FUNCNAME[0]}"
 
-    declare src_dir="$BUILDROOT/src/openwrt"
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare pkg kopt opt commit seed_file wt_cmd
     declare -a make_opts config_opts
@@ -545,20 +544,20 @@ fromSource() {
     echo "Building from source is under development"
 
     # Update source code
-    if [[ ! -d "$src_dir" ]]; then
-        mkdir -p "$src_dir"
-        git clone "$src_url" "$src_dir"
+    if [[ ! -d "$GITDIR" ]]; then
+        mkdir -p "$GITDIR"
+        git clone "$src_url" "$GITDIR"
     fi
 
-    git -C "$src_dir" pull
+    git -C "$GITDIR" pull
     debug "Current commit:"
-    (( DEBUG )) && git -C "$src_dir" log -1
-    (( DEBUG )) && git -C "$src_dir" describe
+    (( DEBUG )) && git -C "$GITDIR" log -1
+    (( DEBUG )) && git -C "$GITDIR" describe
 
-    commit=$(git -C "$src_dir" rev-parse HEAD)
+    commit=$(git -C "$GITDIR" rev-parse HEAD)
     debug "Current commit hash: $commit"
 
-    wt_cmd=(git -C "$src_dir"
+    wt_cmd=(git -C "$GITDIR"
             worktree add
             --force
             --detach
@@ -728,9 +727,9 @@ main() {
 
     # Allow --reset without a profile
     if (( RESET )) && [[ ${#PROFILES} -lt 1 ]]; then
-        askOk "Remove $BUILDROOT/src and $BUILDROOT/bin?" || exit $?
-        debug "rm -rf $BUILDROOT/src $BUILDROOT/bin"
-        rm -rf "${BUILDROOT:?}/src" "${BUILDROOT:?}/bin"
+        for d in "$BUILDROOT/src" "$BUILDROOT/bin"; do
+            askOk "Remove $d?" && execute rm -rf "$d"
+        done
         exit $?
     fi
 
@@ -756,6 +755,7 @@ main() {
         declare -g PROFILE="${P_ARR[profile]}"
         declare -g PACKAGES="${P_ARR[packages]:-}"
         declare -g SOURCEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
+        declare -g GITDIR="$BUILDROOT/src/openwrt"
 
         if (( RESET )); then
             for d in "$BUILDDIR" "$SOURCEDIR" "$BINDIR"; do
@@ -796,6 +796,8 @@ main() {
 				ALIAS (\$profile, \$P_ARR -- should match)=$profile, ${!P_ARR}
 				BUILDROOT=$BUILDROOT
 				BUILDDIR=$BUILDDIR
+				GITDIR=$GITDIR
+				SOURCEDIR=$SOURCEDIR
 				BINDIR=$BINDIR
 				TARGET=$TARGET
 				PROFILE=$PROFILE
