@@ -8,9 +8,6 @@
 #
 # See README.md and ./profiles
 #
-# This will install a lot of system dependencies by default so I
-# recommend running it in `toolbox`, container, or VM
-#
 # Some PROFILE options are incompatible with Image Builder mode (kopts) and
 # will be ignored
 #
@@ -542,7 +539,7 @@ fromSource() {
 
     declare src_dir="$BUILDROOT/src/openwrt"
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare pkg kopt opt commit gitworktreedir seed_file wt_cmd
+    declare pkg kopt opt commit seed_file wt_cmd
     declare -a make_opts config_opts
 
     echo "Building from source is under development"
@@ -561,12 +558,11 @@ fromSource() {
     commit=$(git -C "$src_dir" rev-parse HEAD)
     debug "Current commit hash: $commit"
 
-    gitworktreedir="$BUILDROOT/src/$profile/$RELEASE-src"
     wt_cmd=(git -C "$src_dir"
             worktree add
             --force
             --detach
-            "$gitworktreedir")
+            "$SOURCEDIR")
  
     if [[ $RELEASE == "snapshot" ]]; then
         execute "${wt_cmd[@]}" master
@@ -574,10 +570,10 @@ fromSource() {
         execute "${wt_cmd[@]}" "origin/openwrt-${RELEASE%.*}"
     fi
 
-    seed_file="$gitworktreedir/.config"
+    seed_file="$SOURCEDIR/.config"
     debug "seed_file: $seed_file"
 
-    execute pushd "$gitworktreedir" || return 1
+    execute pushd "$SOURCEDIR" || return 1
 
     # Update package feed
     ./scripts/feeds update -a &&
@@ -759,11 +755,12 @@ main() {
         declare -g TARGET="${P_ARR[target]}"
         declare -g PROFILE="${P_ARR[profile]}"
         declare -g PACKAGES="${P_ARR[packages]:-}"
+        declare -g SOURCEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
 
         if (( RESET )); then
-            askOk "Remove $BUILDDIR and $BINDIR?" || exit $?
-            debug "rm -rf $BUILDDIR $BINDIR"
-            rm -rf "$BUILDDIR" "$BINDIR"
+            for d in "$BUILDDIR" "$SOURCEDIR" "$BINDIR"; do
+                askOk "Remove $d?" && execute rm -rf "$d"
+            done
         fi
 
         [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
