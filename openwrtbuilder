@@ -538,6 +538,7 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
+    declare seed_file="$SOURCEDIR/.config"
     declare pkg kopt opt commit seed_file wt_cmd
     declare -a make_opts config_opts
 
@@ -550,9 +551,6 @@ fromSource() {
     fi
 
     git -C "$GITDIR" pull
-    debug "Current commit:"
-    (( DEBUG )) && git -C "$GITDIR" log -1
-    (( DEBUG )) && git -C "$GITDIR" describe
 
     wt_cmd=(git -C "$GITDIR"
             worktree add
@@ -566,12 +564,13 @@ fromSource() {
         execute "${wt_cmd[@]}" "origin/openwrt-${RELEASE%.*}"
     fi
 
+    # Print commit information
     commit=$(git -C "$SOURCEDIR" rev-parse HEAD)
-    debug "Current commit hash: $commit"
+    echo "Current commit hash: $commit"
+    (( DEBUG )) && git -C "$SOURCEDIR" log -1
+    (( DEBUG )) && git -C "$SOURCEDIR" describe
 
-    seed_file="$SOURCEDIR/.config"
-    debug "seed_file: $seed_file"
-
+    # Enter worktree
     pushd "$SOURCEDIR" || return 1
 
     # Update package feed
@@ -601,7 +600,7 @@ fromSource() {
         config_opts+=("$kopt")
     done
 
-    Only compile selected fs
+    # Only compile selected fs
     sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
     config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
     if [[ $FILESYSTEM == "squashfs" ]]; then
