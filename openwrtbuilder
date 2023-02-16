@@ -554,9 +554,6 @@ fromSource() {
     (( DEBUG )) && git -C "$GITDIR" log -1
     (( DEBUG )) && git -C "$GITDIR" describe
 
-    commit=$(git -C "$GITDIR" rev-parse HEAD)
-    debug "Current commit hash: $commit"
-
     wt_cmd=(git -C "$GITDIR"
             worktree add
             --force
@@ -568,6 +565,9 @@ fromSource() {
     else
         execute "${wt_cmd[@]}" "origin/openwrt-${RELEASE%.*}"
     fi
+
+    commit=$(git -C "$SOURCEDIR" rev-parse HEAD)
+    debug "Current commit hash: $commit"
 
     seed_file="$SOURCEDIR/.config"
     debug "seed_file: $seed_file"
