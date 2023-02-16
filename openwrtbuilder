@@ -450,7 +450,7 @@ makeImages() {
     make image \
         BIN_DIR="$BINDIR" \
         PROFILE="$PROFILE" \
-        PACKAGES="$PACKAGES" \
+        PACKAGES="${PACKAGES[*]}" \
         FILES="${FILESDIR}" \
         --directory="$BUILDDIR" \
         --jobs="$(nproc)"  \
@@ -593,7 +593,7 @@ fromSource() {
     config_opts+=("CONFIG_BINARY_FOLDER=\"$BINDIR\"")
 
     # Add custom packages
-    for pkg in $PACKAGES; do
+    for pkg in "${PACKAGES[@]}"; do
         if [[ $pkg == -* ]]; then
             config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
         else
@@ -758,8 +758,7 @@ main() {
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
         declare -g TARGET="${P_ARR[target]}"
         declare -g PROFILE="${P_ARR[profile]}"
-        declare -g PACKAGES="${P_ARR[packages]:-}"
-        IFS=" " read -r -a PACKAGES <<< "$PACKAGES"
+        IFS=" " read -r -a PACKAGES <<< "${P_ARR[packages]:-}"
 
         if (( RESET )); then
             askOk "Remove $BUILDDIR and $BINDIR?" || exit $?
