@@ -663,10 +663,10 @@ fromSource() {
 # Generic helpers
 debug() { (( DEBUG )) && echo "Debug: $*"; }
 askOk() {
-    local _response
-    read -r -p "$* [y/N]" _response
-    _response=${_response,,}
-    [[ "$_response" =~ ^(yes|y)$ ]]
+    local r
+    read -r -p "$* [y/N]" r
+    r=${r,,}
+    [[ "$r" =~ ^(yes|y)$ ]]
 }
 extract() {
     debug "${FUNCNAME[0]}"
