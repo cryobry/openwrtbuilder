@@ -368,7 +368,7 @@ getImageBuilder() {
 
     echo "Downloading Image Builder archive using $DL_TOOL"
     debug "$DL_TOOL -o $IB_ARCHIVE $url"
-    "$DL_TOOL" -o "$IB_ARCHIVE" "$url"
+    execute "$DL_TOOL" "-o" "$IB_ARCHIVE" "$url"
 }
 
 
@@ -438,7 +438,7 @@ makeImages() {
     # Reuse the existing output
     if [[ -d "$BINDIR" ]]; then
         if askOk "$BINDIR exists. Rebuild?"; then
-            rm -rf "$BINDIR"
+            execute rm -rf "$BINDIR"
         else
             return 0
         fi
@@ -758,12 +758,14 @@ main() {
         declare -g GITDIR="$BUILDROOT/src/openwrt"
 
         if (( RESET )); then
-            for d in "$BUILDDIR" "$SOURCEDIR" "$BINDIR"; do
-                askOk "Remove $d?" && execute rm -rf "$d"
-            done
+            if [[ -d $SOURCEDIR ]] && askOk "Remove $SOURCEDIR?"; then
+                execute git worktree remove --force "$SOURCEDIR"
+                execute rm -rf "$SOURCEDIR"
+            fi
+            if [[ -d $BUILDDIR ]] && askOk "Remove $BUILDDIR?"; then
+                execute rm -rf "$BUILDDIR"
+            fi
         fi
-
-        [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
 
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
@@ -811,6 +813,7 @@ main() {
         if (( FROM_SOURCE )); then
             fromSource || return $?
         else
+            [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
             getImageBuilder "$ib_url" && 
             getImageBuilderChecksum &&
             verify "$IB_ARCHIVE" "$IB_SHA256_FILE" &&
