@@ -26,7 +26,7 @@ printHelp() {
 
 		OPTIONS
 		    --profile,-p PROFILE
-		    --release,-r,--version,-v RELEASE ("snapshot", "22.03.3") 
+		    --release,-r,--version,-v RELEASE ("snapshot", "22.03.5") 
 		    --buildroot,-b PATH
 		        Default: location of openwrtbuilder script
 		    --source

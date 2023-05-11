@@ -23,27 +23,27 @@ default_packages="\
 	collectd-mod-conntrack \
 	collectd-mod-cpu"
 
-declare -Ag archer
-archer['profile']="tplink_archer-c7-v2"
-archer['target']="ath79/generic"
-archer['filesystem']="squashfs"
-archer['packages']="\
-	$default_packages \
-	-dnsmasq \
-	-odhcpd \
-	-iptables \
-	-ath10k-firmware-qca988x-ct \
-	ath10k-firmware-qca988x-ct-full-htt"
+# declare -Ag archer
+# archer['profile']="tplink_archer-c7-v2"
+# archer['target']="ath79/generic"
+# archer['filesystem']="squashfs"
+# archer['packages']="\
+# 	$default_packages \
+# 	-dnsmasq \
+# 	-odhcpd \
+# 	-iptables \
+# 	-ath10k-firmware-qca988x-ct \
+# 	ath10k-firmware-qca988x-ct-full-htt"
 
-declare -Ag linksys
-linksys['profile']="linksys_ea8300"
-linksys['target']="ipq40xx/generic"
-linksys['filesystem']="squashfs"
-linksys['packages']="\
-	$default_packages \
-	-dnsmasq \
-	-odhcpd \
-	-iptables"
+# declare -Ag linksys
+# linksys['profile']="linksys_ea8300"
+# linksys['target']="ipq40xx/generic"
+# linksys['filesystem']="squashfs"
+# linksys['packages']="\
+# 	$default_packages \
+# 	-dnsmasq \
+# 	-odhcpd \
+# 	-iptables"
 
 declare -Ag rpi4
 rpi4['profile']="rpi-4"
@@ -61,44 +61,44 @@ rpi4['packages']="\
 	luci-app-ddns \
 	luci-app-sqm"
 
-declare -Ag r2s
-r2s['profile']="friendlyarm_nanopi-r2s"
-r2s['target']="rockchip/armv8"
-r2s['filesystem']="ext4"
-r2s['packages']="\
-	$default_packages \
-	luci-app-upnp \
-	luci-app-wireguard \
-	luci-app-pbr \
-	-dnsmasq \
-	dnsmasq-full \
-	luci-app-ddns \
-	luci-app-sqm \
-	luci-app-statistics \
-	collectd-mod-sensors \
-	collectd-mod-thermal \
-	collectd-mod-conntrack \
-	smcroute \
-	curl \
-	ethtool"
+# declare -Ag r2s
+# r2s['profile']="friendlyarm_nanopi-r2s"
+# r2s['target']="rockchip/armv8"
+# r2s['filesystem']="ext4"
+# r2s['packages']="\
+# 	$default_packages \
+# 	luci-app-upnp \
+# 	luci-app-wireguard \
+# 	luci-app-pbr \
+# 	-dnsmasq \
+# 	dnsmasq-full \
+# 	luci-app-ddns \
+# 	luci-app-sqm \
+# 	luci-app-statistics \
+# 	collectd-mod-sensors \
+# 	collectd-mod-thermal \
+# 	collectd-mod-conntrack \
+# 	smcroute \
+# 	curl \
+# 	ethtool"
 
-declare -Ag r2s_tr
-r2s_tr['profile']="friendlyarm_nanopi-r2s"
-r2s_tr['target']="rockchip/armv8"
-r2s_tr['filesystem']="ext4"
-r2s_tr['packages']="\
-	$default_packages \
-	luci-app-upnp \
-	luci-app-wireguard \
-	luci-app-pbr \
-	luci-app-ddns \
-	luci-app-statistics \
-	collectd-mod-sensors \
-	collectd-mod-thermal \
-	collectd-mod-conntrack \
-	curl \
-	ethtool \
-	travelmate"
+# declare -Ag r2s_tr
+# r2s_tr['profile']="friendlyarm_nanopi-r2s"
+# r2s_tr['target']="rockchip/armv8"
+# r2s_tr['filesystem']="ext4"
+# r2s_tr['packages']="\
+# 	$default_packages \
+# 	luci-app-upnp \
+# 	luci-app-wireguard \
+# 	luci-app-pbr \
+# 	luci-app-ddns \
+# 	luci-app-statistics \
+# 	collectd-mod-sensors \
+# 	collectd-mod-thermal \
+# 	collectd-mod-conntrack \
+# 	curl \
+# 	ethtool \
+# 	travelmate"
 
 declare -Ag r4s
 r4s['profile']="friendlyarm_nanopi-r4s"
@@ -116,6 +116,7 @@ r4s['packages']="\
 	btrfs-progs \
 	block-mount \
 	smcroute \
+	avahi-daemon \
 	curl \
 	ethtool \
 	ca-bundle \
@@ -128,40 +129,18 @@ r4s['nested_kopts']="CONFIG_TARGET_OPTIMIZATION=\"-O3 -pipe -mcpu=cortex-a72.cor
 r4s['files']="\
 	/mnt/backup"
 
-declare -Ag r4s_stock
-r4s_stock['profile']="friendlyarm_nanopi-r4s"
-r4s_stock['target']="rockchip/armv8"
-r4s_stock['filesystem']="ext4"
-r4s_stock['release']="snapshot"
-# r4s_stock['packages']="\
-# 	$default_packages \
-# 	luci-app-ddns \
-# 	irqbalance \
-# 	collectd-mod-df \
-# 	usbutils \
-# 	kmod-usb-storage \
-# 	kmod-usb-storage-uas \
-# 	kmod-fs-btrfs \
-# 	btrfs-progs \
-# 	block-mount \
-# 	smcroute \
-# 	curl \
-# 	ethtool \
-# 	ca-bundle"
-# r4s_stock['kopts']="\
-# 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
-# 	CONFIG_BTRFS_PROGS_ZSTD=y \
-# 	CONFIG_TARGET_ROOTFS_PARTSIZE=1024"
-# r4s_stock['nested_kopts']="CONFIG_TARGET_OPTIMIZATION=\"-O3 -pipe -mcpu=cortex-a72.cortex-a53+crypto+crc\""
-# r4s_stock['files']="\
-# 	/mnt/backup"
+# declare -Ag r4s_stock
+# r4s_stock['profile']="friendlyarm_nanopi-r4s"
+# r4s_stock['target']="rockchip/armv8"
+# r4s_stock['filesystem']="ext4"
+# r4s_stock['release']="snapshot"
 
-declare -Ag ax6000_stock
-ax6000_stock['profile']="xiaomi_redmi-router-ax6000-stock"
-ax6000_stock['target']="mediatek/filogic"
-ax6000_stock['release']="snapshot"
-ax6000_stock['filesystem']="squashfs"
-ax6000_stock['packages']="\
+declare -Ag ax6000
+ax6000['profile']="xiaomi_redmi-router-ax6000-stock"
+ax6000['target']="mediatek/filogic"
+ax6000['release']="snapshot"
+ax6000['filesystem']="squashfs"
+ax6000['packages']="\
 	$default_packages \
 	-dnsmasq \
 	-odhcpd-ipv6only \
