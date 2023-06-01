@@ -13,7 +13,7 @@
 #
 
 # Set default release
-: "${RELEASE:="22.03.3"}"
+: "${RELEASE:="22.03.5"}"
 
 printHelp() {
     debug "${FUNCNAME[0]}"
@@ -565,8 +565,13 @@ fromSource() {
  
     if [[ $RELEASE == "snapshot" ]]; then
         execute "${wt_cmd[@]}" master
+    elif [[ $RELEASE == openwrt-*.* ]]; then
+        execute "${wt_cmd[@]}" "origin/$RELEASE"
     else
-        execute "${wt_cmd[@]}" "origin/openwrt-${RELEASE%.*}"
+        # Split version into components
+        IFS="." read -ra version <<< "$RELEASE"
+        # Only use major/minor release for branch
+        execute "${wt_cmd[@]}" "origin/openwrt-${version[0]}.${version[1]}"
     fi
 
     # Print commit information
@@ -579,8 +584,9 @@ fromSource() {
     pushd "$SOURCEDIR" || return 1
 
     # Update package feed
-    ./scripts/feeds update -a &&
-    ./scripts/feeds install -a
+    ./scripts/feeds update -i -f &&
+    ./scripts/feeds update -a -f &&
+    ./scripts/feeds install -a -f
 
     # Grab the release seed config
     if ! curl -so "$seed_file" "$SEED_URL"; then
@@ -631,9 +637,6 @@ fromSource() {
         debug "Writing $opt to $seed_file"
         echo "$opt" >> "$seed_file"
     done
-
-    # [[ -v P_ARR[nested_kopts] ]] &&
-    # echo "${P_ARR[nested_kopts]}" >> "$seed_file"
 
     # Cleaning modes
     # make clean # compiled output

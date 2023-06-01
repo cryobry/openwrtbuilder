@@ -125,7 +125,6 @@ r4s['kopts']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
 	CONFIG_BTRFS_PROGS_ZSTD=y \
 	CONFIG_TARGET_ROOTFS_PARTSIZE=1024"
-r4s['nested_kopts']="CONFIG_TARGET_OPTIMIZATION=\"-O3 -pipe -mcpu=cortex-a72.cortex-a53+crypto+crc\""
 r4s['files']="\
 	/mnt/backup"
 
