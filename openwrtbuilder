@@ -65,8 +65,8 @@ init() {
     if [[ -e "/etc/os-release" ]]; then
         source "/etc/os-release"
     else
-        err "/etc/os-release not found"
-        err "Your OS is unsupported"
+        echo "/etc/os-release not found"
+        echo "Your OS is unsupported"
         printHelp
         exit 1
     fi
@@ -364,7 +364,7 @@ getImageBuilder() {
     declare url="$1"
 
     if [[ -f "$IB_ARCHIVE" ]]; then
-        if askOK "$IB_ARCHIVE exists. Re-download?"; then
+        if askOk "$IB_ARCHIVE exists. Re-download?"; then
             rm -f "$IB_ARCHIVE"
         else
             return 0
@@ -543,45 +543,40 @@ fromSource() {
     debug "${FUNCNAME[0]}"
 
     declare src_url="https://github.com/openwrt/openwrt.git"
-    declare seed_file="$SOURCEDIR/.config"
+    declare seed_file="$GITWORKTREEDIR/.config"
     declare pkg kopt opt commit seed_file wt_cmd
     declare -a make_opts config_opts
 
     echo "Building from source is under development"
 
     # Update source code
-    if [[ ! -d "$GITDIR" ]]; then
-        mkdir -p "$GITDIR"
-        git clone "$src_url" "$GITDIR"
+    if [[ ! -d "$GITSRCDIR" ]]; then
+        mkdir -p "$GITSRCDIR"
+        git clone "$src_url" "$GITSRCDIR"
     fi
 
-    git -C "$GITDIR" pull
+    git -C "$GITSRCDIR" pull
 
-    wt_cmd=(git -C "$GITDIR"
+    wt_cmd=(git -C "$GITSRCDIR"
             worktree add
             --force
             --detach
-            "$SOURCEDIR")
+            "$GITWORKTREEDIR")
  
     if [[ $RELEASE == "snapshot" ]]; then
         execute "${wt_cmd[@]}" master
-    elif [[ $RELEASE == openwrt-*.* ]]; then
-        execute "${wt_cmd[@]}" "origin/$RELEASE"
     else
-        # Split version into components
-        IFS="." read -ra version <<< "$RELEASE"
-        # Only use major/minor release for branch
-        execute "${wt_cmd[@]}" "origin/openwrt-${version[0]}.${version[1]}"
+        execute "${wt_cmd[@]}" "origin/$RELEASE"
     fi
 
     # Print commit information
-    commit=$(git -C "$SOURCEDIR" rev-parse HEAD)
+    commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
     echo "Current commit hash: $commit"
-    (( DEBUG )) && git -C "$SOURCEDIR" log -1
-    (( DEBUG )) && git -C "$SOURCEDIR" describe
+    (( DEBUG )) && git -C "$GITWORKTREEDIR" log -1
+    (( DEBUG )) && git -C "$GITWORKTREEDIR" describe
 
     # Enter worktree
-    pushd "$SOURCEDIR" || return 1
+    pushd "$GITWORKTREEDIR" || return 1
 
     # Update package feed
     ./scripts/feeds update -i -f &&
@@ -753,22 +748,44 @@ main() {
         # Store profile settings in P_ARR
         declare -gn P_ARR="$profile"
 
-        # release precedence: user input>profile>env>hardcode
+        # Release precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
+
+        # Normalize release commit-ish
+        if (( FROM_SOURCE )); then
+            debug "Passing '$RELEASE' commit-ish to git worktree"
+        else
+            case "$RELEASE" in
+                [0-9][0-9].[0-9][0-9].*) # semantic versioning (default)
+                    ;;
+                v[0-9][0-9].[0-9][0-9].*) # tags
+                    RELEASE="${RELEASE#v}"
+                    ;;
+                snapshot|latest|main|master)
+                    RELEASE="snapshot"
+                    ;;
+                *)
+                    echo "Error: Invalid release version format"
+                    echo "Use semantic version, tag, or 'snapshot'"
+                    exit 1
+                    ;;
+            esac
+        fi
+
         declare -g BUILDDIR="$BUILDROOT/src/$profile/$RELEASE"
         declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
         declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
         declare -g TARGET="${P_ARR[target]}"
         declare -g PROFILE="${P_ARR[profile]}"
         declare -g PACKAGES="${P_ARR[packages]:-}"
-        declare -g SOURCEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
-        declare -g GITDIR="$BUILDROOT/src/openwrt"
+        declare -g GITSRCDIR="$BUILDROOT/src/openwrt"
+        declare -g GITWORKTREEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
 
         if (( RESET )); then
             if (( FROM_SOURCE )); then
-                [[ -d $SOURCEDIR ]] && askOk "Remove $SOURCEDIR?"
-                    execute git worktree remove --force "$SOURCEDIR"
-                    execute rm -rf "$SOURCEDIR"
+                [[ -d $GITWORKTREEDIR ]] && askOk "Remove $GITWORKTREEDIR?"
+                    execute git worktree remove --force "$GITWORKTREEDIR"
+                    execute rm -rf "$GITWORKTREEDIR"
             elif [[ -d $BUILDDIR ]] && askOk "Remove $BUILDDIR?"; then
                 execute rm -rf "$BUILDDIR"
             fi
@@ -805,8 +822,8 @@ main() {
 				ALIAS (\$profile, \$P_ARR -- should match)=$profile, ${!P_ARR}
 				BUILDROOT=$BUILDROOT
 				BUILDDIR=$BUILDDIR
-				GITDIR=$GITDIR
-				SOURCEDIR=$SOURCEDIR
+				GITSRCDIR=$GITSRCDIR
+				GITWORKTREEDIR=$GITWORKTREEDIR
 				BINDIR=$BINDIR
 				TARGET=$TARGET
 				PROFILE=$PROFILE
