@@ -24,7 +24,7 @@ default_packages="\
 	collectd-mod-cpu"
 
 # declare -Ag archer
-# archer['profile']="tplink_archer-c7-v2"
+# archer['device']="tplink_archer-c7-v2"
 # archer['target']="ath79/generic"
 # archer['filesystem']="squashfs"
 # archer['packages']="\
@@ -36,7 +36,7 @@ default_packages="\
 # 	ath10k-firmware-qca988x-ct-full-htt"
 
 # declare -Ag linksys
-# linksys['profile']="linksys_ea8300"
+# linksys['device']="linksys_ea8300"
 # linksys['target']="ipq40xx/generic"
 # linksys['filesystem']="squashfs"
 # linksys['packages']="\
@@ -46,7 +46,7 @@ default_packages="\
 # 	-iptables"
 
 declare -Ag rpi4
-rpi4['profile']="rpi-4"
+rpi4['device']="rpi-4"
 rpi4['target']="bcm27xx/bcm2711"
 rpi4['filesystem']="ext4"
 rpi4['packages']="\
@@ -62,7 +62,7 @@ rpi4['packages']="\
 	luci-app-sqm"
 
 # declare -Ag r2s
-# r2s['profile']="friendlyarm_nanopi-r2s"
+# r2s['device']="friendlyarm_nanopi-r2s"
 # r2s['target']="rockchip/armv8"
 # r2s['filesystem']="ext4"
 # r2s['packages']="\
@@ -83,7 +83,7 @@ rpi4['packages']="\
 # 	ethtool"
 
 # declare -Ag r2s_tr
-# r2s_tr['profile']="friendlyarm_nanopi-r2s"
+# r2s_tr['device']="friendlyarm_nanopi-r2s"
 # r2s_tr['target']="rockchip/armv8"
 # r2s_tr['filesystem']="ext4"
 # r2s_tr['packages']="\
@@ -101,7 +101,7 @@ rpi4['packages']="\
 # 	travelmate"
 
 declare -Ag r4s
-r4s['profile']="friendlyarm_nanopi-r4s"
+r4s['device']="friendlyarm_nanopi-r4s"
 r4s['target']="rockchip/armv8"
 r4s['filesystem']="ext4"
 r4s['packages']="\
@@ -130,13 +130,13 @@ r4s['files']="\
 	/mnt/backup"
 
 # declare -Ag r4s_stock
-# r4s_stock['profile']="friendlyarm_nanopi-r4s"
+# r4s_stock['device']="friendlyarm_nanopi-r4s"
 # r4s_stock['target']="rockchip/armv8"
 # r4s_stock['filesystem']="ext4"
 # r4s_stock['release']="snapshot"
 
 declare -Ag ax6000
-ax6000['profile']="xiaomi_redmi-router-ax6000-stock"
+ax6000['device']="xiaomi_redmi-router-ax6000-stock"
 ax6000['target']="mediatek/filogic"
 ax6000['release']="snapshot"
 ax6000['filesystem']="squashfs"
@@ -150,7 +150,7 @@ ax6000['packages']="\
 	collectd-mod-iwinfo"
 
 declare -Ag ax6000_uboot
-ax6000_uboot['profile']="xiaomi_redmi-router-ax6000-ubootmod"
+ax6000_uboot['device']="xiaomi_redmi-router-ax6000-ubootmod"
 ax6000_uboot['target']="mediatek/filogic"
 ax6000_uboot['release']="snapshot"
 ax6000_uboot['filesystem']="squashfs"
@@ -164,7 +164,7 @@ ax6000_uboot['packages']="\
 	collectd-mod-iwinfo"
 
 declare -Ag totolink
-totolink['profile']="totolink_x5000r"
+totolink['device']="totolink_x5000r"
 totolink['target']="ramips/mt7621"
 totolink['filesystem']="squashfs"
 totolink['packages']="\
