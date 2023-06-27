@@ -10,7 +10,7 @@
 #
 
 # Set default release
-: "${RELEASE:="22.03.5"}"
+: "${RELEASE:="23.05.0-rc1"}"
 
 printHelp() {
     debug "${FUNCNAME[0]}"
@@ -445,11 +445,17 @@ makeImages() {
         fi
     fi
 
-    make image \
+    # Create temp directory manually
+    # TODO workaround as of 6/27/2023
+
+    declare tmpdir
+    tmpdir=$(mktemp -d)
+
+    TMPDIR="$tmpdir" make image \
         BIN_DIR="$BINDIR" \
         PROFILE="$DEVICE" \
         PACKAGES="$PACKAGES" \
-        FILES="${FILESDIR}" \
+        FILES="$FILESDIR" \
         --directory="$BUILDDIR" \
         --jobs="$(nproc)"  \
         > "$BUILDDIR/make.log"
@@ -823,7 +829,7 @@ main() {
             for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
             echo "Build settings:"
             cat <<- EOF
-				ALIAS (\$profile, \$P_ARR -- should match)=$profile, ${!P_ARR}
+				PROFILE, P_ARR (should match)=$profile, ${!P_ARR}
 				BUILDROOT=$BUILDROOT
 				BUILDDIR=$BUILDDIR
 				GITSRCDIR=$GITSRCDIR
