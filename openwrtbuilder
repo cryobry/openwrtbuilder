@@ -362,14 +362,13 @@ getImageBuilder() {
 
     if [[ -f "$IB_ARCHIVE" ]]; then
         if askOk "$IB_ARCHIVE exists. Re-download?"; then
-            rm -f "$IB_ARCHIVE"
+            execute rm -f "$IB_ARCHIVE"
         else
             return 0
         fi
     fi
 
     echo "Downloading Image Builder archive using $DL_TOOL"
-    debug "$DL_TOOL -o $IB_ARCHIVE $url"
     execute "$DL_TOOL" "-o" "$IB_ARCHIVE" "$url"
 }
 
@@ -379,7 +378,7 @@ getImageBuilderChecksum() {
 
     if [[ -f $IB_SHA256_FILE ]]; then
         if askOk "$IB_SHA256_FILE exists. Re-download?"; then
-            rm -f "$IB_SHA256_FILE"
+            execute rm -f "$IB_SHA256_FILE"
         else
             return 0
         fi
@@ -488,16 +487,13 @@ flashImage() {
         return 1
     fi
 
-    debug "gunzip -qfk $img_gz"
-    gunzip -qfk "$img_gz"
+    execute gunzip -qfk "$img_gz"
         
     echo "Unmounting target device $dev partitions"
     partitions=( "$dev"?* )
-    debug "umount ${partitions[*]}"
-    sudo umount "${partitions[@]}"
+    execute sudo umount "${partitions[@]}"
 
-    debug "sudo dd if=$img of=$dev bs=2M conv=fsync"
-    if sudo dd if="$img" of="$dev" bs=2M conv=fsync; then
+    if execute sudo dd if="$img" of="$dev" bs=2M conv=fsync; then
         sync
         echo "Image flashed sucessfully!"
     else
@@ -568,17 +564,17 @@ fromSource() {
             local branch="openwrt-${RELEASE%.*}"
             local tag="v$RELEASE"
             local r
-            read -r -p "Use HEAD of $branch branch (y, recommended) or $tag tag (n)?" r
+            read -r -p "Use HEAD of $branch branch (y, recommended) or $tag tag (n)? (Y/n)" r
             r=${r,,}
-            if [[ "$r" =~ ^(yes|y)$ ]]; then
-                execute "${wt_cmd[@]}" "origin/$branch"
-            else
+            if [[ "$r" =~ ^(no|n)$ ]]; then
                 execute "${wt_cmd[@]}" "$tag"
+            else
+                execute "${wt_cmd[@]}" "origin/$branch"
             fi
             ;;
         *)
             debug "Passing '$RELEASE' commit-ish to git worktree"
-            execute "${wt_cmd[@]}" "origin/$RELEASE"
+            execute "${wt_cmd[@]}" "$RELEASE"
             ;;
     esac
 
@@ -654,14 +650,10 @@ fromSource() {
 
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
-    debug "make ${make_opts[*]} defconfig"
-    make "${make_opts[@]}" defconfig
-    debug "make ${make_opts[*]} targetclean"
-    make "${make_opts[@]}" targetclean
-    debug "make ${make_opts[*]} download"
-    make "${make_opts[@]}" download
-    debug "make ${make_opts[*]} -j$(nproc) world"
-    make "${make_opts[@]}" -j"$(nproc)" world
+    execute make "${make_opts[@]}" defconfig
+    execute make "${make_opts[@]}" targetclean
+    execute make "${make_opts[@]}" download
+    execute make "${make_opts[@]}" "-j$(nproc)" world
 
     popd || return 1
 
@@ -687,8 +679,7 @@ extract() {
     debug "${FUNCNAME[0]}"
     declare archive="$1"
     declare out_dir="$2"
-    debug "tar -xf $archive -C $out_dir --strip-components 1"
-    if ! tar -xf "$archive" -C "$out_dir" --strip-components 1; then
+    if ! execute tar -xf "$archive" -C "$out_dir" --strip-components 1; then
         echo "Extraction failed"
         return 1
     fi
