@@ -321,6 +321,7 @@ installDependencies() {
                     "python3"
                     "python2"
                     "axel"
+                    "perl-IPC-Cmd"
                 )
                 ;;
             debian|ubuntu)
@@ -445,13 +446,7 @@ makeImages() {
         fi
     fi
 
-    # Create temp directory manually
-    # TODO workaround as of 6/27/2023
-
-    declare tmpdir
-    tmpdir=$(mktemp -d)
-
-    TMPDIR="$tmpdir" make image \
+    make image \
         BIN_DIR="$BINDIR" \
         PROFILE="$DEVICE" \
         PACKAGES="$PACKAGES" \
