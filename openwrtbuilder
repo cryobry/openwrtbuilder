@@ -565,12 +565,15 @@ fromSource() {
             execute "${wt_cmd[@]}" origin/main
             ;;
         [0-9][0-9].[0-9][0-9].*)
-            branch="openwrt-${RELEASE%.*}"
-            tag="v$RELEASE"
-            if askOk "Use HEAD of $branch branch (y, recommended) or $tag tag (n)?"; then
-                execute "${wt_cmd[@]}" "origin/$tag"
-            else
+            local branch="openwrt-${RELEASE%.*}"
+            local tag="v$RELEASE"
+            local r
+            read -r -p "Use HEAD of $branch branch (y, recommended) or $tag tag (n)?" r
+            r=${r,,}
+            if [[ "$r" =~ ^(yes|y)$ ]]; then
                 execute "${wt_cmd[@]}" "origin/$branch"
+            else
+                execute "${wt_cmd[@]}" "$tag"
             fi
             ;;
         *)
