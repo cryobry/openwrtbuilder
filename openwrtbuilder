@@ -8,9 +8,6 @@
 #
 # See README.md and ./profiles
 #
-# Some PROFILE options are incompatible with Image Builder mode (kopts) and
-# will be ignored
-#
 
 # Set default release
 : "${RELEASE:="22.03.5"}"
@@ -451,7 +448,7 @@ makeImages() {
 
     make image \
         BIN_DIR="$BINDIR" \
-        PROFILE="$PROFILE" \
+        PROFILE="$DEVICE" \
         PACKAGES="$PACKAGES" \
         FILES="${FILESDIR}" \
         --directory="$BUILDDIR" \
@@ -563,11 +560,24 @@ fromSource() {
             --detach
             "$GITWORKTREEDIR")
  
-    if [[ $RELEASE == "snapshot" ]]; then
-        execute "${wt_cmd[@]}" master
-    else
-        execute "${wt_cmd[@]}" "origin/$RELEASE"
-    fi
+    case "$RELEASE" in
+        snapshot)
+            execute "${wt_cmd[@]}" origin/main
+            ;;
+        [0-9][0-9].[0-9][0-9].*)
+            branch="openwrt-${RELEASE%.*}"
+            tag="v$RELEASE"
+            if askOk "Use HEAD of $branch branch (y, recommended) or $tag tag (n)?"; then
+                execute "${wt_cmd[@]}" "origin/$tag"
+            else
+                execute "${wt_cmd[@]}" "origin/$branch"
+            fi
+            ;;
+        *)
+            debug "Passing '$RELEASE' commit-ish to git worktree"
+            execute "${wt_cmd[@]}" "origin/$RELEASE"
+            ;;
+    esac
 
     # Print commit information
     commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
@@ -620,8 +630,8 @@ fromSource() {
     # Only compile selected target image
     sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
     config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
-    config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_$PROFILE")
-    config_opts+=("CONFIG_TARGET_${TARGET//\//_}_DEVICE_$PROFILE=y")
+    config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_$DEVICE")
+    config_opts+=("CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y")
     config_opts+=("CONFIG_SDK=n")
     config_opts+=("CONFIG_SDK_LLVM_BPF=n")
     config_opts+=("CONFIG_IB=n")
@@ -745,41 +755,41 @@ main() {
             return 1
         fi
 
-        # Store profile settings in P_ARR
+        # Store profile in P_ARR nameref
         declare -gn P_ARR="$profile"
+
+        # Load profile
+        declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
+        declare -g TARGET="${P_ARR[target]}"
+        declare -g DEVICE="${P_ARR[device]}"
+        declare -g PACKAGES="${P_ARR[packages]:-}"
 
         # Release precedence: user input>profile>env>hardcode
         declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
 
-        # Normalize release commit-ish
-        if (( FROM_SOURCE )); then
-            debug "Passing '$RELEASE' commit-ish to git worktree"
-        else
-            case "$RELEASE" in
-                [0-9][0-9].[0-9][0-9].*) # semantic versioning (default)
-                    ;;
-                v[0-9][0-9].[0-9][0-9].*) # tags
-                    RELEASE="${RELEASE#v}"
-                    ;;
-                snapshot|latest|main|master)
-                    RELEASE="snapshot"
-                    ;;
-                *)
+        # normalize release input
+        case "$RELEASE" in
+            snapshot|latest|main|master) # normalize aliases
+                RELEASE="snapshot"
+                ;;
+            v[0-9][0-9].[0-9][0-9].*) # tag to semantic
+                RELEASE="${RELEASE#v}"
+                ;;
+            [0-9][0-9].[0-9][0-9].*)
+                ;;
+            *)
+                if ! (( FROM_SOURCE )); then
                     echo "Error: Invalid release version format"
                     echo "Use semantic version, tag, or 'snapshot'"
                     exit 1
-                    ;;
-            esac
-        fi
+                fi
+                ;;
+        esac
 
-        declare -g BUILDDIR="$BUILDROOT/src/$profile/$RELEASE"
-        declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
-        declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
-        declare -g TARGET="${P_ARR[target]}"
-        declare -g PROFILE="${P_ARR[profile]}"
-        declare -g PACKAGES="${P_ARR[packages]:-}"
         declare -g GITSRCDIR="$BUILDROOT/src/openwrt"
         declare -g GITWORKTREEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
+        declare -g BUILDDIR="$BUILDROOT/src/$profile/$RELEASE"
+        declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
 
         if (( RESET )); then
             if (( FROM_SOURCE )); then
@@ -794,11 +804,11 @@ main() {
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
             declare url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.xz"
-            declare img_fname="openwrt-${TARGET//\//-}-$PROFILE-$FILESYSTEM" 
+            declare img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
         else
             declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
             declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
-            declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$PROFILE-$FILESYSTEM"
+            declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
         fi
 
         declare ib_url="$url_prefix/$url_filename"
@@ -826,7 +836,7 @@ main() {
 				GITWORKTREEDIR=$GITWORKTREEDIR
 				BINDIR=$BINDIR
 				TARGET=$TARGET
-				PROFILE=$PROFILE
+				DEVICE=$DEVICE
 				RELEASE=$RELEASE
 				FILESYSTEM=$FILESYSTEM
 				SYSUPGRADEIMGGZ=$SYSUPGRADEIMGGZ
