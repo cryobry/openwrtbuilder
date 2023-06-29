@@ -14,8 +14,6 @@ default_packages="\
 	iperf3 \
 	bash \
 	rsync \
-	luci-app-wireguard \
-	luci-proto-wireguard \
 	luci-app-statistics \
 	luci-app-attendedsysupgrade \
 	collectd-mod-sensors \
@@ -106,6 +104,8 @@ r4s['target']="rockchip/armv8"
 r4s['filesystem']="ext4"
 r4s['packages']="\
 	$default_packages \
+	luci-app-wireguard \
+	luci-proto-wireguard \
 	luci-app-ddns \
 	irqbalance \
 	collectd-mod-df \
@@ -147,31 +147,34 @@ ax6000['packages']="\
 	-nftables \
 	-firewall4 \
 	-kmod-nft-offload \
-	collectd-mod-iwinfo"
+	collectd-mod-iwinfo \
+	mesh11sd \
+	-wpad-basic-mbedtls \
+	wpad-mesh-mbedtls"
 
-declare -Ag ax6000_uboot
-ax6000_uboot['device']="xiaomi_redmi-router-ax6000-ubootmod"
-ax6000_uboot['target']="mediatek/filogic"
-ax6000_uboot['release']="snapshot"
-ax6000_uboot['filesystem']="squashfs"
-ax6000_uboot['packages']="\
-	$default_packages \
-	-dnsmasq \
-	-odhcpd-ipv6only \
-	-nftables \
-	-firewall4 \
-	-kmod-nft-offload \
-	collectd-mod-iwinfo"
+# declare -Ag ax6000_uboot
+# ax6000_uboot['device']="xiaomi_redmi-router-ax6000-ubootmod"
+# ax6000_uboot['target']="mediatek/filogic"
+# ax6000_uboot['release']="snapshot"
+# ax6000_uboot['filesystem']="squashfs"
+# ax6000_uboot['packages']="\
+# 	$default_packages \
+# 	-dnsmasq \
+# 	-odhcpd-ipv6only \
+# 	-nftables \
+# 	-firewall4 \
+# 	-kmod-nft-offload \
+# 	collectd-mod-iwinfo"
 
-declare -Ag totolink
-totolink['device']="totolink_x5000r"
-totolink['target']="ramips/mt7621"
-totolink['filesystem']="squashfs"
-totolink['packages']="\
-	$default_packages \
-	-dnsmasq \
-	-odhcpd-ipv6only \
-	-nftables \
-	-firewall4 \
-	-kmod-nft-offload \
-	collectd-mod-iwinfo"
+# declare -Ag totolink
+# totolink['device']="totolink_x5000r"
+# totolink['target']="ramips/mt7621"
+# totolink['filesystem']="squashfs"
+# totolink['packages']="\
+# 	$default_packages \
+# 	-dnsmasq \
+# 	-odhcpd-ipv6only \
+# 	-nftables \
+# 	-firewall4 \
+# 	-kmod-nft-offload \
+# 	collectd-mod-iwinfo"
