@@ -565,7 +565,7 @@ fromSource() {
             local branch="openwrt-${RELEASE%.*}"
             local tag="v$RELEASE"
             local r
-            read -r -p "Use HEAD of $branch branch (y, recommended) or $tag tag (n)? (Y/n)" r
+            read -r -p "Use HEAD of $branch branch (y, recommended) or $tag tag (n)? (Y/n): " r
             r=${r,,}
             if [[ "$r" =~ ^(no|n)$ ]]; then
                 execute "${wt_cmd[@]}" "$tag"
@@ -674,7 +674,7 @@ fromSource() {
 debug() { (( DEBUG )) && echo "Debug: $*"; }
 askOk() {
     local r
-    read -r -p "$* [y/N]" r
+    read -r -p "$* [y/N]: " r
     r=${r,,}
     [[ "$r" =~ ^(yes|y)$ ]]
 }
