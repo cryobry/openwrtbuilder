@@ -135,6 +135,23 @@ r4s['files']="\
 # r4s_stock['filesystem']="ext4"
 # r4s_stock['release']="snapshot"
 
+# declare -Ag ax6000
+# ax6000['device']="xiaomi_redmi-router-ax6000-stock"
+# ax6000['target']="mediatek/filogic"
+# ax6000['release']="snapshot"
+# ax6000['filesystem']="squashfs"
+# ax6000['packages']="\
+# 	$default_packages \
+# 	-dnsmasq \
+# 	-odhcpd-ipv6only \
+# 	-nftables \
+# 	-firewall4 \
+# 	-kmod-nft-offload \
+# 	collectd-mod-iwinfo \
+# 	mesh11sd \
+# 	-wpad-basic-mbedtls \
+# 	wpad-mesh-mbedtls"
+
 declare -Ag ax6000
 ax6000['device']="xiaomi_redmi-router-ax6000-stock"
 ax6000['target']="mediatek/filogic"
@@ -145,12 +162,11 @@ ax6000['packages']="\
 	-dnsmasq \
 	-odhcpd-ipv6only \
 	-nftables \
-	-firewall4 \
-	-kmod-nft-offload \
-	collectd-mod-iwinfo \
-	mesh11sd \
-	-wpad-basic-mbedtls \
-	wpad-mesh-mbedtls"
+	-firewall4"
+	# for 802.11s
+	# mesh11sd \
+	# -wpad-basic-mbedtls \
+	# wpad-mesh-mbedtls"
 
 # declare -Ag ax6000_uboot
 # ax6000_uboot['device']="xiaomi_redmi-router-ax6000-ubootmod"
