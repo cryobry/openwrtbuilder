@@ -43,6 +43,37 @@ default_packages="\
 # 	-odhcpd \
 # 	-iptables"
 
+declare -Ag n5100
+n5100['device']="generic"
+n5100['target']="x86/64"
+n5100['filesystem']="ext4"
+n5100['packages']="\
+	$default_packages \
+	luci-app-wireguard \
+	luci-proto-wireguard \
+	luci-app-ddns \
+	irqbalance \
+	collectd-mod-df \
+	usbutils \
+	kmod-usb-storage \
+	kmod-usb-storage-uas \
+	kmod-fs-btrfs \
+	btrfs-progs \
+	block-mount \
+	smcroute \
+	avahi-daemon \
+	curl \
+	ethtool \
+	ca-bundle \
+	-libustream-wolfssl"
+# The following are source mode only
+n5100['kopts']="\
+	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
+	CONFIG_BTRFS_PROGS_ZSTD=y \
+	CONFIG_TARGET_ROOTFS_PARTSIZE=1024"
+n5100['files']="\
+	/mnt/backup"
+
 declare -Ag rpi4
 rpi4['device']="rpi-4"
 rpi4['target']="bcm27xx/bcm2711"
