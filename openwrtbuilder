@@ -36,6 +36,8 @@ printHelp() {
 		        Example: /dev/sdX
 		    --reset
 		        Cleanup all source and output files
+		    --yes,-y
+		        Assume yes for all questions (automatic mode)
 		    --debug,-d
 		    --help,-h
 
@@ -143,13 +145,13 @@ init() {
 readInput() {
     debug "${FUNCNAME[0]}"
 
-    unset RESET
+    unset RESET YES
 
     declare -ga PROFILES
     declare long_opts='release:,version:,profile:,buildroot:,source,'
-    long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,debug,help'
+    long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,debug,help'
 
-    if _input=$(getopt -o +r:v:p:b:sf:dh -l $long_opts -- "$@"); then
+    if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
         eval set -- "$_input"
         while true; do
             case "$1" in
@@ -176,6 +178,9 @@ readInput() {
                     ;;
                 --reset)
                     RESET=1
+                    ;;
+                --yes|-y)
+                    YES=1
                     ;;
                 --debug|-d)
                     echo "Debugging on"
@@ -564,13 +569,10 @@ fromSource() {
         [0-9][0-9].[0-9][0-9].*)
             local branch="openwrt-${RELEASE%.*}"
             local tag="v$RELEASE"
-            local r
-            read -r -p "Use HEAD of $branch branch (y, recommended) or $tag tag (n)? (Y/n): " r
-            r=${r,,}
-            if [[ "$r" =~ ^(no|n)$ ]]; then
-                execute "${wt_cmd[@]}" "$tag"
-            else
+            if askOk "Use HEAD of $branch branch (y, recommended) or $tag tag (n)?"; then
                 execute "${wt_cmd[@]}" "origin/$branch"
+            else
+                execute "${wt_cmd[@]}" "$tag"
             fi
             ;;
         *)
@@ -673,6 +675,7 @@ fromSource() {
 # Generic helpers
 debug() { (( DEBUG )) && echo "Debug: $*"; }
 askOk() {
+    (( YES )) && return
     local r
     read -r -p "$* [y/N]: " r
     r=${r,,}
