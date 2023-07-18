@@ -43,7 +43,7 @@ printHelp() {
 
 		EXAMPLES
 		    ./openwrtbuilder -p r4s -r snapshot
-		    ./openwrtbuilder -p ax6000_stock -r 22.03.3 --source --debug
+		    ./openwrtbuilder -p ax6000 -r 23.05.0-rc2 --source --debug
 		    ./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX
 		    ./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		    
 	EOF
@@ -543,7 +543,7 @@ fromSource() {
 
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare seed_file="$GITWORKTREEDIR/.config"
-    declare pkg kopt opt commit seed_file wt_cmd
+    declare pkg kopt opt commit seed_file wt_cmd wt_commit
     declare -a make_opts config_opts
 
     echo "Building from source is under development"
@@ -562,24 +562,27 @@ fromSource() {
             --detach
             "$GITWORKTREEDIR")
  
+    # Generate commitish for git worktree
     case "$RELEASE" in
         snapshot)
-            execute "${wt_cmd[@]}" origin/main
+            wt_commit="origin/main"
             ;;
         [0-9][0-9].[0-9][0-9].*)
             local branch="openwrt-${RELEASE%.*}"
             local tag="v$RELEASE"
             if askOk "Use HEAD of $branch branch (y, recommended) or $tag tag (n)?"; then
-                execute "${wt_cmd[@]}" "origin/$branch"
+                wt_commit="origin/$branch"
             else
-                execute "${wt_cmd[@]}" "$tag"
+                wt_commit="$tag"
             fi
             ;;
         *)
             debug "Passing '$RELEASE' commit-ish to git worktree"
-            execute "${wt_cmd[@]}" "$RELEASE"
+            wt_commit="$RELEASE"
             ;;
     esac
+
+    execute "${wt_cmd[@]}" "$wt_commit"
 
     # Print commit information
     commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
@@ -654,10 +657,10 @@ fromSource() {
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
     execute make "${make_opts[@]}" defconfig
-    execute make "${make_opts[@]}" targetclean
+    execute make "${make_opts[@]}" dirclean
     execute make "${make_opts[@]}" download
-    execute make -f Makefile.aperl inst_perl MAP_TARGET=perl
-    execute make -f Makefile.aperl map_clean
+    #execute make -f Makefile.aperl inst_perl MAP_TARGET=perl
+    #execute make -f Makefile.aperl map_clean
     execute make "${make_opts[@]}" "-j$(nproc)" world
 
     popd || return 1
