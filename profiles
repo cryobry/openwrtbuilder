@@ -21,114 +21,11 @@ default_packages="\
 	collectd-mod-conntrack \
 	collectd-mod-cpu"
 
-# declare -Ag archer
-# archer['device']="tplink_archer-c7-v2"
-# archer['target']="ath79/generic"
-# archer['filesystem']="squashfs"
-# archer['packages']="\
-# 	$default_packages \
-# 	-dnsmasq \
-# 	-odhcpd \
-# 	-iptables \
-# 	-ath10k-firmware-qca988x-ct \
-# 	ath10k-firmware-qca988x-ct-full-htt"
+#################
+# Current devices
+#################
 
-# declare -Ag linksys
-# linksys['device']="linksys_ea8300"
-# linksys['target']="ipq40xx/generic"
-# linksys['filesystem']="squashfs"
-# linksys['packages']="\
-# 	$default_packages \
-# 	-dnsmasq \
-# 	-odhcpd \
-# 	-iptables"
-
-declare -Ag n5100
-n5100['device']="generic"
-n5100['target']="x86/64"
-n5100['filesystem']="ext4"
-n5100['packages']="\
-	$default_packages \
-	luci-app-wireguard \
-	luci-proto-wireguard \
-	luci-app-ddns \
-	irqbalance \
-	collectd-mod-df \
-	usbutils \
-	kmod-usb-storage \
-	kmod-usb-storage-uas \
-	kmod-fs-btrfs \
-	btrfs-progs \
-	block-mount \
-	smcroute \
-	avahi-daemon \
-	curl \
-	ethtool \
-	ca-bundle \
-	-libustream-wolfssl"
-# The following are source mode only
-n5100['kopts']="\
-	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
-	CONFIG_BTRFS_PROGS_ZSTD=y \
-	CONFIG_TARGET_ROOTFS_PARTSIZE=1024"
-n5100['files']="\
-	/mnt/backup"
-
-declare -Ag rpi4
-rpi4['device']="rpi-4"
-rpi4['target']="bcm27xx/bcm2711"
-rpi4['filesystem']="ext4"
-rpi4['packages']="\
-	$default_packages \
-	kmod-usb-net-asix-ax88179 \
-	kmod-usb-net-rtl8152 \
-	luci-app-upnp \
-	luci-app-wireguard \
-	luci-app-pbr \
-	-dnsmasq \
-	dnsmasq-full \
-	luci-app-ddns \
-	luci-app-sqm"
-
-# declare -Ag r2s
-# r2s['device']="friendlyarm_nanopi-r2s"
-# r2s['target']="rockchip/armv8"
-# r2s['filesystem']="ext4"
-# r2s['packages']="\
-# 	$default_packages \
-# 	luci-app-upnp \
-# 	luci-app-wireguard \
-# 	luci-app-pbr \
-# 	-dnsmasq \
-# 	dnsmasq-full \
-# 	luci-app-ddns \
-# 	luci-app-sqm \
-# 	luci-app-statistics \
-# 	collectd-mod-sensors \
-# 	collectd-mod-thermal \
-# 	collectd-mod-conntrack \
-# 	smcroute \
-# 	curl \
-# 	ethtool"
-
-# declare -Ag r2s_tr
-# r2s_tr['device']="friendlyarm_nanopi-r2s"
-# r2s_tr['target']="rockchip/armv8"
-# r2s_tr['filesystem']="ext4"
-# r2s_tr['packages']="\
-# 	$default_packages \
-# 	luci-app-upnp \
-# 	luci-app-wireguard \
-# 	luci-app-pbr \
-# 	luci-app-ddns \
-# 	luci-app-statistics \
-# 	collectd-mod-sensors \
-# 	collectd-mod-thermal \
-# 	collectd-mod-conntrack \
-# 	curl \
-# 	ethtool \
-# 	travelmate"
-
+# Main router
 declare -Ag r4s
 r4s['device']="friendlyarm_nanopi-r4s"
 r4s['target']="rockchip/armv8"
@@ -160,29 +57,7 @@ r4s['kopts']="\
 r4s['files']="\
 	/mnt/backup"
 
-# declare -Ag r4s_stock
-# r4s_stock['device']="friendlyarm_nanopi-r4s"
-# r4s_stock['target']="rockchip/armv8"
-# r4s_stock['filesystem']="ext4"
-# r4s_stock['release']="snapshot"
-
-# declare -Ag ax6000
-# ax6000['device']="xiaomi_redmi-router-ax6000-stock"
-# ax6000['target']="mediatek/filogic"
-# ax6000['release']="snapshot"
-# ax6000['filesystem']="squashfs"
-# ax6000['packages']="\
-# 	$default_packages \
-# 	-dnsmasq \
-# 	-odhcpd-ipv6only \
-# 	-nftables \
-# 	-firewall4 \
-# 	-kmod-nft-offload \
-# 	collectd-mod-iwinfo \
-# 	mesh11sd \
-# 	-wpad-basic-mbedtls \
-# 	wpad-mesh-mbedtls"
-
+# WDS mesh nodes
 declare -Ag ax6000
 ax6000['device']="xiaomi_redmi-router-ax6000-stock"
 ax6000['target']="mediatek/filogic"
@@ -199,6 +74,7 @@ ax6000['packages']="\
 	# -wpad-basic-mbedtls \
 	# wpad-mesh-mbedtls"
 
+# For converted uboots
 # declare -Ag ax6000_uboot
 # ax6000_uboot['device']="xiaomi_redmi-router-ax6000-ubootmod"
 # ax6000_uboot['target']="mediatek/filogic"
@@ -213,15 +89,142 @@ ax6000['packages']="\
 # 	-kmod-nft-offload \
 # 	collectd-mod-iwinfo"
 
-# declare -Ag totolink
-# totolink['device']="totolink_x5000r"
-# totolink['target']="ramips/mt7621"
-# totolink['filesystem']="squashfs"
-# totolink['packages']="\
-# 	$default_packages \
-# 	-dnsmasq \
-# 	-odhcpd-ipv6only \
-# 	-nftables \
-# 	-firewall4 \
-# 	-kmod-nft-offload \
-# 	collectd-mod-iwinfo"
+# Remote NAS
+declare -Ag n5100
+n5100['device']="generic"
+n5100['target']="x86/64"
+n5100['filesystem']="ext4"
+n5100['packages']="\
+	$default_packages \
+	luci-app-wireguard \
+	luci-proto-wireguard \
+	luci-app-ddns \
+	irqbalance \
+	collectd-mod-df \
+	usbutils \
+	kmod-usb-storage \
+	kmod-usb-storage-uas \
+	kmod-fs-btrfs \
+	btrfs-progs \
+	block-mount \
+	smcroute \
+	avahi-daemon \
+	curl \
+	ethtool \
+	ca-bundle \
+	smartmontools \
+	intel-microcode \
+	lm-sensors \
+	-libustream-wolfssl"
+# The following are source mode only
+n5100['kopts']="\
+	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
+	CONFIG_BTRFS_PROGS_ZSTD=y \
+	CONFIG_TARGET_ROOTFS_PARTSIZE=1024"
+n5100['files']="\
+	/mnt/backup"
+
+# Dusty drawer
+declare -Ag rpi4
+rpi4['device']="rpi-4"
+rpi4['target']="bcm27xx/bcm2711"
+rpi4['filesystem']="ext4"
+rpi4['packages']="\
+	$default_packages \
+	kmod-usb-net-asix-ax88179 \
+	kmod-usb-net-rtl8152 \
+	luci-app-upnp \
+	luci-app-wireguard \
+	luci-app-pbr \
+	-dnsmasq \
+	dnsmasq-full \
+	luci-app-ddns \
+	luci-app-sqm"
+
+
+#################
+# Stock builds
+#################
+declare -Ag r4s_stock
+r4s_stock['device']="friendlyarm_nanopi-r4s"
+r4s_stock['target']="rockchip/armv8"
+r4s_stock['filesystem']="ext4"
+r4s_stock['release']="snapshot"
+
+
+#################
+# Old devices
+#################
+declare -Ag totolink
+totolink['device']="totolink_x5000r"
+totolink['target']="ramips/mt7621"
+totolink['filesystem']="squashfs"
+totolink['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd-ipv6only \
+	-nftables \
+	-firewall4 \
+	-kmod-nft-offload \
+	collectd-mod-iwinfo"
+
+declare -Ag archer
+archer['device']="tplink_archer-c7-v2"
+archer['target']="ath79/generic"
+archer['filesystem']="squashfs"
+archer['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd \
+	-iptables \
+	-ath10k-firmware-qca988x-ct \
+	ath10k-firmware-qca988x-ct-full-htt"
+
+declare -Ag linksys
+linksys['device']="linksys_ea8300"
+linksys['target']="ipq40xx/generic"
+linksys['filesystem']="squashfs"
+linksys['packages']="\
+	$default_packages \
+	-dnsmasq \
+	-odhcpd \
+	-iptables"
+
+declare -Ag r2s
+r2s['device']="friendlyarm_nanopi-r2s"
+r2s['target']="rockchip/armv8"
+r2s['filesystem']="ext4"
+r2s['packages']="\
+	$default_packages \
+	luci-app-upnp \
+	luci-app-wireguard \
+	luci-app-pbr \
+	-dnsmasq \
+	dnsmasq-full \
+	luci-app-ddns \
+	luci-app-sqm \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	smcroute \
+	curl \
+	ethtool"
+
+declare -Ag r2s_tr
+r2s_tr['device']="friendlyarm_nanopi-r2s"
+r2s_tr['target']="rockchip/armv8"
+r2s_tr['filesystem']="ext4"
+r2s_tr['packages']="\
+	$default_packages \
+	luci-app-upnp \
+	luci-app-wireguard \
+	luci-app-pbr \
+	luci-app-ddns \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	curl \
+	ethtool \
+	travelmate"
