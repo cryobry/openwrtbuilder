@@ -543,7 +543,7 @@ fromSource() {
 
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare seed_file="$GITWORKTREEDIR/.config"
-    declare pkg kopt opt commit seed_file wt_cmd wt_commit
+    declare pkg kopt opt commit seed_file wt_cmd wt_commit description
     declare -a make_opts config_opts
 
     echo "Building from source is under development"
@@ -582,13 +582,23 @@ fromSource() {
             ;;
     esac
 
+    [[ -d "$GITWORKTREEDIR" ]] && rm -rf "$GITWORKTREEDIR"
+    
     execute "${wt_cmd[@]}" "$wt_commit"
 
     # Print commit information
     commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
+    description=$(git -C "$GITWORKTREEDIR" describe)
     echo "Current commit hash: $commit"
-    (( DEBUG )) && git -C "$GITWORKTREEDIR" log -1
-    (( DEBUG )) && git -C "$GITWORKTREEDIR" describe
+    echo "Git worktree description: $description"
+    
+    if (( DEBUG )); then
+        if (( YES )); then
+            git --no-pager -C "$GITWORKTREEDIR" log -1
+        else
+            git -C "$GITWORKTREEDIR" log -1
+        fi
+    fi
 
     # Enter worktree
     pushd "$GITWORKTREEDIR" || return 1
