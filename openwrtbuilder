@@ -10,7 +10,7 @@
 #
 
 # Set default release
-: "${RELEASE:="23.05.0-rc2"}"
+: "${RELEASE:="23.05.0-rc3"}"
 
 printHelp() {
     debug "${FUNCNAME[0]}"
@@ -43,7 +43,7 @@ printHelp() {
 
 		EXAMPLES
 		    ./openwrtbuilder -p r4s -r snapshot
-		    ./openwrtbuilder -p ax6000 -r 23.05.0-rc2 --source --debug
+		    ./openwrtbuilder -p ax6000 -r 23.05.0-rc3 --source --debug
 		    ./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX
 		    ./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		    
 	EOF

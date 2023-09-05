@@ -75,6 +75,18 @@ ax6000['packages']="\
 	# -wpad-basic-mbedtls \
 	# wpad-mesh-mbedtls"
 
+# WDS mesh nodes
+declare -Ag ax6000_ap
+ax6000_ap['device']="xiaomi_redmi-router-ax6000-stock"
+ax6000_ap['target']="mediatek/filogic"
+ax6000_ap['release']="snapshot"
+ax6000_ap['filesystem']="squashfs"
+ax6000_ap['packages']="\
+	$default_packages \
+	avahi-daemon \
+	smcroute \
+	ca-bundle"
+
 # For converted uboots
 # declare -Ag ax6000_uboot
 # ax6000_uboot['device']="xiaomi_redmi-router-ax6000-ubootmod"
@@ -116,7 +128,10 @@ n5100['packages']="\
 	smartmontools \
 	intel-microcode \
 	lm-sensors \
-	-libustream-wolfssl"
+	samba4-server \
+	luci-app-samba4 \
+	tailscale \
+	shadow-useradd"
 # The following are source mode only
 n5100['kopts']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
