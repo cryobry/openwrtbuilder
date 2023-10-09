@@ -652,6 +652,12 @@ fromSource() {
     config_opts+=("CONFIG_IB=n")
     config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
     
+    # Write options to config seed file
+    for opt in "${config_opts[@]}"; do
+        debug "Writing $opt to $seed_file"
+        echo "$opt" >> "$seed_file"
+    done
+
     # Cleaning modes
     # make clean # compiled output
     # make targetclean # compiled output, toolchain
