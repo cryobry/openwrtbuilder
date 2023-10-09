@@ -106,7 +106,7 @@ ax6000_ap['packages']="\
 declare -Ag n5100
 n5100['device']="generic"
 n5100['target']="x86/64"
-n5100['filesystem']="ext4"
+n5100['filesystem']="squashfs"
 n5100['packages']="\
 	$default_packages \
 	luci-app-wireguard \
