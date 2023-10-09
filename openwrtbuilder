@@ -661,13 +661,6 @@ fromSource() {
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
     execute make "${make_opts[@]}" defconfig
-
-    # Write options to config seed file
-    for opt in "${config_opts[@]}"; do
-        debug "Writing $opt to $seed_file"
-        echo "$opt" >> "$seed_file"
-    done
-
     execute make "${make_opts[@]}" dirclean
     execute make "${make_opts[@]}" download
     #execute make -f Makefile.aperl inst_perl MAP_TARGET=perl
