@@ -120,6 +120,8 @@ n5100['packages']="\
 	kmod-fs-btrfs \
 	btrfs-progs \
 	block-mount \
+	cryptsetup \
+	kmod-crypto-xts \
 	smcroute \
 	avahi-daemon \
 	curl \
