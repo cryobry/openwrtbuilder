@@ -10,7 +10,7 @@
 #
 
 # Set default release
-: "${RELEASE:="23.05.0-rc3"}"
+: "${RELEASE:="23.05.0"}"
 
 printHelp() {
     debug "${FUNCNAME[0]}"
