@@ -571,10 +571,10 @@ fromSource() {
         [0-9][0-9].[0-9][0-9].*)
             local branch="openwrt-${RELEASE%.*}"
             local tag="v$RELEASE"
-            if askOk "Use HEAD of $branch branch (y, recommended) or $tag tag (n)?"; then
-                wt_commit="origin/$branch"
-            else
+            if askOk "Use $tag tag (y) instead of $branch branch HEAD (n, recommended)?"; then
                 wt_commit="$tag"
+            else
+                wt_commit="origin/$branch"
             fi
             ;;
         *)
