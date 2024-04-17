@@ -699,7 +699,7 @@ extract() {
     debug "${FUNCNAME[0]}"
     declare archive="$1"
     declare out_dir="$2"
-    if ! execute tar -xf "$archive" -C "$out_dir" --strip-components 1; then
+    if ! execute tar -axf "$archive" -C "$out_dir" --strip-components 1; then
         echo "Extraction failed"
         return 1
     fi
@@ -817,11 +817,11 @@ main() {
 
         if [[ "$RELEASE" == "snapshot" ]]; then
             declare url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
-            declare url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.xz"
+            declare url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.zst"
             declare img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
         else
             declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
-            declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
+            declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.zst"
             declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
         fi
 
