@@ -458,7 +458,7 @@ makeImages() {
         PACKAGES="$PACKAGES" \
         FILES="$FILESDIR" \
         --directory="$BUILDDIR" \
-        --jobs="$(nproc)"  \
+        --jobs="$(($(nproc) - 1))"  \
         > "$BUILDDIR/make.log"
 }
 
