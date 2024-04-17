@@ -238,6 +238,7 @@ installDependencies() {
                     "perl-File-Copy"
                     "perl-FindBin"
                     "perl-Thread-Queue"
+                    "perl-Time-Piece"
                     "clang" # for qosify
                 )
                 ;;
