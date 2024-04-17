@@ -821,7 +821,7 @@ main() {
             declare img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
         else
             declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
-            declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.zst"
+            declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
             declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
         fi
 
