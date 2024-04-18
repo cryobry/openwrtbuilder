@@ -239,6 +239,8 @@ installDependencies() {
                     "perl-FindBin"
                     "perl-Thread-Queue"
                     "perl-Time-Piece"
+                    "python3-pyelftools"
+                    "swig"
                     "clang" # for qosify
                 )
                 ;;
