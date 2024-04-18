@@ -669,12 +669,7 @@ fromSource() {
 
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
-    execute make "${make_opts[@]}" defconfig
-    execute make "${make_opts[@]}" dirclean
-    execute make "${make_opts[@]}" "-j1" download
-    #execute make -f Makefile.aperl inst_perl MAP_TARGET=perl
-    #execute make -f Makefile.aperl map_clean
-    execute make "${make_opts[@]}" "-j1" world
+    execute make "${make_opts[@]}" defconfig download clean world
 
     popd || return 1
 
