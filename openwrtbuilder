@@ -669,7 +669,8 @@ fromSource() {
 
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
-    make_opts+=("-j$(($(nproc) - 2))")
+    #make_opts+=("-j$(($(nproc) - 2))")
+    make_opts+=("-j1")
     execute make "${make_opts[@]}" defconfig download clean world
 
     popd || return 1
