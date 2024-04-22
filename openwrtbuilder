@@ -682,7 +682,7 @@ fromSource() {
     done
     shopt -u nullglob
 
-    ret,urn 0
+    return 0
 }
 
 # Generic helpers
