@@ -585,7 +585,7 @@ fromSource() {
             ;;
     esac
 
-    [[ -d "$GITWORKTREEDIR" ]] && rm -rf "$GITWORKTREEDIR"
+    # [[ -d "$GITWORKTREEDIR" ]] && rm -rf "$GITWORKTREEDIR"
     
     execute "${wt_cmd[@]}" "$wt_commit"
 
@@ -682,7 +682,7 @@ fromSource() {
     done
     shopt -u nullglob
 
-    return 0
+    ret,urn 0
 }
 
 # Generic helpers
