@@ -232,16 +232,20 @@ installDependencies() {
                     "diffutils"
                     "python2"
                     "python3"
+                    "python3-setuptools"
+                    "python3-pyelftools"
                     "perl-base"
                     "perl-Data-Dumper"
                     "perl-File-Compare"
                     "perl-File-Copy"
                     "perl-FindBin"
+                    "perl-IPC-Cmd"
                     "perl-Thread-Queue"
                     "perl-Time-Piece"
-                    "python3-pyelftools"
+                    "perl-JSON-PP"
                     "swig"
                     "clang" # for qosify
+                    "llvm15-libs"
                 )
                 ;;
             debian|ubuntu)
