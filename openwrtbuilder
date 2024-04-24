@@ -674,12 +674,16 @@ fromSource() {
     # Make image
     (( DEBUG )) && make_opts+=("V=s")
 
-    execute make "${make_opts[@]}" defconfig download clean
+    execute make "${make_opts[@]}" "-j1" defconfig download clean
 
     make_opts+=("-j$(($(nproc) - 2))")
     #make_opts+=("-j1") # for debugging purposes
 
-    execute make "${make_opts[@]}" world
+    if ! execute make "${make_opts[@]}" world; then
+        echo "Error: make failed, retrying using slow mode"
+        execute make V=s -j1 dirclean
+        execute make V=s -j1 world
+    fi
 
     popd || return 1
 
