@@ -671,18 +671,14 @@ fromSource() {
     # make dirclean # compiled output, toolchain, build tools
     # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
-    # Make image
+    # Make prep
     (( DEBUG )) && make_opts+=("V=s")
-
     execute make "${make_opts[@]}" "-j1" defconfig download clean
 
-    make_opts+=("-j$(($(nproc) - 2))")
-    #make_opts+=("-j1") # for debugging purposes
-
-    if ! execute make "${make_opts[@]}" world; then
+    # Make image
+    if ! execute make "${make_opts[@]}" "-j$(($(nproc)+1))" world; then
         echo "Error: make failed, retrying using slow mode"
-        execute make V=s -j1 dirclean
-        if ! execute make V=s -j1 world; then
+        if ! execute make V=s -j1 dirclean world; then
             echo "Error: slow make failed"
             return 1
         fi
@@ -690,7 +686,7 @@ fromSource() {
 
     popd || return 1
 
-    # Provide symlinks to images in root of BINDIR (to match Image Builder)
+    # Symlink output images to root of BINDIR (match Image Builder)
     shopt -s nullglob
     for image in "$BINDIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
         ln -fs "$image" "$BINDIR/${image##*/}"
