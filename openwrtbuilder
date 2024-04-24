@@ -682,7 +682,10 @@ fromSource() {
     if ! execute make "${make_opts[@]}" world; then
         echo "Error: make failed, retrying using slow mode"
         execute make V=s -j1 dirclean
-        execute make V=s -j1 world
+        if ! execute make V=s -j1 world; then
+            echo "Error: slow make failed"
+            return 1
+        fi
     fi
 
     popd || return 1
