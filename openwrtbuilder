@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2022-23 Bryan C. Roessler
+# Copyright 2022-24 Bryan C. Roessler
 #
 # Build and deploy OpenWRT images
 #
