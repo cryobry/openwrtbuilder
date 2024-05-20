@@ -566,6 +566,7 @@ fromSource() {
     wt_cmd=(git -C "$GITSRCDIR"
             worktree add
             --force
+            --force
             --detach
             "$GITWORKTREEDIR")
  
