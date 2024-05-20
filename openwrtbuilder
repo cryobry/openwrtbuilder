@@ -550,7 +550,7 @@ fromSource() {
 
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare seed_file="$GITWORKTREEDIR/.config"
-    declare pkg kopt opt commit seed_file wt_cmd wt_commit description
+    declare pkg config commit seed_file wt_cmd wt_commit description
     declare -a make_opts config_opts
 
     echo "Building from source is under development"
@@ -633,9 +633,9 @@ fromSource() {
         fi
     done
 
-    # Add kopts from profile
-    for kopt in ${P_ARR[kopts]}; do
-        config_opts+=("$kopt")
+    # Add config options from profile
+    for config in ${P_ARR[config]}; do
+        config_opts+=("$config")
     done
 
     # Only compile selected fs
@@ -660,9 +660,9 @@ fromSource() {
     config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
     
     # Write options to config seed file
-    for opt in "${config_opts[@]}"; do
-        debug "Writing $opt to $seed_file"
-        echo "$opt" >> "$seed_file"
+    for config in "${config_opts[@]}"; do
+        debug "Writing $config to $seed_file"
+        echo "$config" >> "$seed_file"
     done
 
     # Cleaning modes

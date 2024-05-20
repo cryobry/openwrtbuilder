@@ -35,6 +35,7 @@ r4s['packages']="\
 	luci-app-wireguard \
 	luci-proto-wireguard \
 	luci-app-ddns \
+	luci-app-sqm \
 	irqbalance \
 	collectd-mod-df \
 	usbutils \
@@ -50,12 +51,11 @@ r4s['packages']="\
 	ca-bundle \
 	-libustream-wolfssl"
 # The following are source mode only
-r4s['kopts']="\
+r4s['config']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
 	CONFIG_BTRFS_PROGS_ZSTD=y \
 	CONFIG_TARGET_ROOTFS_PARTSIZE=512 \
-	CONFIG_TARGET_KERNEL_PARTSIZE=32 \
-	CONFIG_TESTING_KERNEL=y"
+	CONFIG_TARGET_KERNEL_PARTSIZE=32"
 r4s['files']="\
 	/mnt/backup"
 
@@ -136,7 +136,7 @@ n5100['packages']="\
 	tailscale \
 	shadow-useradd"
 # The following are source mode only
-n5100['kopts']="\
+n5100['config']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
 	CONFIG_BTRFS_PROGS_ZSTD=y \
 	CONFIG_TARGET_ROOTFS_PARTSIZE=512 \
