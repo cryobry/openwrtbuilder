@@ -15,7 +15,6 @@ default_packages="\
 	bash \
 	rsync \
 	luci-app-statistics \
-	luci-app-attendedsysupgrade \
 	collectd-mod-sensors \
 	collectd-mod-thermal \
 	collectd-mod-conntrack \
@@ -32,7 +31,6 @@ r4s['target']="rockchip/armv8"
 r4s['filesystem']="ext4"
 r4s['packages']="\
 	$default_packages \
-	luci-app-wireguard \
 	luci-proto-wireguard \
 	luci-app-ddns \
 	luci-app-sqm \
@@ -48,8 +46,7 @@ r4s['packages']="\
 	avahi-daemon \
 	curl \
 	ethtool \
-	ca-bundle \
-	-libustream-wolfssl"
+	ca-bundle"
 # The following are source mode only
 r4s['config']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
@@ -110,7 +107,6 @@ n5100['target']="x86/64"
 n5100['filesystem']="squashfs"
 n5100['packages']="\
 	$default_packages \
-	luci-app-wireguard \
 	luci-proto-wireguard \
 	luci-app-ddns \
 	irqbalance \
@@ -154,7 +150,7 @@ rpi4['packages']="\
 	kmod-usb-net-asix-ax88179 \
 	kmod-usb-net-rtl8152 \
 	luci-app-upnp \
-	luci-app-wireguard \
+	luci-proto-wireguard \
 	luci-app-pbr \
 	-dnsmasq \
 	dnsmasq-full \
@@ -217,7 +213,7 @@ r2s['filesystem']="ext4"
 r2s['packages']="\
 	$default_packages \
 	luci-app-upnp \
-	luci-app-wireguard \
+	luci-proto-wireguard \
 	luci-app-pbr \
 	-dnsmasq \
 	dnsmasq-full \
@@ -238,7 +234,7 @@ r2s_tr['filesystem']="ext4"
 r2s_tr['packages']="\
 	$default_packages \
 	luci-app-upnp \
-	luci-app-wireguard \
+	luci-proto-wireguard \
 	luci-app-pbr \
 	luci-app-ddns \
 	luci-app-statistics \
