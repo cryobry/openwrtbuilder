@@ -616,7 +616,7 @@ fromSource() {
     ./scripts/feeds install -a -f
 
     # Grab the release seed config
-    if ! curl -so "$seed_file" "$SEED_URL"; then
+    if ! execute curl -so "$seed_file" "$SEED_URL"; then
         echo "Could not obtain $seed_file from $SEED_URL"
         return 1
     fi
@@ -673,7 +673,7 @@ fromSource() {
 
     # Make prep
     (( DEBUG )) && make_opts+=("V=s")
-    execute make "${make_opts[@]}" "-j1" defconfig download clean
+    execute make "${make_opts[@]}" "-j1" targetclean defconfig download
 
     # Make image
     if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" "-j$(($(nproc)+1))" world; then
