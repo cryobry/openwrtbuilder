@@ -589,7 +589,7 @@ fromSource() {
             ;;
     esac
 
-    [[ -d "$GITWORKTREEDIR" ]] && rm -rf "$GITWORKTREEDIR" # overwrite worktree changes
+    [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR" # overwrite worktree changes
     
     execute "${wt_cmd[@]}" "$wt_commit"
 
@@ -673,15 +673,12 @@ fromSource() {
 
     # Make prep
     (( DEBUG )) && make_opts+=("V=s")
-    execute make "${make_opts[@]}" "-j1" targetclean defconfig download
+    execute make "${make_opts[@]}" "-j1" dirclean defconfig download
 
     # Make image
     if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" "-j$(($(nproc)+1))" world; then
-        echo "Error: make failed, retrying using slow mode"
-        if ! execute make V=s -j1 dirclean world; then
-            echo "Error: slow make failed"
-            return 1
-        fi
+        echo "Error: make failed"
+        return 1
     fi
 
     popd || return 1
