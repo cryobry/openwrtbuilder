@@ -582,13 +582,20 @@ fromSource() {
             wt_commit="$RELEASE"
             ;;
     esac
-    
-    if [[ -d "$GITWORKTREEDIR" ]]; then
-        execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
-        execute git -C "$GITWORKTREEDIR" pull
-    else
-        execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
-    fi
+
+
+    # TODO There's a bug in the make clean functions that seem to invoke a full make
+    # if [[ -d "$GITWORKTREEDIR" ]]; then
+    #     execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
+    #     execute git -C "$GITWORKTREEDIR" pull
+    # else
+    #     execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
+    # fi
+
+
+    # To workaround bug, don't use make *clean, blow it away and start fresh
+    [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR"
+    execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
 
     # Print commit information
     commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
@@ -670,7 +677,7 @@ fromSource() {
 
     # Make prep
     (( DEBUG )) && make_opts+=("V=s")
-    execute make "${make_opts[@]}" "-j1" targetclean # TODO 'dirclean' has a bug that triggers menuconfig
+    #execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
     execute make "${make_opts[@]}" "-j1" defconfig
     execute make "${make_opts[@]}" "-j1" download
 
