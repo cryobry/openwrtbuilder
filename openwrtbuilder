@@ -550,24 +550,18 @@ fromSource() {
 
     declare src_url="https://github.com/openwrt/openwrt.git"
     declare seed_file="$GITWORKTREEDIR/.config"
-    declare pkg config commit seed_file wt_cmd wt_commit description
+    declare pkg config commit seed_file wt_commit description
     declare -a make_opts config_opts
 
     echo "Building from source is under development"
 
     # Update source code
     if [[ ! -d "$GITSRCDIR" ]]; then
-        mkdir -p "$GITSRCDIR"
-        git clone "$src_url" "$GITSRCDIR"
+        execute mkdir -p "$GITSRCDIR"
+        execute git clone "$src_url" "$GITSRCDIR"
     fi
 
     git -C "$GITSRCDIR" pull
-
-    wt_cmd=(git -C "$GITSRCDIR"
-            worktree add
-            --force
-            --detach
-            "$GITWORKTREEDIR")
  
     # Generate commitish for git worktree
     case "$RELEASE" in
@@ -588,10 +582,13 @@ fromSource() {
             wt_commit="$RELEASE"
             ;;
     esac
-
-    [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR" # overwrite worktree changes
     
-    execute "${wt_cmd[@]}" "$wt_commit"
+    if [[ -d "$GITWORKTREEDIR" ]]; then
+        execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
+        execute git -C "$GITWORKTREEDIR" pull
+    else
+        execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
+    fi
 
     # Print commit information
     commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
@@ -608,7 +605,7 @@ fromSource() {
     fi
 
     # Enter worktree
-    pushd "$GITWORKTREEDIR" || return 1
+    execute pushd "$GITWORKTREEDIR" || return 1
 
     # Update package feed
     ./scripts/feeds update -i -f &&
@@ -639,7 +636,7 @@ fromSource() {
     done
 
     # Only compile selected fs
-    sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
+    execute sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
     config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
     if [[ $FILESYSTEM == "squashfs" ]]; then
         config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=n")
@@ -650,7 +647,7 @@ fromSource() {
     fi
 
     # Only compile selected target image
-    sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
+    execute sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
     config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
     config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_$DEVICE")
     config_opts+=("CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y")
@@ -731,9 +728,11 @@ load() {
     [[ -f $source_file ]] && source "$source_file"
 }
 execute() {
-    declare cmd="$*"
-    debug "$cmd" || cmd+=" &>/dev/null"
-    eval "${cmd[*]}"
+    if debug "$*"; then
+        "$@"
+    else
+        "$@" &>/dev/null
+    fi
 }
 
 
