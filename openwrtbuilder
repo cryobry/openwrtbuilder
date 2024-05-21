@@ -566,7 +566,6 @@ fromSource() {
     wt_cmd=(git -C "$GITSRCDIR"
             worktree add
             --force
-            --force
             --detach
             "$GITWORKTREEDIR")
  
@@ -590,7 +589,7 @@ fromSource() {
             ;;
     esac
 
-    # [[ -d "$GITWORKTREEDIR" ]] && rm -rf "$GITWORKTREEDIR"
+    [[ -d "$GITWORKTREEDIR" ]] && rm -rf "$GITWORKTREEDIR" # overwrite worktree changes
     
     execute "${wt_cmd[@]}" "$wt_commit"
 
