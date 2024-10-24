@@ -10,7 +10,7 @@
 #
 
 # Set default release
-: "${RELEASE:="23.05.3"}"
+: "${RELEASE:="23.05.5"}"
 
 printHelp() {
     debug "${FUNCNAME[0]}"
@@ -371,7 +371,7 @@ installDependencies() {
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
-    declare url="$1"
+    local url="$1"
 
     if [[ -f "$IB_ARCHIVE" ]]; then
         if askOk "$IB_ARCHIVE exists. Re-download?"; then
@@ -397,6 +397,7 @@ getImageBuilderChecksum() {
         fi
     fi
 
+    echo "Downloading Image Builder checksum using $DL_TOOL"
     execute "$DL_TOOL -o $IB_SHA256_FILE $IB_SHA256_URL"
 }
 

@@ -7,23 +7,23 @@
 default_packages="\
 	luci \
 	luci-ssl \
+	luci-proto-wireguard \
+	luci-app-statistics \
+	collectd-mod-sensors \
+	collectd-mod-thermal \
+	collectd-mod-conntrack \
+	collectd-mod-cpu \
 	nano \
 	htop \
 	diffutils \
 	tar \
 	iperf3 \
-	bash \
+	zsh \
 	rsync \
-	luci-app-statistics \
-	collectd-mod-sensors \
-	collectd-mod-thermal \
-	collectd-mod-conntrack \
-	collectd-mod-cpu"
+	openssh-sftp-server \
+"
 
-#################
 # Current devices
-#################
-
 # Main router
 declare -Ag r4s
 r4s['device']="friendlyarm_nanopi-r4s"
@@ -31,7 +31,6 @@ r4s['target']="rockchip/armv8"
 r4s['filesystem']="ext4"
 r4s['packages']="\
 	$default_packages \
-	luci-proto-wireguard \
 	luci-app-ddns \
 	luci-app-sqm \
 	irqbalance \
@@ -56,7 +55,7 @@ r4s['config']="\
 r4s['files']="\
 	/mnt/backup"
 
-# WDS mesh nodes
+# Access point
 declare -Ag ax6000
 ax6000['device']="xiaomi_redmi-router-ax6000-stock"
 ax6000['target']="mediatek/filogic"
@@ -68,22 +67,6 @@ ax6000['packages']="\
 	-odhcpd-ipv6only \
 	-nftables \
 	-firewall4"
-	# for 802.11s
-	# mesh11sd \
-	# -wpad-basic-mbedtls \
-	# wpad-mesh-mbedtls"
-
-# WDS mesh nodes
-declare -Ag ax6000_ap
-ax6000_ap['device']="xiaomi_redmi-router-ax6000-stock"
-ax6000_ap['target']="mediatek/filogic"
-ax6000_ap['release']="snapshot"
-ax6000_ap['filesystem']="squashfs"
-ax6000_ap['packages']="\
-	$default_packages \
-	avahi-daemon \
-	smcroute \
-	ca-bundle"
 
 # For converted uboots
 # declare -Ag ax6000_uboot
@@ -107,7 +90,6 @@ n5100['target']="x86/64"
 n5100['filesystem']="squashfs"
 n5100['packages']="\
 	$default_packages \
-	luci-proto-wireguard \
 	luci-app-ddns \
 	irqbalance \
 	collectd-mod-df \
@@ -150,27 +132,20 @@ rpi4['packages']="\
 	kmod-usb-net-asix-ax88179 \
 	kmod-usb-net-rtl8152 \
 	luci-app-upnp \
-	luci-proto-wireguard \
 	luci-app-pbr \
 	-dnsmasq \
 	dnsmasq-full \
 	luci-app-ddns \
 	luci-app-sqm"
 
-
-#################
 # Stock builds
-#################
 declare -Ag r4s_stock
 r4s_stock['device']="friendlyarm_nanopi-r4s"
 r4s_stock['target']="rockchip/armv8"
 r4s_stock['filesystem']="ext4"
 r4s_stock['release']="snapshot"
 
-
-#################
 # Old devices
-#################
 declare -Ag totolink
 totolink['device']="totolink_x5000r"
 totolink['target']="ramips/mt7621"
@@ -213,7 +188,6 @@ r2s['filesystem']="ext4"
 r2s['packages']="\
 	$default_packages \
 	luci-app-upnp \
-	luci-proto-wireguard \
 	luci-app-pbr \
 	-dnsmasq \
 	dnsmasq-full \
@@ -234,7 +208,6 @@ r2s_tr['filesystem']="ext4"
 r2s_tr['packages']="\
 	$default_packages \
 	luci-app-upnp \
-	luci-proto-wireguard \
 	luci-app-pbr \
 	luci-app-ddns \
 	luci-app-statistics \
