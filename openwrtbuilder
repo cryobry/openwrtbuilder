@@ -313,20 +313,20 @@ install_dependencies() {
 
 get_imagebuilder() {
   debug "${FUNCNAME[0]}" "$*"
-  local -a ib_url_file=("$1" "$2")
-  local -a sha256_url_file=("$3" "$4")
-  local -a url_file_pairs=(
-    "${ib_url_file[@]}"
-    "${sha256_url_file[@]}")
+  
+  local -a url_file_pairs=("$@")
 
   for ((i=0; i<${#url_file_pairs[@]}; i+=2)); do
     local url="${url_file_pairs[i]}"
     local file="${url_file_pairs[i+1]}"
 
-    if [[ -f $file ]] && ask_ok "$file exists. Re-download?"; then
+    # Check if file exists and ask user to remove and redownload
+    if [[ -f $file ]] && ! ask_ok "Use existing $file?"; then
       execute rm -f "$file"
     fi
-    if ! [[ -f "$file" ]]; then
+
+    # Download the file if it doesn't exist
+    if [[ ! -f "$file" ]]; then
       echo "Downloading $url to $file using $DL_TOOL"
       execute "$DL_TOOL" "-o" "$file" "$url"
     fi
@@ -402,11 +402,12 @@ make_images() {
 }
 
 verify_images() {
-  debug "${FUNCNAME[0]}"
+  debug "${FUNCNAME[0]}" "$*"
+  local sha256_file="$1"
   local outfile
 
   for outfile in "$BINDIR"/*.img.gz; do
-    verify "$outfile" "$IB_OUT_SHA256_FILE" || return 1
+    verify "$outfile" "$sha256_file" || return 1
   done
 }
 
@@ -778,7 +779,7 @@ main() {
       extract "$ib_file" "$BUILDDIR" || return $?
       add_repos
       make_images &&
-      verify_images
+      verify_images "$ib_sha256_file"
       #copyFiles
     fi
 
