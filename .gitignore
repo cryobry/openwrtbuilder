@@ -1,3 +1,5 @@
 src/
 bin/
 .dependencies
+.dependencies_sc
+.dependencies_ib
