@@ -1,906 +1,785 @@
 #!/usr/bin/env bash
-#
+# Builds and deploys OpenWRT images
 # Copyright 2022-24 Bryan C. Roessler
-#
-# Build and deploy OpenWRT images
-#
 # Apache 2.0 License
-#
 # See README.md and ./profiles
-#
 
 # Set default release
 : "${RELEASE:="23.05.5"}"
 
-printHelp() {
-    debug "${FUNCNAME[0]}"
+print_help() {
+  debug "${FUNCNAME[0]}"
 
-    cat <<-'EOF'
-		Build and deploy OpenWRT images
+  cat <<-'EOF'
+	Build and deploy OpenWRT images
 
-		USAGE:
-		    openwrtbuilder [OPTION [VALUE]]... -p PROFILE [-p PROFILE]...
+	USAGE:
+	  openwrtbuilder [OPTION [VALUE]]... -p PROFILE [-p PROFILE]...
 
-		OPTIONS
-		    --profile,-p PROFILE
-		    --release,-r,--version,-v RELEASE ("snapshot", "22.03.5") 
-		    --buildroot,-b PATH
-		        Default: location of openwrtbuilder script
-		    --source
-		        Build image from source, not from Image Builder
-		    --ssh-upgrade HOST
-		        Examples: root@192.168.1.1, root@router.lan
-		    --ssh-backup SSH_PATH
-		        Enabled by default for --ssh-upgrade
-		    --flash,-f DEVICE
-		        Example: /dev/sdX
-		    --reset
-		        Cleanup all source and output files
-		    --yes,-y
-		        Assume yes for all questions (automatic mode)
-		    --debug,-d
-		    --help,-h
+	OPTIONS
+	  --profile,-p PROFILE
+	  --release,-r,--version,-v RELEASE ("snapshot", "22.03.5") 
+	  --buildroot,-b PATH
+	    Default: location of openwrtbuilder script
+	  --source
+	    Build image from source, not from Image Builder
+	  --ssh-upgrade HOST
+	    Examples: root@192.168.1.1, root@router.lan
+	  --ssh-backup SSH_PATH
+	    Enabled by default for --ssh-upgrade
+	  --flash,-f DEVICE
+	    Example: /dev/sdX
+	  --reset
+	    Cleanup all source and output files
+	  --yes,-y
+	    Assume yes for all questions (automatic mode)
+	  --debug,-d
+	  --help,-h
 
-		EXAMPLES
-		    ./openwrtbuilder -p r4s -r snapshot
-		    ./openwrtbuilder -p ax6000 -r 23.05.0-rc3 --source --debug
-		    ./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX
-		    ./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		    
+	EXAMPLES
+	  ./openwrtbuilder -p r4s -r snapshot
+	  ./openwrtbuilder -p ax6000 -r 23.05.0-rc3 --source --debug
+	  ./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX
+	  ./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		  
 	EOF
 }
 
 init() {
-    debug "${FUNCNAME[0]}"
+  debug "${FUNCNAME[0]}"
+  declare -g ID RPM_MGR SCRIPTDIR DL_TOOL
 
-    declare -g ID RPM_MGR SCRIPTDIR DL_TOOL
+  ((DEBUG)) || echo "To enable debugging output, use --debug or -d"
 
-    (( DEBUG )) || echo "To enable debugging output, use --debug or -d"
+  # Save the script directory
+  # https://stackoverflow.com/a/4774063
+  SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
 
-    # Save the script directory
-    # https://stackoverflow.com/a/4774063
-    SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
+  if [[ -e "/etc/os-release" ]]; then
+    source "/etc/os-release"
+  else
+    echo "/etc/os-release not found"
+    echo "Your OS is unsupported"
+    print_help
+    exit 1
+  fi
 
-    if [[ -e "/etc/os-release" ]]; then
-        source "/etc/os-release"
-    else
-        echo "/etc/os-release not found"
-        echo "Your OS is unsupported"
-        printHelp
-        exit 1
-    fi
+  debug "Detected host platform: $ID"
 
-    debug "Detected host platform: $ID"
-
-    # normalize distro ID
-    case "$ID" in
-        debian|arch)
-            ;;
-        centos|fedora)
-            if hash dnf &>/dev/null; then
-                RPM_MGR="dnf"
-            elif hash yum &>/dev/null; then
-                RPM_MGR="yum"
-            fi
-            ;;
-        rhel)
-            ID="centos"
-            ;;
-        linuxmint|neon|*ubuntu*)
-            ID="ubuntu"
-            ;;
-        *suse*)
-            ID="suse"
-            ;;
-        raspbian)
-            ID="debian"
-            ;;
-        *)
-            echo "Autodetecting distro, this may be unreliable"
-            if hash dnf &>/dev/null; then
-                ID="fedora"
-                RPM_MGR="dnf"
-            elif hash yum &>/dev/null; then
-                ID="centos"
-                RPM_MGR="yum"
-            elif hash apt &>/dev/null; then
-                ID="ubuntu"
-            elif hash pacman &>/dev/null; then
-                ID="arch"
-            else
-                return 1
-            fi
-            ;;
-    esac
-
-    debug "Using host platform: $ID"
-
-    # Set distro-specific functions
-    case "$ID" in
-        fedora|centos)
-            pkg_install(){ sudo "$RPM_MGR" install -y "$@"; }
-            ;;
-        debian|ubuntu)
-            pkg_install(){ sudo apt-get install -y -q0 "$@"; }
-            ;;
-        suse)
-            pkg_install(){ sudo zypper --non-interactive -q install --force --no-confirm "$@"; }
-            ;;
-        arch)
-            pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; }
-            ;;
-    esac
-
-    if hash axel &>/dev/null; then
-        DL_TOOL="axel"
-    elif hash curl &>/dev/null; then
-        DL_TOOL="curl"
-    else
-        echo "Downloading the Image Builder requires axel or curl"
+  # normalize distro ID
+  case "$ID" in
+    debian|arch) ;;
+    centos|fedora)
+      if command -v dnf &>/dev/null; then
+        RPM_MGR="dnf"
+      elif command -v yum &>/dev/null; then
+        RPM_MGR="yum"
+      fi
+      ;;
+    rhel) ID="centos" ;;
+    linuxmint|neon|*ubuntu*) ID="ubuntu" ;;
+    *suse*) ID="suse" ;;
+    raspbian) ID="debian" ;;
+    *)
+      echo "Autodetecting distro, this may be unreliable"
+      if hash dnf &>/dev/null; then
+        ID="fedora"
+        RPM_MGR="dnf"
+      elif hash yum &>/dev/null; then
+        ID="centos"
+        RPM_MGR="yum"
+      elif hash apt &>/dev/null; then
+        ID="ubuntu"
+      elif hash pacman &>/dev/null; then
+        ID="arch"
+      else
         return 1
-    fi
+      fi
+      ;;
+  esac
+
+  debug "Using host platform: $ID"
+
+  # Set distro-specific functions
+  case "$ID" in
+    fedora|centos) pkg_install(){ sudo "$RPM_MGR" install -y "$@"; } ;;
+    debian|ubuntu) pkg_install(){ sudo apt-get install -y -q0 "$@"; } ;;
+    suse) pkg_install(){ sudo zypper --non-interactive -q install --force --no-confirm "$@"; } ;;
+    arch) pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; } ;;
+  esac
+
+  if command -v axel &>/dev/null; then
+    DL_TOOL="axel"
+  elif command -v curl &>/dev/null; then
+    DL_TOOL="curl"
+  else
+    echo "Downloading the Image Builder requires axel or curl"
+    return 1
+  fi
 }
 
-readInput() {
-    debug "${FUNCNAME[0]}"
+parse_input() {
+  debug "${FUNCNAME[0]}" "$*"
+  declare -ga PROFILES
+  local long_opts='release:,version:,profile:,buildroot:,source,'
+  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,debug,help'
 
-    unset RESET YES
-
-    declare -ga PROFILES
-    declare long_opts='release:,version:,profile:,buildroot:,source,'
-    long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,debug,help'
-
-    if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
-        eval set -- "$_input"
-        while true; do
-            case "$1" in
-                --release|-r|--version|-v)
-                    shift && declare -g USER_RELEASE="$1"
-                    ;;
-                --profile|-p)
-                    shift && PROFILES+=("$1")
-                    ;;
-                --buildroot|-b)
-                    shift && BUILDROOT="$1"
-                    ;;
-                --source|-s)
-                    FROM_SOURCE=1
-                    ;;
-                --ssh-upgrade)
-                    shift && SSH_UPGRADE_PATH="$1"
-                    ;;
-                --ssh-backup)
-                    shift && SSH_BACKUP_PATH="$1"
-                    ;;
-                --flash|-f)
-                    shift && FLASH_DEV="$1"
-                    ;;
-                --reset)
-                    RESET=1
-                    ;;
-                --yes|-y)
-                    YES=1
-                    ;;
-                --debug|-d)
-                    echo "Debugging on"
-                    DEBUG=1
-                    ;;
-                --help|-h)
-                    printHelp && exit 0
-                    ;;
-                --)
-                    shift
-                    break
-                    ;;
-            esac
-            shift
-        done
-    else
-        echo "Incorrect options provided"
-        printHelp && exit 1
-    fi
-}
-
-
-installDependencies() {
-    debug "${FUNCNAME[0]}"
-
-    declare -a pkg_list
-    declare lock_file="$BUILDROOT/.dependencies"
-
-    # TODO please contribute your platform here
-    if (( FROM_SOURCE )); then
-        # For building from source with make
-        # https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
-        case "$ID" in
-            fedora|centos)
-                pkg_list+=(
-                    "bash-completion"
-                    "bzip2"
-                    "gcc"
-                    "gcc-c++"
-                    "git"
-                    "make"
-                    "ncurses-devel"
-                    "patch"
-                    "rsync"
-                    "tar"
-                    "unzip"
-                    "wget"
-                    "which"
-                    "diffutils"
-                    "python2"
-                    "python3"
-                    "python3-setuptools"
-                    "python3-pyelftools"
-                    "perl-base"
-                    "perl-Data-Dumper"
-                    "perl-File-Compare"
-                    "perl-File-Copy"
-                    "perl-FindBin"
-                    "perl-IPC-Cmd"
-                    "perl-Thread-Queue"
-                    "perl-Time-Piece"
-                    "perl-JSON-PP"
-                    "swig"
-                    "clang" # for qosify
-                    "llvm15-libs"
-                )
-                ;;
-            debian|ubuntu)
-                pkg_list+=(
-                    "build-essential"
-                    "clang"
-                    "flex"
-                    "g++"
-                    "gawk"
-                    "gcc-multilib"
-                    "gettext"
-                    "git"
-                    "libncurses5-dev"
-                    "libssl-dev"
-                    "python3-distutils"
-                    "rsync"
-                    "unzip"
-                    "zlib1g-dev"
-                    "file"
-                    "wget"
-                )
-                ;;
-            arch)
-                pkg_list+=(
-                    "base-devel"
-                    "autoconf"
-                    "automake"
-                    "bash"
-                    "binutils"
-                    "bison"
-                    "bzip2"
-                    "clang"
-                    "fakeroot"
-                    "file"
-                    "findutils"
-                    "flex"
-                    "gawk"
-                    "gcc"
-                    "gettext"
-                    "git"
-                    "grep"
-                    "groff"
-                    "gzip"
-                    "libelf"
-                    "libtool"
-                    "libxslt"
-                    "m4"
-                    "make"
-                    "ncurses"
-                    "openssl"
-                    "patch"
-                    "pkgconf"
-                    "python"
-                    "rsync"
-                    "sed"
-                    "texinfo"
-                    "time"
-                    "unzip"
-                    "util-linux"
-                    "wget"
-                    "which"
-                    "zlib"
-                )
-                ;;
-            *)
-                debug "Skipping dependency install, your OS is unsupported"
-                return 1
-                ;;
-        esac
-    else
-        # For Imagebuilder
-        case "$ID" in
-            fedora|centos)
-                pkg_list+=(
-                    "@c-development" 
-                    "@development-tools"
-                    "@development-libs"
-                    "perl-FindBin"
-                    "zlib-static"
-                    "elfutils-libelf-devel"
-                    "gawk"
-                    "unzip"
-                    "file"
-                    "wget"
-                    "python3"
-                    "python2"
-                    "axel"
-                    "perl-IPC-Cmd"
-                )
-                ;;
-            debian|ubuntu)
-                pkg_list+=(
-                    "build-essential"
-                    "libncurses5-dev"
-                    "libncursesw5-dev"
-                    "zlib1g-dev"
-                    "gawk"
-                    "git"
-                    "gettext"
-                    "libssl-dev"
-                    "xsltproc"
-                    "wget"
-                    "unzip"
-                    "python"
-                    "axel"
-                )
-                ;;
-            *)
-                debug "Skipping dependency install, your OS is unsupported"
-                return 1
-                ;;
-        esac
-    fi
-
-    # Skip dependency installation if lock file is present
-    [[ -f $lock_file ]] && return
-        
-    pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
-    
-}
-
-getImageBuilder() {
-    debug "${FUNCNAME[0]}"
-
-    local url="$1"
-
-    if [[ -f "$IB_ARCHIVE" ]]; then
-        if askOk "$IB_ARCHIVE exists. Re-download?"; then
-            execute rm -f "$IB_ARCHIVE"
-        else
-            return 0
-        fi
-    fi
-
-    echo "Downloading Image Builder archive using $DL_TOOL"
-    execute "$DL_TOOL" "-o" "$IB_ARCHIVE" "$url"
-}
-
-getImageBuilderChecksum() {
-    debug "${FUNCNAME[0]}"
-
-    if [[ -f $IB_SHA256_FILE ]]; then
-        if askOk "$IB_SHA256_FILE exists. Re-download?"; then
-            execute rm -f "$IB_SHA256_FILE"
-        else
-            return 0
-        fi
-    fi
-
-    echo "Downloading Image Builder checksum using $DL_TOOL"
-    "$DL_TOOL" "-o" "$IB_SHA256_FILE" "$IB_SHA256_URL"
-}
-
-
-addRepos() {
-    debug "${FUNCNAME[0]}"
-
-    if [[ -v P_ARR[repo] ]]; then
-        if ! grep -q "${P_ARR[repo]}" "$BUILDDIR/repositories.conf"; then
-            echo "${P_ARR[repo]}" >> "$BUILDDIR/repositories.conf"
-        fi
-        sed -i '/option check_signature/d' "$BUILDDIR/repositories.conf"
-    fi
-}
-
-
-sshBackup() {
-    debug "${FUNCNAME[0]}"
-
-    declare date hostname backup_fname
-
-    [[ -d "$FILESDIR" ]] || mkdir -p "$FILESDIR"
-
-    printf -v date '%(%Y-%m-%d-%H-%M-%S)T'
-    hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
-    backup_fname="backup-$hostname-$date.tar.gz"
-
-    # Make backup archive on remote
-    if ! execute "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$backup_fname"; then
-        echo "SSH backup failed"
-        exit 1
-    fi
-
-    # Move backup archive locally
-    if ! execute "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$backup_fname $BUILDDIR/"; then
-        echo "Could not copy SSH backup"
-        exit 1
-    fi
-
-    # Extract backup archive
-    if ! execute "tar -C $FILESDIR -xzf $BUILDDIR/$backup_fname"; then
-        echo "Could not extract SSH backup"
-        exit 1
-    fi
-
-    execute "rm $BUILDDIR/$backup_fname"
-}
-
-
-makeImages() {
-    debug "${FUNCNAME[0]}"
-
-    # Reuse the existing output
-    if [[ -d "$BINDIR" ]]; then
-        if askOk "$BINDIR exists. Rebuild?"; then
-            execute rm -rf "$BINDIR"
-        else
-            return 0
-        fi
-    fi
-
-    make image \
-        BIN_DIR="$BINDIR" \
-        PROFILE="$DEVICE" \
-        PACKAGES="$PACKAGES" \
-        FILES="$FILESDIR" \
-        --directory="$BUILDDIR" \
-        --jobs="$(($(nproc) - 1))"  \
-        > "$BUILDDIR/make.log"
-}
-
-
-verifyImages() {
-    debug "${FUNCNAME[0]}"
-
-    declare outfile
-
-    for outfile in "$BINDIR"/*.img.gz; do
-        verify "$outfile" "$IB_OUT_SHA256_FILE" || return 1
+  if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
+    eval set -- "$_input"
+    while true; do
+      case "$1" in
+        --release|-r|--version|-v) shift; declare -g USER_RELEASE="$1" ;;
+        --profile|-p) shift; PROFILES+=("$1") ;;
+        --buildroot|-b) shift; BUILDROOT="$1" ;;
+        --source|-s) FROM_SOURCE=1 ;;
+        --ssh-upgrade) shift; SSH_UPGRADE_PATH="$1" ;;
+        --ssh-backup) shift; SSH_BACKUP_PATH="$1" ;;
+        --flash|-f) shift; FLASH_DEV="$1" ;;
+        --reset) RESET=1 ;;
+        --yes|-y) YES=1 ;;
+        --debug|-d) echo "Debugging on"; DEBUG=1 ;;
+        --help|-h) print_help; exit 0 ;;
+        --)
+          shift
+          break
+          ;;
+      esac
+      shift
     done
+  else
+    echo "Incorrect options provided"
+    print_help; exit 1
+  fi
 }
 
+install_dependencies() {
+  debug "${FUNCNAME[0]}"
+  local lock_file="$BUILDROOT/.dependencies"
+  local -a pkg_list
 
-flashImage() {
-    debug "${FUNCNAME[0]}"
+  # TODO please contribute your platform here
+  if ((FROM_SOURCE)); then
+    # For building from source with make
+    # https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
+    case "$ID" in
+      fedora|centos)
+        pkg_list+=(
+          "bash-completion"
+          "bzip2"
+          "gcc"
+          "gcc-c++"
+          "git"
+          "make"
+          "ncurses-devel"
+          "patch"
+          "rsync"
+          "tar"
+          "unzip"
+          "wget"
+          "which"
+          "diffutils"
+          "python2"
+          "python3"
+          "python3-setuptools"
+          "python3-pyelftools"
+          "perl-base"
+          "perl-Data-Dumper"
+          "perl-File-Compare"
+          "perl-File-Copy"
+          "perl-FindBin"
+          "perl-IPC-Cmd"
+          "perl-Thread-Queue"
+          "perl-Time-Piece"
+          "perl-JSON-PP"
+          "swig"
+          "clang" # for qosify
+          "llvm15-libs")
+        ;;
+      debian|ubuntu)
+        pkg_list+=(
+          "build-essential"
+          "clang"
+          "flex"
+          "g++"
+          "gawk"
+          "gcc-multilib"
+          "gettext"
+          "git"
+          "libncurses5-dev"
+          "libssl-dev"
+          "python3-distutils"
+          "rsync"
+          "unzip"
+          "zlib1g-dev"
+          "file"
+          "wget")
+        ;;
+      arch)
+        pkg_list+=(
+          "base-devel"
+          "autoconf"
+          "automake"
+          "bash"
+          "binutils"
+          "bison"
+          "bzip2"
+          "clang"
+          "fakeroot"
+          "file"
+          "findutils"
+          "flex"
+          "gawk"
+          "gcc"
+          "gettext"
+          "git"
+          "grep"
+          "groff"
+          "gzip"
+          "libelf"
+          "libtool"
+          "libxslt"
+          "m4"
+          "make"
+          "ncurses"
+          "openssl"
+          "patch"
+          "pkgconf"
+          "python"
+          "rsync"
+          "sed"
+          "texinfo"
+          "time"
+          "unzip"
+          "util-linux"
+          "wget"
+          "which"
+          "zlib")
+        ;;
+      *)
+        debug "Skipping dependency install, your OS is unsupported"
+        return 1
+        ;;
+    esac
+  else
+    # For Imagebuilder
+    case "$ID" in
+      fedora|centos)
+        pkg_list+=(
+          "@c-development" 
+          "@development-tools"
+          "@development-libs"
+          "perl-FindBin"
+          "zlib-static"
+          "elfutils-libelf-devel"
+          "gawk"
+          "unzip"
+          "file"
+          "wget"
+          "python3"
+          "python2"
+          "axel"
+          "perl-IPC-Cmd")
+        ;;
+      debian|ubuntu)
+        pkg_list+=(
+          "build-essential"
+          "libncurses5-dev"
+          "libncursesw5-dev"
+          "zlib1g-dev"
+          "gawk"
+          "git"
+          "gettext"
+          "libssl-dev"
+          "xsltproc"
+          "wget"
+          "unzip"
+          "python"
+          "axel")
+        ;;
+      *)
+        debug "Skipping dependency install, your OS is unsupported"
+        return 1
+        ;;
+    esac
+  fi
 
-    declare img_gz="$1"
-    declare dev="$2"
+  # Skip dependency installation if lock file is present
+  [[ -f $lock_file ]] && return
     
-    declare img="${img_gz%.gz}"
-    declare partitions
+  pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
+  
+}
 
-    if [[ ! -e "$dev" ]]; then
-        echo "The device specified by --flash could not be found"
-        return 1
+get_imagebuilder() {
+  debug "${FUNCNAME[0]}" "$*"
+  local -a ib_url_file=("$1" "$2")
+  local -a sha256_url_file=("$3" "$4")
+  local -a url_file_pairs=(
+    "${ib_url_file[@]}"
+    "${sha256_url_file[@]}")
+
+  for ((i=0; i<${#url_file_pairs[@]}; i+=2)); do
+    local url="${url_file_pairs[i]}"
+    local file="${url_file_pairs[i+1]}"
+
+    if [[ -f $file ]] && ask_ok "$file exists. Re-download?"; then
+      execute rm -f "$file"
     fi
-
-    if [[ ! -f $img_gz ]]; then
-        echo "$img_gz does not exist"
-        echo "Check your build output"
-        return 1
+    if ! [[ -f "$file" ]]; then
+      echo "Downloading $url to $file using $DL_TOOL"
+      execute "$DL_TOOL" "-o" "$file" "$url"
     fi
+  done
+}
 
-    execute gunzip -qfk "$img_gz"
-        
-    echo "Unmounting target device $dev partitions"
-    partitions=( "$dev"?* )
-    execute sudo umount "${partitions[@]}"
+add_repos() {
+  debug "${FUNCNAME[0]}"
 
-    if execute sudo dd if="$img" of="$dev" bs=2M conv=fsync; then
-        sync
-        echo "Image flashed sucessfully!"
+  if [[ -v P_ARR[repo] ]]; then
+    if ! grep -q "${P_ARR[repo]}" "$BUILDDIR/repositories.conf"; then
+      echo "${P_ARR[repo]}" >> "$BUILDDIR/repositories.conf"
+    fi
+    sed -i '/option check_signature/d' "$BUILDDIR/repositories.conf"
+  fi
+}
+
+ssh_backup() {
+  debug "${FUNCNAME[0]}"
+  local date hostname backup_fname
+  printf -v date '%(%Y-%m-%d-%H-%M-%S)T'
+  hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
+  backup_fname="backup-$hostname-$date.tar.gz"
+
+  [[ -d "$FILESDIR" ]] || execute mkdir -p "$FILESDIR"
+
+  # Make backup archive on remote
+  if ! execute "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$backup_fname"; then
+    echo "SSH backup failed"
+    exit 1
+  fi
+
+  # Move backup archive locally
+  if ! execute "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$backup_fname $BUILDDIR/"; then
+    echo "Could not copy SSH backup"
+    exit 1
+  fi
+
+  # Extract backup archive
+  if ! execute "tar -C $FILESDIR -xzf $BUILDDIR/$backup_fname"; then
+    echo "Could not extract SSH backup"
+    exit 1
+  fi
+
+  execute "rm $BUILDDIR/$backup_fname"
+}
+
+make_images() {
+  debug "${FUNCNAME[0]}"
+
+  # Reuse the existing output
+  if [[ -d "$BINDIR" ]]; then
+    if ask_ok "$BINDIR exists. Rebuild?"; then
+      execute rm -rf "$BINDIR"
     else
-        echo "dd failed!"
-        exit 1
+      return 0
     fi
+  fi
+
+  make image \
+    BIN_DIR="$BINDIR" \
+    PROFILE="$DEVICE" \
+    PACKAGES="$PACKAGES" \
+    FILES="$FILESDIR" \
+    --directory="$BUILDDIR" \
+    --jobs="$(($(nproc) - 1))"  \
+    > "$BUILDDIR/make.log"
 }
 
+verify_images() {
+  debug "${FUNCNAME[0]}"
+  local outfile
 
-sshUpgrade() {
-    debug "${FUNCNAME[0]}"
-
-    declare img_gz="$1"
-    declare ssh_path="$2"
-
-    declare img_fname="${img_gz##*/}"
-
-    if ! [[ -f $img_gz ]]; then
-        echo "$img_gz is missing, check build output"
-        return 1
-    fi
-
-    echo "Copying '$img_gz' to $ssh_path/tmp/$img_fname"
-    debug "scp $img_gz $ssh_path:/tmp/$img_fname"
-    if ! scp "$img_gz" "$ssh_path:/tmp/$img_fname"; then
-        echo "Could not copy $img_gz to $ssh_path:/tmp/$img_fname"
-        return 1
-    fi
-            
-    echo "Executing remote sysupgrade"
-    debug "ssh $ssh_path sysupgrade -F /tmp/$img_fname"
-    # shellcheck disable=SC2029
-    # execute remotely
-    # this will probably be a weird exit code from closed connection
-    ssh "$ssh_path" "sysupgrade -F /tmp/$img_fname"
+  for outfile in "$BINDIR"/*.img.gz; do
+    verify "$outfile" "$IB_OUT_SHA256_FILE" || return 1
+  done
 }
 
+flash_images() {
+  debug "${FUNCNAME[0]}"
+  local img_gz="$1"
+  local dev="$2"
+  local img="${img_gz%.gz}"
+  local partitions
 
-fromSource() {
-    debug "${FUNCNAME[0]}"
+  if [[ ! -e "$dev" ]]; then
+    echo "The device specified by --flash could not be found"
+    return 1
+  fi
 
-    declare src_url="https://github.com/openwrt/openwrt.git"
-    declare seed_file="$GITWORKTREEDIR/.config"
-    declare pkg config commit seed_file wt_commit description
-    declare -a make_opts config_opts
+  if [[ ! -f $img_gz ]]; then
+    echo "$img_gz does not exist"
+    echo "Check your build output"
+    return 1
+  fi
 
-    echo "Building from source is under development"
+  execute gunzip -qfk "$img_gz"
+    
+  echo "Unmounting target device $dev partitions"
+  partitions=("$dev"?*)
+  execute sudo umount "${partitions[@]}"
 
-    # Update source code
-    if [[ ! -d "$GITSRCDIR" ]]; then
-        execute mkdir -p "$GITSRCDIR"
-        execute git clone "$src_url" "$GITSRCDIR"
-    fi
+  if execute sudo dd if="$img" of="$dev" bs=2M conv=fsync; then
+    sync
+    echo "Image flashed sucessfully!"
+  else
+    echo "dd failed!"
+    return 1
+  fi
+}
 
-    git -C "$GITSRCDIR" pull
+ssh_upgrade() {
+  debug "${FUNCNAME[0]}"
+  local img_gz="$1"
+  local ssh_path="$2"
+  local img_fname="${img_gz##*/}"
+
+  if ! [[ -f $img_gz ]]; then
+    echo "$img_gz is missing, check build output"
+    return 1
+  fi
+
+  echo "Copying '$img_gz' to $ssh_path/tmp/$img_fname"
+  debug "scp $img_gz $ssh_path:/tmp/$img_fname"
+  if ! scp "$img_gz" "$ssh_path:/tmp/$img_fname"; then
+    echo "Could not copy $img_gz to $ssh_path:/tmp/$img_fname"
+    return 1
+  fi
+      
+  echo "Executing remote sysupgrade"
+  debug "ssh $ssh_path sysupgrade -F /tmp/$img_fname"
+  # shellcheck disable=SC2029
+  # execute remotely
+  # this will probably be a weird exit code from closed connection
+  ssh "$ssh_path" "sysupgrade -F /tmp/$img_fname"
+}
+
+from_source() {
+  debug "${FUNCNAME[0]}" "$*"
+  local seed_url="$1"
+  local src_url="https://github.com/openwrt/openwrt.git"
+  local seed_file="$GITWORKTREEDIR/.config"
+  local pkg config commit seed_file wt_commit description
+  local -a make_opts config_opts
+
+  echo "Building from source is under development"
+
+  # Update source code
+  if [[ ! -d "$GITSRCDIR" ]]; then
+    execute mkdir -p "$GITSRCDIR"
+    execute git clone "$src_url" "$GITSRCDIR"
+  fi
+
+  git -C "$GITSRCDIR" pull
  
-    # Generate commitish for git worktree
-    case "$RELEASE" in
-        snapshot)
-            wt_commit="origin/main"
-            ;;
-        [0-9][0-9].[0-9][0-9].*)
-            local branch="openwrt-${RELEASE%.*}"
-            local tag="v$RELEASE"
-            if askOk "Use $branch branch HEAD (y, recommended) or $tag tag (N)?"; then
-                wt_commit="origin/$branch"
-            else
-                wt_commit="$tag"
-            fi
-            ;;
-        *)
-            debug "Passing '$RELEASE' commit-ish to git worktree"
-            wt_commit="$RELEASE"
-            ;;
-    esac
+  # Generate commitish for git worktree
+  case "$RELEASE" in
+    snapshot)
+      wt_commit="origin/main"
+      ;;
+    [0-9][0-9].[0-9][0-9].*)
+      local branch="openwrt-${RELEASE%.*}"
+      local tag="v$RELEASE"
+      if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (N)?"; then
+        wt_commit="origin/$branch"
+      else
+        wt_commit="$tag"
+      fi
+      ;;
+    *)
+      debug "Passing '$RELEASE' commit-ish to git worktree"
+      wt_commit="$RELEASE"
+      ;;
+  esac
 
+  # TODO There's a bug in the make clean functions that seem to invoke a full make
+  # if [[ -d "$GITWORKTREEDIR" ]]; then
+  #   execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
+  #   execute git -C "$GITWORKTREEDIR" pull
+  # else
+  #   execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
+  # fi
 
-    # TODO There's a bug in the make clean functions that seem to invoke a full make
-    # if [[ -d "$GITWORKTREEDIR" ]]; then
-    #     execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
-    #     execute git -C "$GITWORKTREEDIR" pull
-    # else
-    #     execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
-    # fi
+  # To workaround bug, don't use make *clean, blow it away and start fresh
+  [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR"
+  execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
 
-
-    # To workaround bug, don't use make *clean, blow it away and start fresh
-    [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR"
-    execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
-
-    # Print commit information
-    commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
-    description=$(git -C "$GITWORKTREEDIR" describe)
-    echo "Current commit hash: $commit"
-    echo "Git worktree description: $description"
-    
-    if (( DEBUG )); then
-        if (( YES )); then
-            git --no-pager -C "$GITWORKTREEDIR" log -1
-        else
-            git -C "$GITWORKTREEDIR" log -1
-        fi
+  # Print commit information
+  commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
+  description=$(git -C "$GITWORKTREEDIR" describe)
+  echo "Current commit hash: $commit"
+  echo "Git worktree description: $description"
+  
+  if ((DEBUG)); then
+    if ((YES)); then
+      git --no-pager -C "$GITWORKTREEDIR" log -1
+    else
+      git -C "$GITWORKTREEDIR" log -1
     fi
+  fi
 
-    # Enter worktree
-    execute pushd "$GITWORKTREEDIR" || return 1
+  # Enter worktree
+  execute pushd "$GITWORKTREEDIR" || return 1
 
-    # Update package feed
-    ./scripts/feeds update -i -f &&
-    ./scripts/feeds update -a -f &&
-    ./scripts/feeds install -a -f
+  # Update package feed
+  ./scripts/feeds update -i -f &&
+  ./scripts/feeds update -a -f &&
+  ./scripts/feeds install -a -f
 
-    # Grab the release seed config
-    if ! execute curl -so "$seed_file" "$SEED_URL"; then
-        echo "Could not obtain $seed_file from $SEED_URL"
-        return 1
+  # Grab the release seed config
+  if ! execute "$DL_TOOL" "-o" "$seed_file" "$seed_url"; then
+    echo "Could not obtain $seed_file from $seed_url"
+    return 1
+  fi
+
+  # Set compilation output dir
+  config_opts+=("CONFIG_BINARY_FOLDER=\"$BINDIR\"")
+
+  # Add custom packages
+  for pkg in $PACKAGES; do
+    if [[ $pkg == -* ]]; then
+      config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
+    else
+      config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
     fi
+  done
 
-    # Set compilation output dir
-    config_opts+=("CONFIG_BINARY_FOLDER=\"$BINDIR\"")
+  # Add config options from profile
+  for config in ${P_ARR[config]}; do
+    config_opts+=("$config")
+  done
 
-    # Add custom packages
-    for pkg in $PACKAGES; do
-        if [[ $pkg == -* ]]; then
-            config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
-        else
-            config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
-        fi
-    done
+  # Only compile selected fs
+  execute sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
+  config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
+  if [[ $FILESYSTEM == "squashfs" ]]; then
+    config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=n")
+    config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y")
+  elif [[ $FILESYSTEM == "ext4" ]]; then
+    config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=n")
+    config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=y")
+  fi
 
-    # Add config options from profile
-    for config in ${P_ARR[config]}; do
-        config_opts+=("$config")
-    done
+  # Only compile selected target image
+  execute sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
+  config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
+  config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_$DEVICE")
+  config_opts+=("CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y")
+  config_opts+=("CONFIG_SDK=n")
+  config_opts+=("CONFIG_SDK_LLVM_BPF=n")
+  config_opts+=("CONFIG_IB=n")
+  config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
+  
+  # Write options to config seed file
+  for config in "${config_opts[@]}"; do
+    debug "Writing $config to $seed_file"
+    echo "$config" >> "$seed_file"
+  done
 
-    # Only compile selected fs
-    execute sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
-    config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
-    if [[ $FILESYSTEM == "squashfs" ]]; then
-        config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=n")
-        config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y")
-    elif [[ $FILESYSTEM == "ext4" ]]; then
-        config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=n")
-        config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=y")
-    fi
+  # Cleaning modes
+  # make clean # compiled output
+  # make targetclean # compiled output, toolchain
+  # make dirclean # compiled output, toolchain, build tools
+  # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
-    # Only compile selected target image
-    execute sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
-    config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
-    config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_$DEVICE")
-    config_opts+=("CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y")
-    config_opts+=("CONFIG_SDK=n")
-    config_opts+=("CONFIG_SDK_LLVM_BPF=n")
-    config_opts+=("CONFIG_IB=n")
-    config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
-    
-    # Write options to config seed file
-    for config in "${config_opts[@]}"; do
-        debug "Writing $config to $seed_file"
-        echo "$config" >> "$seed_file"
-    done
+  # Make prep
+  ((DEBUG)) && make_opts+=("V=s")
+  #execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
+  execute make "${make_opts[@]}" "-j1" defconfig
+  execute make "${make_opts[@]}" "-j1" download
 
-    # Cleaning modes
-    # make clean # compiled output
-    # make targetclean # compiled output, toolchain
-    # make dirclean # compiled output, toolchain, build tools
-    # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
+  # Make image
+  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" "-j$(($(nproc)+1))" world; then
+    echo "Error: make failed"
+    return 1
+  fi
 
-    # Make prep
-    (( DEBUG )) && make_opts+=("V=s")
-    #execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
-    execute make "${make_opts[@]}" "-j1" defconfig
-    execute make "${make_opts[@]}" "-j1" download
+  popd || return 1
 
-    # Make image
-    if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" "-j$(($(nproc)+1))" world; then
-        echo "Error: make failed"
-        return 1
-    fi
+  # Symlink output images to root of BINDIR (match Image Builder)
+  shopt -s nullglob
+  for image in "$BINDIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
+    ln -fs "$image" "$BINDIR/${image##*/}"
+  done
+  shopt -u nullglob
 
-    popd || return 1
-
-    # Symlink output images to root of BINDIR (match Image Builder)
-    shopt -s nullglob
-    for image in "$BINDIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
-        ln -fs "$image" "$BINDIR/${image##*/}"
-    done
-    shopt -u nullglob
-
-    return 0
+  return 0
 }
 
 # Generic helpers
-debug() { (( DEBUG )) && echo "Debug: $*"; }
-askOk() {
-    (( YES )) && return
-    local r
-    read -r -p "$* [y/N]: " r
-    r=${r,,}
-    [[ "$r" =~ ^(yes|y)$ ]]
+debug() { ((DEBUG)) && echo "Debug: $*"; }
+ask_ok() {
+  ((YES)) && return
+  local r
+  read -r -p "$* [y/N]: " r
+  r=${r,,}
+  [[ "$r" =~ ^(yes|y)$ ]]
 }
 extract() {
-    debug "${FUNCNAME[0]}"
-    declare archive="$1"
-    declare out_dir="$2"
-    if ! execute tar -axf "$archive" -C "$out_dir" --strip-components 1; then
-        echo "Extraction failed"
-        return 1
-    fi
+  debug "${FUNCNAME[0]}" "$*"
+  local archive="$1"
+  local out_dir="$2"
+  if ! execute tar -axf "$archive" -C "$out_dir" --strip-components 1; then
+    echo "Extraction failed"
+    return 1
+  fi
 }
 verify() {
-    debug "${FUNCNAME[0]}"
-    declare file_to_check="$1"
-    declare sumfile="$2"
-    declare checksum
+  debug "${FUNCNAME[0]}" "$*"
+  local file_to_check="$1"
+  local sumfile="$2"
+  local checksum
 
-    hash sha256sum &>/dev/null || return 1
-    [[ -f $sumfile && -f $file_to_check ]] || return 1
-    checksum=$(grep "${file_to_check##*/}" "$sumfile" | cut -f1 -d' ')
-    echo -n "$checksum $file_to_check" | sha256sum --check --status
+  hash sha256sum &>/dev/null || return 1
+  [[ -f $sumfile && -f $file_to_check ]] || return 1
+  checksum=$(grep "${file_to_check##*/}" "$sumfile" | cut -f1 -d' ')
+  echo -n "$checksum $file_to_check" | sha256sum --check --status
 }
 load() {
-    debug "${FUNCNAME[0]}"
-    declare source_file="$1"
-    # shellcheck disable=SC1090
-    [[ -f $source_file ]] && source "$source_file"
+  debug "${FUNCNAME[0]}" "$*"
+  local source_file="$1"
+  # shellcheck disable=SC1090
+  [[ -f $source_file ]] && source "$source_file"
 }
 execute() {
-    if debug "$*"; then
-        "$@"
-    else
-        "$@" &>/dev/null
-    fi
+  if debug "$*"; then
+    "$@"
+  else
+    "$@" &>/dev/null
+  fi
 }
 
-
 main() {
-    debug "${FUNCNAME[0]}"
+  debug "${FUNCNAME[0]}"
 
-    init
+  init
+  load "$SCRIPTDIR/profiles"
+  parse_input "$@"
 
-    load "$SCRIPTDIR/profiles"
-   
-    readInput "$@"
+  # Fallback to SCRIPTDIR if BUILDROOT has not been set
+  declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
+  declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
 
-    # Fallback to SCRIPTDIR if BUILDROOT has not been set
-    declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
-    declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
+  # This could be dangerous
+  if [[ $BUILDROOT == "/" ]]; then
+    echo "Invalid --buildroot"
+    exit 1
+  fi
 
-    # This could be dangerous
-    if [[ $BUILDROOT == "/" ]]; then
-        echo "Invalid --buildroot"
-        exit 1
+  for dir in "$BUILDROOT/src" "$BUILDROOT/bin"; do
+    [[ -d "$dir" ]] || execute mkdir -p "$dir"
+  done
+
+  # Allow --reset without a profile
+  if ((RESET)) && [[ ${#PROFILES} -lt 1 ]]; then
+    for d in "$BUILDROOT/src" "$BUILDROOT/bin"; do
+      ask_ok "Remove $d?" && execute rm -rf "$d"
+    done
+    exit $?
+  fi
+
+  install_dependencies
+
+  for profile in "${PROFILES[@]}"; do
+    debug "Running profile: $profile"
+
+    if [[ ! ${!profile@a} = A ]]; then
+      echo "Profile '$profile' does not exist"
+      return 1
     fi
 
-    for dir in "$BUILDROOT/src" "$BUILDROOT/bin"; do
-        [[ -d "$dir" ]] || mkdir -p "$dir"
-    done
+    # Store profile in P_ARR nameref
+    declare -gn P_ARR="$profile"
+    declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
+    declare -g TARGET="${P_ARR[target]}"
+    declare -g DEVICE="${P_ARR[device]}"
+    declare -g PACKAGES="${P_ARR[packages]:-}"
+    declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
 
-    # Allow --reset without a profile
-    if (( RESET )) && [[ ${#PROFILES} -lt 1 ]]; then
-        for d in "$BUILDROOT/src" "$BUILDROOT/bin"; do
-            askOk "Remove $d?" && execute rm -rf "$d"
-        done
-        exit $?
+    # normalize RELEASE
+    case "$RELEASE" in
+      snapshot|latest|main|master) RELEASE="snapshot" ;;
+      v[0-9][0-9].[0-9][0-9].*) RELEASE="${RELEASE#v}" ;;
+      [0-9][0-9].[0-9][0-9].*) ;;
+      *)
+        if ! ((FROM_SOURCE)); then
+          echo "Error: Invalid release version format"
+          echo "Use semantic version, tag, or 'snapshot'"
+          exit 1
+        fi
+        ;;
+    esac
+
+    declare -g GITSRCDIR="$BUILDROOT/src/openwrt"
+    declare -g GITWORKTREEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
+    declare -g BUILDDIR="$BUILDROOT/src/$profile/$RELEASE"
+    declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
+
+    if [[ "$RELEASE" == "snapshot" ]]; then
+      declare url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
+      declare url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.zst"
+      declare img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
+    else
+      declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
+      declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
+      declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
     fi
 
-    installDependencies
+    local ib_url="$url_prefix/$url_filename"
+    local ib_file="$BUILDDIR/$url_filename"
+    local ib_sha256_url="$url_prefix/sha256sums"
+    local ib_sha256_file="$BUILDDIR/sha256sums"
+    local seed_url="$url_prefix/config.buildinfo"
 
-    for profile in "${PROFILES[@]}"; do
-        debug "Starting profile: $profile"
+    if ((FROM_SOURCE)); then
+      declare -g SYSUPGRADEIMGGZ="$BINDIR/targets/$img_fname-sysupgrade.img.gz"
+    else
+      declare -g SYSUPGRADEIMGGZ="$BUILDDIR/$img_fname-sysupgrade.img.gz"
+    fi
 
-        if [[ ! ${!profile@a} = A ]]; then
-            echo "Profile '$profile' does not exist"
-            return 1
-        fi
+    if ((RESET)); then
+      if ((FROM_SOURCE)); then
+        [[ -d $GITWORKTREEDIR ]] && ask_ok "Remove $GITWORKTREEDIR?"
+          execute git worktree remove --force "$GITWORKTREEDIR"
+          execute rm -rf "$GITWORKTREEDIR"
+      elif [[ -d $BUILDDIR ]] && ask_ok "Remove $BUILDDIR?"; then
+        execute rm -rf "$BUILDDIR"
+      fi
+    fi
 
-        # Store profile in P_ARR nameref
-        declare -gn P_ARR="$profile"
+    if ((DEBUG)); then
+      echo "Profile settings:"
+      for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
+      echo "Environement variables:"
+      declare -p
+    fi
 
-        # Load profile
-        declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
-        declare -g TARGET="${P_ARR[target]}"
-        declare -g DEVICE="${P_ARR[device]}"
-        declare -g PACKAGES="${P_ARR[packages]:-}"
+    if ((FROM_SOURCE)); then
+      from_source "$seed_url" || return $?
+    else
+      [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
+      get_imagebuilder "$ib_url" "$ib_file" "$ib_sha256_url" "$ib_sha256_file" && 
+      verify "$ib_file" "$ib_sha256_file" &&
+      extract "$ib_file" "$BUILDDIR" || return $?
+      add_repos
+      make_images &&
+      verify_images
+      #copyFiles
+    fi
 
-        # Release precedence: user input>profile>env>hardcode
-        declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
-
-        # normalize release input
-        case "$RELEASE" in
-            snapshot|latest|main|master) # normalize aliases
-                RELEASE="snapshot"
-                ;;
-            v[0-9][0-9].[0-9][0-9].*) # tag to semantic
-                RELEASE="${RELEASE#v}"
-                ;;
-            [0-9][0-9].[0-9][0-9].*)
-                ;;
-            *)
-                if ! (( FROM_SOURCE )); then
-                    echo "Error: Invalid release version format"
-                    echo "Use semantic version, tag, or 'snapshot'"
-                    exit 1
-                fi
-                ;;
-        esac
-
-        declare -g GITSRCDIR="$BUILDROOT/src/openwrt"
-        declare -g GITWORKTREEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
-        declare -g BUILDDIR="$BUILDROOT/src/$profile/$RELEASE"
-        declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
-
-        if (( RESET )); then
-            if (( FROM_SOURCE )); then
-                [[ -d $GITWORKTREEDIR ]] && askOk "Remove $GITWORKTREEDIR?"
-                    execute git worktree remove --force "$GITWORKTREEDIR"
-                    execute rm -rf "$GITWORKTREEDIR"
-            elif [[ -d $BUILDDIR ]] && askOk "Remove $BUILDDIR?"; then
-                execute rm -rf "$BUILDDIR"
-            fi
-        fi
-
-        if [[ "$RELEASE" == "snapshot" ]]; then
-            declare url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
-            declare url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.zst"
-            declare img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
-        else
-            declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
-            declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
-            declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
-        fi
-
-        declare ib_url="$url_prefix/$url_filename"
-
-        if (( FROM_SOURCE )); then
-            declare -g SYSUPGRADEIMGGZ="$BINDIR/targets/$img_fname-sysupgrade.img.gz"
-            declare -g SEED_URL="$url_prefix/config.buildinfo"
-        else
-            declare -g SYSUPGRADEIMGGZ="$BUILDDIR/$img_fname-sysupgrade.img.gz"
-            declare -g IB_ARCHIVE="$BUILDDIR/$url_filename"
-            declare -g IB_SHA256_URL="$url_prefix/sha256sums"
-            declare -g IB_SHA256_FILE="$IB_ARCHIVE.sha256sums"
-            declare -g IB_OUT_SHA256_FILE="$BINDIR/sha256sums"
-        fi
-
-        if (( DEBUG )); then
-            echo "Profile settings:"
-            for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
-            echo "Build settings:"
-            cat <<- EOF
-				PROFILE, P_ARR (should match)=$profile, ${!P_ARR}
-				BUILDROOT=$BUILDROOT
-				BUILDDIR=$BUILDDIR
-				GITSRCDIR=$GITSRCDIR
-				GITWORKTREEDIR=$GITWORKTREEDIR
-				BINDIR=$BINDIR
-				TARGET=$TARGET
-				DEVICE=$DEVICE
-				RELEASE=$RELEASE
-				FILESYSTEM=$FILESYSTEM
-				SYSUPGRADEIMGGZ=$SYSUPGRADEIMGGZ
-				ib_url=$ib_url
-			EOF
-        fi
-
-        if (( FROM_SOURCE )); then
-            fromSource || return $?
-        else
-            [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
-            getImageBuilder "$ib_url" && 
-            getImageBuilderChecksum &&
-            verify "$IB_ARCHIVE" "$IB_SHA256_FILE" &&
-            extract "$IB_ARCHIVE" "$BUILDDIR" || return $?
-            addRepos
-            makeImages &&
-            verifyImages
-            #copyFiles
-        fi
-
-        [[ -v SSH_BACKUP_PATH ]] && 
-            sshBackup
-        [[ -v SSH_UPGRADE_PATH ]] && 
-            sshUpgrade "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH"
-        [[ -v FLASH_DEV ]] && 
-            flashImage "$SYSUPGRADEIMGGZ" "$FLASH_DEV"
-    done
+    [[ -v SSH_BACKUP_PATH ]] && ssh_backup
+    [[ -v SSH_UPGRADE_PATH ]] && ssh_upgrade "$SYSUPGRADEIMGGZ" "$SSH_UPGRADE_PATH"
+    [[ -v FLASH_DEV ]] && flash_images "$SYSUPGRADEIMGGZ" "$FLASH_DEV"
+  done
 }
 
 main "$@"
-exit
-
-
-# VM setup (for testing)
-# sudo sgdisk -N 0 /dev/vda && 
-# sudo mkfs.ext4 /dev/vda1
-
-# mkdir ~/mnt
-# sudo mount /dev/vda1 ~/mnt
-# sudo chown liveuser:liveuser -R ~/mnt
+exit $?
