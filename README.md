@@ -1,6 +1,6 @@
 # openwrtbuilder
 
-Sanely build and deploy OpenWRT images using the Image Builder or from source code
+Sanely build and deploy OpenWRT images using the Image Builder or from source code.
 
 ## Usage
 
@@ -36,8 +36,8 @@ See `./profiles` for example device profile definitions.
 ## Examples
 
 * `./openwrtbuilder -p r4s -r snapshot --debug`
-* `./openwrtbuilder -p ax6000 -r 22.03.3 --source --debug`
-* `./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX`
+* `./openwrtbuilder -p ax6000 -r 23.05.5 --source --debug`
+* `./openwrtbuilder -p rpi4 -r 23.05.5 --flash /dev/sdX`
 * `./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1`
 
 ## Additional Info
