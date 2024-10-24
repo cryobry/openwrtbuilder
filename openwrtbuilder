@@ -398,7 +398,7 @@ getImageBuilderChecksum() {
     fi
 
     echo "Downloading Image Builder checksum using $DL_TOOL"
-    execute "$DL_TOOL -o $IB_SHA256_FILE $IB_SHA256_URL"
+    execute "wget -O $IB_SHA256_FILE $IB_SHA256_URL"
 }
 
 
