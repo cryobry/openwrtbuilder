@@ -416,11 +416,7 @@ flash_images() {
     return 1
   fi
 
-  if [[ ! -f $img_gz ]]; then
-    echo "$img_gz does not exist"
-    echo "Check your build output"
-    return 1
-  fi
+  [[ -f $img_gz ]] || { echo "$img_gz does not exist"; return 1; }
 
   execute gunzip -qfk "$img_gz"
     
@@ -443,24 +439,19 @@ ssh_upgrade() {
   local ssh_path="$2"
   local img_fname="${img_gz##*/}"
 
-  if ! [[ -f $img_gz ]]; then
-    echo "$img_gz is missing, check build output"
-    return 1
-  fi
+  [[ -f $img_gz ]] || { echo "$img_gz is missing, check build output"; return 1; }
 
   echo "Copying '$img_gz' to $ssh_path/tmp/$img_fname"
-  debug "scp $img_gz $ssh_path:/tmp/$img_fname"
-  if ! scp "$img_gz" "$ssh_path:/tmp/$img_fname"; then
+  if ! execute scp "$img_gz" "$ssh_path:/tmp/$img_fname"; then
     echo "Could not copy $img_gz to $ssh_path:/tmp/$img_fname"
     return 1
   fi
       
   echo "Executing remote sysupgrade"
-  debug "ssh $ssh_path sysupgrade -F /tmp/$img_fname"
+  # This may result in weird exit code from closing the ssh connection
   # shellcheck disable=SC2029
-  # execute remotely
-  # this will probably be a weird exit code from closed connection
   ssh "$ssh_path" "sysupgrade -F /tmp/$img_fname"
+  return 0
 }
 
 from_source() {
@@ -608,7 +599,7 @@ from_source() {
   # Symlink output images to root of BINDIR (match Image Builder)
   shopt -s nullglob
   for image in "$BINDIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
-    ln -fs "$image" "$BINDIR/${image##*/}"
+    execute ln -fs "$image" "$BINDIR/${image##*/}"
   done
   shopt -u nullglob
 
