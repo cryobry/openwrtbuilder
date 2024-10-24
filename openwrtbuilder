@@ -49,7 +49,6 @@ printHelp() {
 	EOF
 }
 
-
 init() {
     debug "${FUNCNAME[0]}"
 
@@ -140,7 +139,6 @@ init() {
         return 1
     fi
 }
-
 
 readInput() {
     debug "${FUNCNAME[0]}"
@@ -367,7 +365,6 @@ installDependencies() {
     
 }
 
-
 getImageBuilder() {
     debug "${FUNCNAME[0]}"
 
@@ -385,7 +382,6 @@ getImageBuilder() {
     execute "$DL_TOOL" "-o" "$IB_ARCHIVE" "$url"
 }
 
-
 getImageBuilderChecksum() {
     debug "${FUNCNAME[0]}"
 
@@ -398,7 +394,7 @@ getImageBuilderChecksum() {
     fi
 
     echo "Downloading Image Builder checksum using $DL_TOOL"
-    execute "wget -O $IB_SHA256_FILE $IB_SHA256_URL"
+    "$DL_TOOL" "-o" "$IB_SHA256_FILE" "$IB_SHA256_URL"
 }
 
 
