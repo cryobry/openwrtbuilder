@@ -1,5 +1,7 @@
 src/
 bin/
+.vscode/
 .dependencies
 .dependencies_sc
 .dependencies_ib
+
