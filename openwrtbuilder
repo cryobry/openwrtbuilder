@@ -192,7 +192,8 @@ install_dependencies() {
           "perl-JSON-PP"
           "swig"
           "clang" # for qosify
-          "llvm15-libs")
+          "llvm15-libs"
+          "patch")
         ;;
       debian|ubuntu)
         pkg_list+=(
@@ -211,7 +212,8 @@ install_dependencies() {
           "unzip"
           "zlib1g-dev"
           "file"
-          "wget")
+          "wget"
+          "patch")
         ;;
       arch)
         pkg_list+=(
@@ -252,7 +254,8 @@ install_dependencies() {
           "util-linux"
           "wget"
           "which"
-          "zlib")
+          "zlib"
+          "patch")
         ;;
       *)
         debug "Skipping dependency install, your OS is unsupported"
@@ -306,7 +309,6 @@ install_dependencies() {
   [[ -f $lock_file ]] && return
     
   pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
-  
 }
 
 get_imagebuilder() {
@@ -383,6 +385,11 @@ make_images() {
       return 0
     fi
   fi
+
+  debug make image BIN_DIR="$BINDIR" \
+    PROFILE="$DEVICE" PACKAGES="$PACKAGES" \
+    FILES="$FILESDIR" --directory="$BUILDDIR" \
+    --jobs="$(($(nproc) - 1))"
 
   make image \
     BIN_DIR="$BINDIR" \
