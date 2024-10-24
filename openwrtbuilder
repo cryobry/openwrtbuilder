@@ -401,16 +401,6 @@ make_images() {
     > "$BUILDDIR/make.log"
 }
 
-verify_images() {
-  debug "${FUNCNAME[0]}" "$*"
-  local sha256_file="$1"
-  local outfile
-
-  for outfile in "$BINDIR"/*.img.gz; do
-    verify "$outfile" "$sha256_file" || return 1
-  done
-}
-
 flash_images() {
   debug "${FUNCNAME[0]}"
   local img_gz="$1"
@@ -732,13 +722,13 @@ main() {
     declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
 
     if [[ "$RELEASE" == "snapshot" ]]; then
-      declare url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
-      declare url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.zst"
-      declare img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
+      local url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
+      local url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.zst"
+      local img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
     else
-      declare url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
-      declare url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
-      declare img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
+      local url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
+      local url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
+      local img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
     fi
 
     local ib_url="$url_prefix/$url_filename"
@@ -766,7 +756,7 @@ main() {
     if ((DEBUG)); then
       echo "Profile settings:"
       for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
-      echo "Environement variables:"
+      echo "Environment variables:"
       declare -p
     fi
 
@@ -778,8 +768,11 @@ main() {
       verify "$ib_file" "$ib_sha256_file" &&
       extract "$ib_file" "$BUILDDIR" || return $?
       add_repos
-      make_images &&
-      verify_images "$ib_sha256_file"
+      make_images
+      # Verify output iamges
+      for outfile in "$BINDIR"/*.img.gz; do
+        verify "$outfile" "$ib_sha256_file" || return 1
+      done
       #copyFiles
     fi
 
