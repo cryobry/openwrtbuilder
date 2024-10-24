@@ -772,10 +772,15 @@ main() {
       extract "$ib_file" "$BUILDDIR" || return $?
       add_repos
       make_images
-      # Verify output iamges
-      for outfile in "$BINDIR"/*.img.gz; do
-        verify "$outfile" "$ib_sha256_file" || return 1
-      done
+      # Verify output image for stock builds (in testing)
+      if [[ ! -v P_ARR[packages] || -z ${P_ARR[packages]} ]]; then
+        shopt -s nullglob
+        local -a outfiles=("$BINDIR"/*.img.gz "$BINDIR"/*.img)
+        shopt -u nullglob
+        for outfile in "${outfiles[@]}"; do
+          verify "$outfile" "$ib_sha256_file" || return 1
+        done
+      fi
       #copyFiles
     fi
 

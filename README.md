@@ -11,20 +11,21 @@ Sanely build and deploy OpenWRT images using the Image Builder or from source co
 ```(text)
 --profile,-p PROFILE
 --release,-r,--version,-v RELEASE ("snapshot", "22.03.3")
---buildroot,-b PATH
-    Default: location of openwrtbuilder script
+--buildroot,-b PATH (Default: script directory)
 --source
-    Build image from source, not from Image Builder
-    Allows make config options to be passed
+  Build image from source, not from Image Builder
+  Allows make config options to be passed in profile
 --ssh-upgrade HOST
-    Example: root@192.168.1.1
+  Example: root@192.168.1.1
 --ssh-backup SSH_PATH
-    Enabled by default for --ssh-upgrade
+  Enabled by default for --ssh-upgrade
 --flash,-f DEVICE
-    Example: /dev/sdX
+  Example: /dev/sdX
 --reset
-    Cleanup all source and output files
-    Can be combined with -p to reset a specific profile
+  Cleanup all source and output files
+  Can be combined with -p to reset a specific profile
+--yes,-y
+  Assume yes for all questions (automatic mode)
 --debug,-d
 --help,-h
 ```
