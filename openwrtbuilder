@@ -508,13 +508,7 @@ from_source() {
   echo "Current commit hash: $commit"
   echo "Git worktree description: $description"
   
-  if ((DEBUG)); then
-    if ((YES)); then
-      git --no-pager -C "$GITWORKTREEDIR" log -1
-    else
-      git -C "$GITWORKTREEDIR" log -1
-    fi
-  fi
+  ((DEBUG)) && git --no-pager -C "$GITWORKTREEDIR" log -1
 
   # Enter worktree
   execute pushd "$GITWORKTREEDIR" || return 1
