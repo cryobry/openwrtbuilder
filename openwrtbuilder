@@ -579,9 +579,10 @@ from_source() {
   #execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
   execute make "${make_opts[@]}" "-j1" defconfig
   execute make "${make_opts[@]}" "-j1" download
+  ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)+1))")
 
   # Make image
-  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" "-j$(($(nproc)+1))" world; then
+  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" world; then
     echo "Error: make failed"
     return 1
   fi
