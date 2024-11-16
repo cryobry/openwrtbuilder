@@ -183,6 +183,7 @@ install_dependencies() {
             "which"
             "diffutils"
             "python3"
+            "python3-devel"
             "python3-setuptools"
             "python3-pyelftools"
             "perl-base"
