@@ -380,13 +380,13 @@ make_images() {
   debug "${FUNCNAME[0]}"
 
   # Reuse the existing output
-  if [[ -d "$BINDIR" ]]; then
-    if ask_ok "$BINDIR exists. Rebuild?"; then
-      execute rm -rf "$BINDIR"
-    else
-      return 0
-    fi
-  fi
+  # if [[ -d "$BINDIR" ]]; then
+  #   if ask_ok "$BINDIR exists. Rebuild?"; then
+  #     execute rm -rf "$BINDIR"
+  #   else
+  #     return 0
+  #   fi
+  # fi
 
   debug make image BIN_DIR="$BINDIR" \
     PROFILE="$DEVICE" PACKAGES="$PACKAGES" \
