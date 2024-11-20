@@ -473,9 +473,7 @@ from_source() {
  
   # Generate commitish for git worktree
   case "$RELEASE" in
-    snapshot)
-      wt_commit="origin/main"
-      ;;
+    snapshot) wt_commit="origin/main" ;;
     [0-9][0-9].[0-9][0-9].*)
       local branch="openwrt-${RELEASE%.*}"
       local tag="v$RELEASE"
@@ -492,16 +490,16 @@ from_source() {
   esac
 
   # TODO There's a bug in the make clean functions that seem to invoke a full make
-  # if [[ -d "$GITWORKTREEDIR" ]]; then
-  #   execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
-  #   execute git -C "$GITWORKTREEDIR" pull
-  # else
-  #   execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
-  # fi
+  if [[ -d "$GITWORKTREEDIR" ]]; then
+    execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
+    execute git -C "$GITWORKTREEDIR" pull
+  else
+    execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
+  fi
 
   # To workaround bug, don't use make *clean, blow it away and start fresh
-  [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR"
-  execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
+  # [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR"
+  # execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
 
   # Print commit information
   commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
