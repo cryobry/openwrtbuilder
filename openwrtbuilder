@@ -81,15 +81,15 @@ init() {
     raspbian) ID="debian" ;;
     *)
       echo "Autodetecting distro, this may be unreliable"
-      if hash dnf &>/dev/null; then
+      if command -v dnf &>/dev/null; then
         ID="fedora"
         RPM_MGR="dnf"
-      elif hash yum &>/dev/null; then
+      elif command -v yum &>/dev/null; then
         ID="centos"
         RPM_MGR="yum"
-      elif hash apt &>/dev/null; then
+      elif command -v apt &>/dev/null; then
         ID="ubuntu"
-      elif hash pacman &>/dev/null; then
+      elif command -v pacman &>/dev/null; then
         ID="arch"
       else
         return 1
@@ -425,7 +425,7 @@ flash_images() {
 
   if execute sudo dd if="$img" of="$dev" bs=2M conv=fsync; then
     sync
-    echo "Image flashed sucessfully!"
+    echo "Image flashed successfully!"
   else
     echo "dd failed!"
     return 1
@@ -622,7 +622,7 @@ verify() {
   local sumfile="$2"
   local checksum
 
-  hash sha256sum &>/dev/null || return 1
+  command -v sha256sum &>/dev/null || return 1
   [[ -f $sumfile && -f $file_to_check ]] || return 1
   checksum=$(grep "${file_to_check##*/}" "$sumfile" | cut -f1 -d' ')
   echo -n "$checksum $file_to_check" | sha256sum --check --status

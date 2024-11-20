@@ -46,12 +46,13 @@ r4s['packages']="\
 	curl \
 	ethtool \
 	ca-bundle"
-# The following are source mode only
+# The following only work in --source mode
 r4s['config']="\
 	CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y \
 	CONFIG_BTRFS_PROGS_ZSTD=y \
 	CONFIG_TARGET_ROOTFS_PARTSIZE=512 \
-	CONFIG_TARGET_KERNEL_PARTSIZE=32"
+	CONFIG_TARGET_KERNEL_PARTSIZE=32 \
+	CONFIG_BUILDBOT=n"
 r4s['files']="\
 	/mnt/backup"
 
