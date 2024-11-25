@@ -575,7 +575,7 @@ from_source() {
 
   # Make prep
   ((DEBUG)) && make_opts+=("V=s")
-  #execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
+  execute make "${make_opts[@]}" "-j1" distclean # TODO 'dirclean' has a bug that triggers menuconfig
   execute make "${make_opts[@]}" "-j1" defconfig
   execute make "${make_opts[@]}" "-j1" download
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)+1))")
