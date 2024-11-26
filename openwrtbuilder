@@ -2,7 +2,7 @@
 # Builds and deploys OpenWRT images
 # Copyright 2022-24 Bryan C. Roessler
 # Apache 2.0 License
-# See README.md and ./profiles
+# See README.md and ./profiles for device configuration
 
 # Set default release
 : "${RELEASE:="23.05.5"}"
