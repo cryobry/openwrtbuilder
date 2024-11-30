@@ -156,7 +156,7 @@ install_dependencies() {
   local -a pkg_list
   local lock_file
   if ((FROM_SOURCE)); then
-    lock_file="$BUILDROOT/.dependencies_sc"
+    lock_file="$BUILDROOT/.dependencies_source"
   else
     lock_file="$BUILDROOT/.dependencies_ib"
   fi
@@ -309,9 +309,9 @@ install_dependencies() {
           ;;
       esac
     fi
+    
+    pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
   fi
-
-  pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
 }
 
 get_imagebuilder() {
@@ -397,7 +397,7 @@ make_images() {
     BIN_DIR="$BINDIR" \
     PROFILE="$DEVICE" \
     PACKAGES="$PACKAGES" \
-    FILES="$FILESDIR" \
+    FILES="$FILESDIR" \make_images(
     --directory="$BUILDDIR" \
     --jobs="$(($(nproc) - 1))"  \
     > "$BUILDDIR/make.log"
