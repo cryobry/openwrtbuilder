@@ -101,7 +101,7 @@ init() {
 
   # Set distro-specific functions
   case "$ID" in
-    fedora|centos) pkg_install(){ sudo "$RPM_MGR" install --skip-unavailable -y "$@"; } ;;
+    fedora|centos) pkg_install(){ sudo "$RPM_MGR" install -y "$@"; } ;;
     debian|ubuntu) pkg_install(){ sudo apt-get install --ignore-missing -y -q0 "$@"; } ;;
     suse) pkg_install(){ sudo zypper --non-interactive -q install --force --no-confirm "$@"; } ;;
     arch) pkg_install(){ sudo pacman -S --noconfirm --needed "$@"; } ;;
