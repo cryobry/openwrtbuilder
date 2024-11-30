@@ -616,6 +616,22 @@ extract() {
     return 1
   fi
 }
+backup_image() {
+  debug "${FUNCNAME[0]} $*"
+  local file="$1"
+  local dir="$2"
+  local count=1
+  [[ -f $file ]] || return
+  local creation_date
+  creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" | cut -d' ' -f1)
+  execute mkdir -p "$dir"
+  local base_name
+  base_name=$(basename "$file")
+  while [[ -e "$dir/$creation_date-$base_name.bk.$count" ]]; do
+    ((count++))
+  done
+  execute mv "$file" "$dir/$creation_date-$base_name.bk.$count"
+}
 verify() {
   debug "${FUNCNAME[0]}" "$*"
   local file_to_check="$1"
@@ -651,6 +667,7 @@ main() {
   # Fallback to SCRIPTDIR if BUILDROOT has not been set
   declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
   declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
+  declare -g BACKUPDIR="$SCRIPTDIR/backups"
 
   # This could be dangerous
   if [[ $BUILDROOT == "/" ]]; then
@@ -728,6 +745,8 @@ main() {
     else
       declare -g SYSUPGRADEIMGGZ="$BUILDDIR/$img_fname-sysupgrade.img.gz"
     fi
+
+    backup_image "$SYSUPGRADEIMGGZ" "$BACKUPDIR/$profile/$RELEASE"
 
     if ((RESET)); then
       if ((FROM_SOURCE)); then
