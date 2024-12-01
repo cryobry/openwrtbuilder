@@ -618,19 +618,15 @@ extract() {
 }
 backup_image() {
   debug "${FUNCNAME[0]} $*"
-  local file="$1"
-  local dir="$2"
-  local count=1
+  local file="$1" dir="$2" count=1
   [[ -f $file ]] || return 1
   local creation_date
   creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" | cut -d' ' -f1)
+  creation_date=${creation_date:-unknown} # Default to "unknown" if no creation date
+  [[ "$creation_date" == "-" ]] && creation_date="unknown"
+  local base_name; base_name=$(basename "$file")
   execute mkdir -p "$dir"
-  local base_name
-  base_name=$(basename "$file")
-  while [[ -e "$dir/$creation_date-$base_name.bk.$count" ]]; do
-    ((count++))
-  done
-  debug mv "$file" "$dir/$creation_date-$base_name.bk.$count"
+  while [[ -e "$dir/$creation_date-$base_name.bk.$count" ]]; do ((count++)); done
   execute mv "$file" "$dir/$creation_date-$base_name.bk.$count"
 }
 verify() {
