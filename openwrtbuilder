@@ -46,13 +46,13 @@ print_help() {
 
 init() {
   debug "${FUNCNAME[0]}"
-  declare -g ID RPM_MGR SCRIPTDIR DL_TOOL
+  declare -g ID RPM_MGR SCRIPT_DIR DL_TOOL
 
   ((DEBUG)) || echo "To enable debugging output, use --debug or -d"
 
   # Save the script directory
   # https://stackoverflow.com/a/4774063
-  SCRIPTDIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
+  SCRIPT_DIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
 
   if [[ -e "/etc/os-release" ]]; then
     source "/etc/os-release"
@@ -129,7 +129,7 @@ parse_input() {
       case "$1" in
         --release|-r|--version|-v) shift; declare -g USER_RELEASE="$1" ;;
         --profile|-p) shift; PROFILES+=("$1") ;;
-        --buildroot|-b) shift; BUILDROOT="$1" ;;
+        --buildroot|-b) shift; BUILD_ROOT="$1" ;;
         --source|-s) FROM_SOURCE=1 ;;
         --ssh-upgrade) shift; SSH_UPGRADE_PATH="$1" ;;
         --ssh-backup) shift; SSH_BACKUP_PATH="$1" ;;
@@ -156,9 +156,9 @@ install_dependencies() {
   local -a pkg_list
   local lock_file
   if ((FROM_SOURCE)); then
-    lock_file="$BUILDROOT/.dependencies_source"
+    lock_file="$BUILD_ROOT/.dependencies_source"
   else
-    lock_file="$BUILDROOT/.dependencies_ib"
+    lock_file="$BUILD_ROOT/.dependencies_ib"
   fi
 
   if [[ ! -f $lock_file ]]; then
@@ -309,7 +309,7 @@ install_dependencies() {
           ;;
       esac
     fi
-    
+
     pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
   fi
 }
@@ -339,10 +339,10 @@ add_repos() {
   debug "${FUNCNAME[0]}"
 
   if [[ -v P_ARR[repo] ]]; then
-    if ! grep -q "${P_ARR[repo]}" "$BUILDDIR/repositories.conf"; then
-      echo "${P_ARR[repo]}" >> "$BUILDDIR/repositories.conf"
+    if ! grep -q "${P_ARR[repo]}" "$BUILD_DIR/repositories.conf"; then
+      echo "${P_ARR[repo]}" >> "$BUILD_DIR/repositories.conf"
     fi
-    sed -i '/option check_signature/d' "$BUILDDIR/repositories.conf"
+    sed -i '/option check_signature/d' "$BUILD_DIR/repositories.conf"
   fi
 }
 
@@ -353,7 +353,7 @@ ssh_backup() {
   hostname=$(ssh -qt "$SSH_BACKUP_PATH" echo -n \$HOSTNAME)
   backup_fname="backup-$hostname-$date.tar.gz"
 
-  [[ -d "$FILESDIR" ]] || execute mkdir -p "$FILESDIR"
+  [[ -d "$FILES_DIR" ]] || execute mkdir -p "$FILES_DIR"
 
   # Make backup archive on remote
   if ! execute "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$backup_fname"; then
@@ -362,45 +362,45 @@ ssh_backup() {
   fi
 
   # Move backup archive locally
-  if ! execute "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$backup_fname $BUILDDIR/"; then
+  if ! execute "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$backup_fname $BUILD_DIR/"; then
     echo "Could not copy SSH backup"
     exit 1
   fi
 
   # Extract backup archive
-  if ! execute "tar -C $FILESDIR -xzf $BUILDDIR/$backup_fname"; then
+  if ! execute "tar -C $FILES_DIR -xzf $BUILD_DIR/$backup_fname"; then
     echo "Could not extract SSH backup"
     exit 1
   fi
 
-  execute "rm $BUILDDIR/$backup_fname"
+  execute "rm $BUILD_DIR/$backup_fname"
 }
 
 make_images() {
   debug "${FUNCNAME[0]}"
 
   # Reuse the existing output
-  # if [[ -d "$BINDIR" ]]; then
-  #   if ask_ok "$BINDIR exists. Rebuild?"; then
-  #     execute rm -rf "$BINDIR"
+  # if [[ -d "$BIN_DIR" ]]; then
+  #   if ask_ok "$BIN_DIR exists. Rebuild?"; then
+  #     execute rm -rf "$BIN_DIR"
   #   else
   #     return 0
   #   fi
   # fi
 
-  debug make image BIN_DIR="$BINDIR" \
+  debug make image BIN_DIR="$BIN_DIR" \
     PROFILE="$DEVICE" PACKAGES="$PACKAGES" \
-    FILES="$FILESDIR" --directory="$BUILDDIR" \
+    FILES="$FILES_DIR" --directory="$BUILD_DIR" \
     --jobs="$(($(nproc) - 1))"
 
   make image \
     BIN_DIR="$BINDIR" \
     PROFILE="$DEVICE" \
     PACKAGES="$PACKAGES" \
-    FILES="$FILESDIR" \make_images(
-    --directory="$BUILDDIR" \
+    FILES="$FILES_DIR" \
+    --directory="$BUILD_DIR" \
     --jobs="$(($(nproc) - 1))"  \
-    > "$BUILDDIR/make.log"
+    > "$BUILD_DIR/make.log"
 }
 
 flash_images() {
@@ -457,19 +457,19 @@ from_source() {
   debug "${FUNCNAME[0]}" "$*"
   local seed_url="$1"
   local src_url="https://github.com/openwrt/openwrt.git"
-  local seed_file="$GITWORKTREEDIR/.config"
+  local seed_file="$WORKTREE_DIR/.config"
   local pkg config commit seed_file wt_commit description
   local -a make_opts config_opts
 
   echo "Building from source is under development"
 
   # Update source code
-  if [[ ! -d "$GITSRCDIR" ]]; then
-    execute mkdir -p "$GITSRCDIR"
-    execute git clone "$src_url" "$GITSRCDIR"
+  if [[ ! -d "$SRC_DIR" ]]; then
+    execute mkdir -p "$SRC_DIR"
+    execute git clone "$src_url" "$SRC_DIR"
   fi
 
-  git -C "$GITSRCDIR" pull
+  git -C "$SRC_DIR" pull
  
   # Generate commitish for git worktree
   case "$RELEASE" in
@@ -490,27 +490,27 @@ from_source() {
   esac
 
   # TODO There's a bug in the make clean functions that seem to invoke a full make
-  if [[ -d "$GITWORKTREEDIR" ]]; then
-    execute git -C "$GITWORKTREEDIR" checkout "$wt_commit"
-    execute git -C "$GITWORKTREEDIR" pull
+  if [[ -d "$WORKTREE_DIR" ]]; then
+    execute git -C "$WORKTREE_DIR" checkout "$wt_commit"
+    execute git -C "$WORKTREE_DIR" pull
   else
-    execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
+    execute git -C "$SRC_DIR" worktree add --force --detach "$WORKTREE_DIR" "$wt_commit"
   fi
 
   # To workaround bug, don't use make *clean, blow it away and start fresh
-  # [[ -d "$GITWORKTREEDIR" ]] && execute rm -rf "$GITWORKTREEDIR"
-  # execute git -C "$GITSRCDIR" worktree add --force --detach "$GITWORKTREEDIR" "$wt_commit"
+  # [[ -d "$WORKTREE_DIR" ]] && execute rm -rf "$WORKTREE_DIR"
+  # execute git -C "$SRC_DIR" worktree add --force --detach "$WORKTREE_DIR" "$wt_commit"
 
   # Print commit information
-  commit=$(git -C "$GITWORKTREEDIR" rev-parse HEAD)
-  description=$(git -C "$GITWORKTREEDIR" describe)
+  commit=$(git -C "$WORKTREE_DIR" rev-parse HEAD)
+  description=$(git -C "$WORKTREE_DIR" describe)
   echo "Current commit hash: $commit"
   echo "Git worktree description: $description"
   
-  ((DEBUG)) && git --no-pager -C "$GITWORKTREEDIR" log -1
+  ((DEBUG)) && git --no-pager -C "$WORKTREE_DIR" log -1
 
   # Enter worktree
-  execute pushd "$GITWORKTREEDIR" || return 1
+  execute pushd "$WORKTREE_DIR" || return 1
 
   # Update package feed
   ./scripts/feeds update -i -f &&
@@ -524,7 +524,7 @@ from_source() {
   fi
 
   # Set compilation output dir
-  config_opts+=("CONFIG_BINARY_FOLDER=\"$BINDIR\"")
+  config_opts+=("CONFIG_BINARY_FOLDER=\"$BIN_DIR\"")
 
   # Add custom packages
   for pkg in $PACKAGES; do
@@ -588,10 +588,10 @@ from_source() {
 
   popd || return 1
 
-  # Symlink output images to root of BINDIR (match Image Builder)
+  # Symlink output images to root of BIN_DIR (match Image Builder)
   shopt -s nullglob
-  for image in "$BINDIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
-    execute ln -fs "$image" "$BINDIR/${image##*/}"
+  for image in "$BIN_DIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
+    execute ln -fs "$image" "$BIN_DIR/${image##*/}"
   done
   shopt -u nullglob
 
@@ -621,7 +621,7 @@ backup_image() {
   local file="$1"
   local dir="$2"
   local count=1
-  [[ -f $file ]] || return
+  [[ -f $file ]] || return 1
   local creation_date
   creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" | cut -d' ' -f1)
   execute mkdir -p "$dir"
@@ -630,6 +630,7 @@ backup_image() {
   while [[ -e "$dir/$creation_date-$base_name.bk.$count" ]]; do
     ((count++))
   done
+  debug mv "$file" "$dir/$creation_date-$base_name.bk.$count"
   execute mv "$file" "$dir/$creation_date-$base_name.bk.$count"
 }
 verify() {
@@ -661,27 +662,27 @@ main() {
   debug "${FUNCNAME[0]}"
 
   init
-  load "$SCRIPTDIR/profiles"
+  load "$SCRIPT_DIR/profiles"
   parse_input "$@"
 
-  # Fallback to SCRIPTDIR if BUILDROOT has not been set
-  declare -g BUILDROOT="${BUILDROOT:=$SCRIPTDIR}"
-  declare -g FILESDIR="${FILESDIR:=$BUILDROOT/src/files}"
-  declare -g BACKUPDIR="$SCRIPTDIR/backups"
+  # Fallback to SCRIPT_DIR if BUILD_ROOT has not been set
+  declare -g BUILD_ROOT="${BUILD_ROOT:=$SCRIPT_DIR}"
+  declare -g FILES_DIR="${FILES_DIR:=$BUILD_ROOT/src/files}"
+  declare -g BACKUP_DIR="$SCRIPT_DIR/backups"
 
   # This could be dangerous
-  if [[ $BUILDROOT == "/" ]]; then
+  if [[ $BUILD_ROOT == "/" ]]; then
     echo "Invalid --buildroot"
     exit 1
   fi
 
-  for dir in "$BUILDROOT/src" "$BUILDROOT/bin"; do
+  for dir in "$BUILD_ROOT/src" "$BUILD_ROOT/bin"; do
     [[ -d "$dir" ]] || execute mkdir -p "$dir"
   done
 
   # Allow --reset without a profile
   if ((RESET)) && [[ ${#PROFILES} -lt 1 ]]; then
-    for d in "$BUILDROOT/src" "$BUILDROOT/bin"; do
+    for d in "$BUILD_ROOT/src" "$BUILD_ROOT/bin"; do
       ask_ok "Remove $d?" && execute rm -rf "$d"
     done
     exit $?
@@ -719,10 +720,10 @@ main() {
         ;;
     esac
 
-    declare -g GITSRCDIR="$BUILDROOT/src/openwrt"
-    declare -g GITWORKTREEDIR="$BUILDROOT/src/$profile/$RELEASE-src"
-    declare -g BUILDDIR="$BUILDROOT/src/$profile/$RELEASE"
-    declare -g BINDIR="$BUILDROOT/bin/$profile/$RELEASE"
+    declare -g SRC_DIR="$BUILD_ROOT/src/openwrt"
+    declare -g WORKTREE_DIR="$BUILD_ROOT/src/$profile/$RELEASE-src"
+    declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$RELEASE"
+    declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$RELEASE"
 
     if [[ "$RELEASE" == "snapshot" ]]; then
       local url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
@@ -735,26 +736,26 @@ main() {
     fi
 
     local ib_url="$url_prefix/$url_filename"
-    local ib_file="$BUILDDIR/$url_filename"
+    local ib_file="$BUILD_DIR/$url_filename"
     local ib_sha256_url="$url_prefix/sha256sums"
-    local ib_sha256_file="$BUILDDIR/sha256sums"
+    local ib_sha256_file="$BUILD_DIR/sha256sums"
     local seed_url="$url_prefix/config.buildinfo"
 
     if ((FROM_SOURCE)); then
-      declare -g SYSUPGRADEIMGGZ="$BINDIR/targets/$img_fname-sysupgrade.img.gz"
+      declare -g SYSUPGRADEIMGGZ="$BIN_DIR/targets/$img_fname-sysupgrade.img.gz"
     else
-      declare -g SYSUPGRADEIMGGZ="$BUILDDIR/$img_fname-sysupgrade.img.gz"
+      declare -g SYSUPGRADEIMGGZ="$BUILD_DIR/$img_fname-sysupgrade.img.gz"
     fi
 
-    backup_image "$SYSUPGRADEIMGGZ" "$BACKUPDIR/$profile/$RELEASE"
+    backup_image "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$RELEASE"
 
     if ((RESET)); then
       if ((FROM_SOURCE)); then
-        [[ -d $GITWORKTREEDIR ]] && ask_ok "Remove $GITWORKTREEDIR?"
-          execute git worktree remove --force "$GITWORKTREEDIR"
-          execute rm -rf "$GITWORKTREEDIR"
-      elif [[ -d $BUILDDIR ]] && ask_ok "Remove $BUILDDIR?"; then
-        execute rm -rf "$BUILDDIR"
+        [[ -d $WORKTREE_DIR ]] && ask_ok "Remove $WORKTREE_DIR?"
+          execute git worktree remove --force "$WORKTREE_DIR"
+          execute rm -rf "$WORKTREE_DIR"
+      elif [[ -d $BUILD_DIR ]] && ask_ok "Remove $BUILD_DIR?"; then
+        execute rm -rf "$BUILD_DIR"
       fi
     fi
 
@@ -768,16 +769,16 @@ main() {
     if ((FROM_SOURCE)); then
       from_source "$seed_url" || return $?
     else
-      [[ -d $BUILDDIR ]] || mkdir -p "$BUILDDIR"
+      [[ -d $BUILD_DIR ]] || mkdir -p "$BUILD_DIR"
       get_imagebuilder "$ib_url" "$ib_file" "$ib_sha256_url" "$ib_sha256_file" && 
       verify "$ib_file" "$ib_sha256_file" &&
-      extract "$ib_file" "$BUILDDIR" || return $?
+      extract "$ib_file" "$BUILD_DIR" || return $?
       add_repos
       make_images
       # Verify output image for stock builds (in testing)
       if [[ ! -v P_ARR[packages] || -z ${P_ARR[packages]} ]]; then
         shopt -s nullglob
-        local -a outfiles=("$BINDIR"/*.img.gz "$BINDIR"/*.img)
+        local -a outfiles=("$BIN_DIR"/*.img.gz "$BIN_DIR"/*.img)
         shopt -u nullglob
         for outfile in "${outfiles[@]}"; do
           verify "$outfile" "$ib_sha256_file" || return 1
