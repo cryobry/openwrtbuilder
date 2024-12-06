@@ -83,19 +83,18 @@ init() {
     raspbian) ID="debian" ;;
     *)
       echo "Autodetecting distro, this may be unreliable"
-      if command -v dnf &>/dev/null; then
-        ID="fedora"
-        RPM_MGR="dnf"
-      elif command -v yum &>/dev/null; then
-        ID="centos"
-        RPM_MGR="yum"
-      elif command -v apt &>/dev/null; then
-        ID="ubuntu"
-      elif command -v pacman &>/dev/null; then
-        ID="arch"
-      else
-        return 1
-      fi
+      for cmd in dnf yum apt pacman; do
+        if command -v "$cmd" &>/dev/null; then
+          case "$cmd" in
+            dnf) ID="fedora"; RPM_MGR="dnf" ;;
+            yum) ID="centos"; RPM_MGR="yum" ;;
+            apt) ID="ubuntu" ;;
+            pacman) ID="arch" ;;
+          esac
+          break
+        fi
+      done
+      [[ -z $ID ]] && return 1
       ;;
   esac
 
@@ -143,10 +142,7 @@ parse_input() {
         --verbose) VERBOSE=1 ;;
         --debug|-d) echo "Debugging on"; DEBUG=1 ;;
         --help|-h) print_help; exit 0 ;;
-        --)
-          shift
-          break
-          ;;
+        --) shift; break ;;
       esac
       shift
     done
@@ -609,7 +605,7 @@ from_source() {
   return 0
 }
 
-# Generic helpers
+# Helpers
 debug() { ((DEBUG)) && echo "Debug: $*"; }
 ask_ok() {
   ((YES)) && return
@@ -619,7 +615,6 @@ ask_ok() {
   [[ "$r" =~ ^(yes|y)$ ]]
 }
 extract() {
-  debug "${FUNCNAME[0]}" "$*"
   local archive="$1"
   local out_dir="$2"
   if ! execute tar -axf "$archive" -C "$out_dir" --strip-components 1; then
@@ -627,32 +622,28 @@ extract() {
     return 1
   fi
 }
-backup_image() {
-  debug "${FUNCNAME[0]} $*"
+backup() {
   local file="$1" dir="$2" count=1
+  local creation_date base_name backup_file
   [[ -f $file ]] || return 1
-  local creation_date
+  [[ -d $dir ]] || execute mkdir -p "$dir"
   creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" | cut -d' ' -f1)
   creation_date=${creation_date:-unknown} # Default to "unknown" if no creation date
   [[ "$creation_date" == "-" ]] && creation_date="unknown"
-  local base_name; base_name=$(basename "$file")
-  execute mkdir -p "$dir"
-  while [[ -e "$dir/$creation_date-$base_name.bk.$count" ]]; do ((count++)); done
-  execute mv "$file" "$dir/$creation_date-$base_name.bk.$count"
+  base_name="${file##*/}"
+  backup_file="$dir/$creation_date-$base_name.bk.$count"
+  while [[ -e $backup_file ]]; do ((count++)); done
+  execute mv "$file" "$backup_file"
 }
 verify() {
-  debug "${FUNCNAME[0]}" "$*"
-  local file_to_check="$1"
-  local sumfile="$2"
+  local file_to_check="$1" sum_file="$2"
   local checksum
-
   command -v sha256sum &>/dev/null || return 1
-  [[ -f $sumfile && -f $file_to_check ]] || return 1
-  checksum=$(grep "${file_to_check##*/}" "$sumfile" | cut -f1 -d' ')
+  [[ -f $sum_file && -f $file_to_check ]] || return 1
+  checksum=$(grep "${file_to_check##*/}" "$sum_file" | cut -f1 -d' ')
   echo -n "$checksum $file_to_check" | sha256sum --check --status
 }
 load() {
-  debug "${FUNCNAME[0]}" "$*"
   local source_file="$1"
   # shellcheck disable=SC1090
   [[ -f $source_file ]] && source "$source_file"
@@ -754,7 +745,7 @@ main() {
       declare -g SYSUPGRADEIMGGZ="$BUILD_DIR/$img_fname-sysupgrade.img.gz"
     fi
 
-    backup_image "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$RELEASE"
+    backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$RELEASE"
 
     if ((RESET)); then
       if ((FROM_SOURCE)); then
