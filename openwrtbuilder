@@ -742,7 +742,7 @@ main() {
     local seed_url="$url_prefix/config.buildinfo"
 
     if ((FROM_SOURCE)); then
-      declare -g SYSUPGRADEIMGGZ="$BIN_DIR/targets/$img_fname-sysupgrade.img.gz"
+      declare -g SYSUPGRADEIMGGZ="$BIN_DIR/targets/$TARGET/$img_fname-sysupgrade.img.gz"
     else
       declare -g SYSUPGRADEIMGGZ="$BUILD_DIR/$img_fname-sysupgrade.img.gz"
     fi
