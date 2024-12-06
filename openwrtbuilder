@@ -525,6 +525,10 @@ from_source() {
   ./scripts/feeds update -a -f &&
   ./scripts/feeds install -a -f
 
+  # Cleanup build environment
+  ((VERBOSE)) && make_opts+=("V=s")
+  execute make "${make_opts[@]}" "-j1" distclean # TODO 'dirclean' has a bug that triggers menuconfig
+
   # Grab the release seed config
   if ! execute "$DL_TOOL" "-o" "$seed_file" "$seed_url"; then
     echo "Could not obtain $seed_file from $seed_url"
@@ -582,8 +586,6 @@ from_source() {
   # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
   # Make prep
-  ((VERBOSE)) && make_opts+=("V=s")
-  execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
   execute make "${make_opts[@]}" "-j1" defconfig
   execute make "${make_opts[@]}" "-j1" download
   # ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)+1))")
