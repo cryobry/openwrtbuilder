@@ -168,99 +168,99 @@ install_dependencies() {
       case "$ID" in
         fedora|centos)
           pkg_list+=(
-            "bash-completion"
-            "bzip2"
-            "gcc"
-            "gcc-c++"
-            "git"
-            "make"
-            "ncurses-devel"
-            "patch"
-            "rsync"
-            "tar"
-            "unzip"
-            "wget"
-            "which"
-            "diffutils"
-            "python3"
-            "python3-devel"
-            "python3-setuptools"
-            "python3-pyelftools"
-            "perl-base"
-            "perl-Data-Dumper"
-            "perl-File-Compare"
-            "perl-File-Copy"
-            "perl-FindBin"
-            "perl-IPC-Cmd"
-            "perl-Thread-Queue"
-            "perl-Time-Piece"
-            "perl-JSON-PP"
-            "swig"
-            "clang" # for qosify
-            "llvm15-libs"
-            "patch")
+            bash-completion
+            bzip2
+            gcc
+            gcc-c++
+            git
+            make
+            ncurses-devel
+            patch
+            rsync
+            tar
+            unzip
+            wget
+            which
+            diffutils
+            python3
+            python3-devel
+            python3-setuptools
+            python3-pyelftools
+            perl-base
+            perl-Data-Dumper
+            perl-File-Compare
+            perl-File-Copy
+            perl-FindBin
+            perl-IPC-Cmd
+            perl-Thread-Queue
+            perl-Time-Piece
+            perl-JSON-PP
+            swig
+            clang # for qosify
+            llvm15-libs
+            patch)
           ;;
         debian|ubuntu)
           pkg_list+=(
-            "build-essential"
-            "clang"
-            "flex"
-            "g++"
-            "gawk"
-            "gcc-multilib"
-            "gettext"
-            "git"
-            "libncurses5-dev"
-            "libssl-dev"
-            "python3-distutils"
-            "rsync"
-            "unzip"
-            "zlib1g-dev"
-            "file"
-            "wget"
-            "patch")
+            build-essential
+            clang
+            flex
+            g++
+            gawk
+            gcc-multilib
+            gettext
+            git
+            libncurses5-dev
+            libssl-dev
+            python3-distutils
+            rsync
+            unzip
+            zlib1g-dev
+            file
+            wget
+            patch)
           ;;
         arch)
           pkg_list+=(
-            "base-devel"
-            "autoconf"
-            "automake"
-            "bash"
-            "binutils"
-            "bison"
-            "bzip2"
-            "clang"
-            "fakeroot"
-            "file"
-            "findutils"
-            "flex"
-            "gawk"
-            "gcc"
-            "gettext"
-            "git"
-            "grep"
-            "groff"
-            "gzip"
-            "libelf"
-            "libtool"
-            "libxslt"
-            "m4"
-            "make"
-            "ncurses"
-            "openssl"
-            "patch"
-            "pkgconf"
-            "python"
-            "rsync"
-            "sed"
-            "texinfo"
-            "time"
-            "unzip"
-            "util-linux"
-            "wget"
-            "which"
-            "zlib"
-            "patch")
+            base-devel
+            autoconf
+            automake
+            bash
+            binutils
+            bison
+            bzip2
+            clang
+            fakeroot
+            file
+            findutils
+            flex
+            gawk
+            gcc
+            gettext
+            git
+            grep
+            groff
+            gzip
+            libelf
+            libtool
+            libxslt
+            m4
+            make
+            ncurses
+            openssl
+            patch
+            pkgconf
+            python
+            rsync
+            sed
+            texinfo
+            time
+            unzip
+            util-linux
+            wget
+            which
+            zlib
+            patch)
           ;;
         *)
           debug "Skipping dependency install, your OS is unsupported"
@@ -272,36 +272,36 @@ install_dependencies() {
       case "$ID" in
         fedora|centos)
           pkg_list+=(
-            "@c-development" 
-            "@development-tools"
-            "@development-libs"
-            "perl-FindBin"
-            "zlib-static"
-            "elfutils-libelf-devel"
-            "gawk"
-            "unzip"
-            "file"
-            "wget"
-            "python3"
-            "python2"
-            "axel"
-            "perl-IPC-Cmd")
+            @c-development 
+            @development-tools
+            @development-libs
+            perl-FindBin
+            zlib-static
+            elfutils-libelf-devel
+            gawk
+            unzip
+            file
+            wget
+            python3
+            python2
+            axel
+            perl-IPC-Cmd)
           ;;
         debian|ubuntu)
           pkg_list+=(
-            "build-essential"
-            "libncurses5-dev"
-            "libncursesw5-dev"
-            "zlib1g-dev"
-            "gawk"
-            "git"
-            "gettext"
-            "libssl-dev"
-            "xsltproc"
-            "wget"
-            "unzip"
-            "python"
-            "axel")
+            build-essential
+            libncurses5-dev
+            libncursesw5-dev
+            zlib1g-dev
+            gawk
+            git
+            gettext
+            libssl-dev
+            xsltproc
+            wget
+            unzip
+            python
+            axel)
           ;;
         *)
           debug "Skipping dependency install, your OS is unsupported"
