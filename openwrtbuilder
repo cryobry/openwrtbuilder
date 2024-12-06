@@ -7,6 +7,7 @@
 # Set default release
 : "${RELEASE:="23.05.5"}"
 
+# @internal
 print_help() {
   debug "${FUNCNAME[0]}"
 
@@ -46,6 +47,7 @@ print_help() {
 	EOF
 }
 
+# @internal
 init() {
   debug "${FUNCNAME[0]}"
   declare -g ID RPM_MGR SCRIPT_DIR DL_TOOL
@@ -118,6 +120,7 @@ init() {
   fi
 }
 
+# @description Arguments
 parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
@@ -152,6 +155,7 @@ parse_input() {
   fi
 }
 
+# @description Install build dependencies on major distros
 install_dependencies() {
   debug "${FUNCNAME[0]}"
   local -a pkg_list
@@ -315,6 +319,7 @@ install_dependencies() {
   fi
 }
 
+# @description Acquires the OpenWRT Image Builder
 get_imagebuilder() {
   debug "${FUNCNAME[0]}" "$*"
   local -a url_file_pairs=("$@")
@@ -457,6 +462,9 @@ ssh_upgrade() {
   return 0
 }
 
+# @description Builds OpenWRT from source code using the the default buildbot as base
+# This enables the use of kernel config options in profiles
+# @arg $1 string .config seed URL
 from_source() {
   debug "${FUNCNAME[0]}" "$*"
   local seed_url="$1"
@@ -605,7 +613,40 @@ from_source() {
   return 0
 }
 
-# Helpers
+# @description Backs up a file to a chosen directory using its timestamp
+# @arg $1 string File to backup
+# @arg $2 string Directory to backup to
+backup() {
+  debug "${FUNCNAME[0]}" "$*"
+  local file="$1" dir="$2" count=1
+  local creation_date base_name backup_file
+  [[ -f $file ]] || { debug "File not found: $file"; return 1; }
+  [[ -d $dir ]] || execute mkdir -p "$dir" || { debug "Failed to create directory: $dir"; return 1; }
+  if creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" 2>/dev/null) && \
+     [[ $creation_date != "-" && -n $creation_date ]] && \
+     creation_date=$(date -d "$creation_date" +%y%m%d%H%M 2>/dev/null); then
+    debug "Creation date: $creation_date"
+  else
+    creation_date="unknown"
+    debug "Unable to determine creation date, using 'unknown'"
+  fi
+  base_name="${file##*/}"
+  backup_file="$dir/$creation_date-$base_name.bak"
+  while [[ -e $backup_file ]]; do
+    ((count++))
+    backup_file="$dir/$creation_date-$base_name.bak$count"
+  done
+  if execute mv "$file" "$backup_file"; then
+    debug "Backup created: $backup_file"
+    return 0
+  else
+    debug "Failed to create backup for: $file"
+    return 1
+  fi
+}
+
+# @section Helper functions
+# @internal
 debug() { ((DEBUG)) && echo "Debug: $*"; }
 ask_ok() {
   ((YES)) && return
@@ -621,21 +662,6 @@ extract() {
     echo "Extraction failed"
     return 1
   fi
-}
-backup() {
-  debug "BACKUP1"
-  local file="$1" dir="$2" count=1
-  local creation_date base_name backup_file
-  debug "file=$file dir=$dir count=$count"
-  [[ -f $file ]] || return 1
-  [[ -d $dir ]] || execute mkdir -p "$dir"
-  creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" | cut -d' ' -f1)
-  creation_date=${creation_date:-unknown} # Default to "unknown" if no creation date
-  [[ "$creation_date" == "-" ]] && creation_date="unknown"
-  base_name="${file##*/}"
-  backup_file="$dir/$creation_date-$base_name.bk.$count"
-  while [[ -e $backup_file ]]; do ((count++)); done
-  execute mv "$file" "$backup_file"
 }
 verify() {
   local file_to_check="$1" sum_file="$2"
@@ -658,6 +684,8 @@ execute() {
   fi
 }
 
+# @description The openwrtbuilder main function
+# @internal
 main() {
   debug "${FUNCNAME[0]}"
 
