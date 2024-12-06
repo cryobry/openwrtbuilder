@@ -33,6 +33,8 @@ print_help() {
 	    Cleanup all source and output files
 	  --yes,-y
 	    Assume yes for all questions (automatic mode)
+	  --verbose
+	    Make make or imagebuilder noisier
 	  --debug,-d
 	  --help,-h
 
@@ -120,14 +122,16 @@ init() {
 parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
+  declare -g RESET=0 FROM_SOURCE=0 YES=0 VERBOSE=0 DEBUG=0
+  declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV
   local long_opts='release:,version:,profile:,buildroot:,source,'
-  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,debug,help'
+  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,verbose,debug,help'
 
   if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
     eval set -- "$_input"
     while true; do
       case "$1" in
-        --release|-r|--version|-v) shift; declare -g USER_RELEASE="$1" ;;
+        --release|-r|--version|-v) shift; USER_RELEASE="$1" ;;
         --profile|-p) shift; PROFILES+=("$1") ;;
         --buildroot|-b) shift; BUILD_ROOT="$1" ;;
         --source|-s) FROM_SOURCE=1 ;;
@@ -136,6 +140,7 @@ parse_input() {
         --flash|-f) shift; FLASH_DEV="$1" ;;
         --reset) RESET=1 ;;
         --yes|-y) YES=1 ;;
+        --verbose) VERBOSE=1 ;;
         --debug|-d) echo "Debugging on"; DEBUG=1 ;;
         --help|-h) print_help; exit 0 ;;
         --)
@@ -378,6 +383,7 @@ ssh_backup() {
 
 make_images() {
   debug "${FUNCNAME[0]}"
+  local -a make_opts
 
   # Reuse the existing output
   # if [[ -d "$BIN_DIR" ]]; then
@@ -388,12 +394,14 @@ make_images() {
   #   fi
   # fi
 
-  debug make image BIN_DIR="$BIN_DIR" \
+  ((VERBOSE)) && make_opts+=("V=s")
+
+  debug make "${make_opts[@]}" image BIN_DIR="$BIN_DIR" \
     PROFILE="$DEVICE" PACKAGES="$PACKAGES" \
     FILES="$FILES_DIR" --directory="$BUILD_DIR" \
     --jobs="$(($(nproc) - 1))"
 
-  make image \
+  make "${make_opts[@]}" image \
     BIN_DIR="$BINDIR" \
     PROFILE="$DEVICE" \
     PACKAGES="$PACKAGES" \
@@ -574,7 +582,7 @@ from_source() {
   # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
   # Make prep
-  ((DEBUG)) && make_opts+=("V=s")
+  ((VERBOSE)) && make_opts+=("V=s")
   execute make "${make_opts[@]}" "-j1" distclean # TODO 'dirclean' has a bug that triggers menuconfig
   execute make "${make_opts[@]}" "-j1" defconfig
   execute make "${make_opts[@]}" "-j1" download
