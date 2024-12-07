@@ -526,7 +526,7 @@ from_source() {
   
   # Cleanup build environment
   ((VERBOSE)) && make_opts+=("V=s")
-  execute make "${make_opts[@]}" "-j1" distclean # TODO 'dirclean' has a bug that triggers menuconfig
+  execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
 
   # Update package feed
   ./scripts/feeds update -i -f &&
