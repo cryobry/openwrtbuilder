@@ -526,7 +526,11 @@ from_source() {
   
   # Cleanup build environment
   ((VERBOSE)) && make_opts+=("V=s")
-  execute make "${make_opts[@]}" "-j1" dirclean # TODO 'dirclean' has a bug that triggers menuconfig
+  execute make "${make_opts[@]}" "-j1" dirclean
+  # make clean # compiled output
+  # make targetclean # compiled output, toolchain
+  # make dirclean # compiled output, toolchain, build tools
+  # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
   # Update package feed
   ./scripts/feeds update -i -f &&
@@ -582,12 +586,6 @@ from_source() {
     debug "Writing $config to $seed_file"
     echo "$config" >> "$seed_file"
   done
-
-  # Cleaning modes
-  # make clean # compiled output
-  # make targetclean # compiled output, toolchain
-  # make dirclean # compiled output, toolchain, build tools
-  # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
   # Make prep
   execute make "${make_opts[@]}" "-j1" defconfig
