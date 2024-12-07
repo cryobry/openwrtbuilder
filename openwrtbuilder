@@ -289,8 +289,8 @@ install_dependencies() {
             wget
             python3
             axel
-            perl-IPC-Cmd)
-          ;;
+            perl-IPC-Cmd
+            zstd) ;;
         debian|ubuntu)
           pkg_list+=(
             build-essential
@@ -305,12 +305,9 @@ install_dependencies() {
             wget
             unzip
             python
-            axel)
-          ;;
-        *)
-          debug "Skipping dependency install, your OS is unsupported"
-          return 1
-          ;;
+            axel
+            zstd) ;;
+        *) debug "Unsupported OS for automatic dependency install"; return 1 ;;
       esac
     fi
 
