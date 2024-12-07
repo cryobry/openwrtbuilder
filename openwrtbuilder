@@ -523,15 +523,15 @@ from_source() {
 
   # Enter worktree
   execute pushd "$WORKTREE_DIR" || return 1
+  
+  # Cleanup build environment
+  ((VERBOSE)) && make_opts+=("V=s")
+  execute make "${make_opts[@]}" "-j1" distclean # TODO 'dirclean' has a bug that triggers menuconfig
 
   # Update package feed
   ./scripts/feeds update -i -f &&
   ./scripts/feeds update -a -f &&
   ./scripts/feeds install -a -f
-
-  # Cleanup build environment
-  ((VERBOSE)) && make_opts+=("V=s")
-  execute make "${make_opts[@]}" "-j1" distclean # TODO 'dirclean' has a bug that triggers menuconfig
 
   # Grab the release seed config
   if ! execute "$DL_TOOL" "-o" "$seed_file" "$seed_url"; then
@@ -601,7 +601,7 @@ from_source() {
     return 1
   fi
 
-  popd || return 1
+  execute popd || return 1
 
   # Symlink output images to root of BIN_DIR (match Image Builder)
   shopt -s nullglob
@@ -618,10 +618,12 @@ from_source() {
 # @arg $2 string Directory to backup to
 backup() {
   debug "${FUNCNAME[0]}" "$*"
-  local file="$1" dir="$2" count=1
+  local file="$1" dir="$2"
   local creation_date base_name backup_file
+
   [[ -f $file ]] || { debug "File not found: $file"; return 1; }
   [[ -d $dir ]] || execute mkdir -p "$dir" || { debug "Failed to create directory: $dir"; return 1; }
+
   if creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" 2>/dev/null) && \
      [[ $creation_date != "-" && -n $creation_date ]] && \
      creation_date=$(date -d "$creation_date" +%y%m%d%H%M 2>/dev/null); then
@@ -630,19 +632,11 @@ backup() {
     creation_date="unknown"
     debug "Unable to determine creation date, using 'unknown'"
   fi
+
   base_name="${file##*/}"
-  backup_file="$dir/$creation_date-$base_name.bak"
-  while [[ -e $backup_file ]]; do
-    ((count++))
-    backup_file="$dir/$creation_date-$base_name.bak$count"
-  done
-  if execute mv "$file" "$backup_file"; then
-    debug "Backup created: $backup_file"
-    return 0
-  else
-    debug "Failed to create backup for: $file"
-    return 1
-  fi
+  backup_file="$dir/$creation_date-$base_name"
+
+  [[ -f $backup_file ]] || execute cp --archive "$file" "$backup_file"
 }
 
 # @section Helper functions
