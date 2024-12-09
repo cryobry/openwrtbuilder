@@ -399,7 +399,7 @@ make_images() {
     --jobs="$(($(nproc) - 1))"
 
   make "${make_opts[@]}" image \
-    BIN_DIR="$BINDIR" \
+    BIN_DIR="$BIN_DIR" \
     PROFILE="$DEVICE" \
     PACKAGES="$PACKAGES" \
     FILES="$FILES_DIR" \
