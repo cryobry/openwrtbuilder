@@ -747,7 +747,7 @@ main() {
       local img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
     else
       local url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
-      local url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.xz"
+      local url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.zst"
       local img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
     fi
 
