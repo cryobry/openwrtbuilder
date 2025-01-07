@@ -485,7 +485,7 @@ from_source() {
     [0-9][0-9].[0-9][0-9].*)
       local branch="openwrt-${RELEASE%.*}"
       local tag="v$RELEASE"
-      if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (N)?"; then
+      if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (n)?"; then
         wt_commit="origin/$branch"
       else
         wt_commit="$tag"
@@ -522,7 +522,7 @@ from_source() {
   
   # Cleanup build environment
   ((VERBOSE)) && make_opts+=("V=s")
-  execute make "${make_opts[@]}" "-j1" dirclean
+  execute make "${make_opts[@]}" "-j1" distclean
   # make clean # compiled output
   # make targetclean # compiled output, toolchain
   # make dirclean # compiled output, toolchain, build tools
