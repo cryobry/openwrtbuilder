@@ -1,7 +1,7 @@
 src/
 bin/
 .vscode/
-.dependencies
-.dependencies_sc
+backups/
+.dependencies_source
 .dependencies_ib
 
