@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds and deploys OpenWRT images
-# Copyright 2022-24 Bryan C. Roessler
+# Copyright 2022-25 Bryan C. Roessler
 # Apache 2.0 License
 # See README.md and ./profiles for device configuration
 
@@ -42,7 +42,7 @@ print_help() {
 	EXAMPLES
 	  ./openwrtbuilder -p r4s -r snapshot
 	  ./openwrtbuilder -p ax6000 -r 23.05.0-rc3 --source --debug
-	  ./openwrtbuilder -p rpi4 -r 22.03.3 --flash /dev/sdX
+	  ./openwrtbuilder -p rpi4 -r 24.10.0 --flash /dev/sdX
 	  ./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		  
 	EOF
 }
