@@ -5,14 +5,14 @@
 # See README.md and ./profiles for device configuration
 
 # Set default release
-: "${RELEASE:="24.10.0"}"
+: "${RELEASE:="24.10.1"}"
 
 # @internal
 print_help() {
   debug "${FUNCNAME[0]}"
 
   cat <<-'EOF'
-	Build and deploy OpenWRT images
+	Build and deploy OpenWRT images using convenient profiles.
 
 	USAGE:
 	  openwrtbuilder [OPTION [VALUE]]... -p PROFILE [-p PROFILE]...
@@ -24,6 +24,8 @@ print_help() {
 	    Default: location of openwrtbuilder script
 	  --source
 	    Build image from source, not from Image Builder
+	    Allows make config options to be passed in profile
+	    Uses git worktree for multi-profile deduplication
 	  --ssh-upgrade HOST
 	    Examples: root@192.168.1.1, root@router.lan
 	  --ssh-backup SSH_PATH

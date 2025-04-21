@@ -16,7 +16,7 @@ declare -Ag r4s=(
   [packages]="$default_packages luci-app-ddns luci-app-sqm irqbalance \
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
-    curl ethtool ca-bundle"
+    curl ethtool ca-bundle tailscale"
   [config]="CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32 \
     CONFIG_BUILDBOT=n"
@@ -28,7 +28,7 @@ declare -Ag ax6000=(
   [target]="mediatek/filogic"
   [release]="snapshot"
   [filesystem]="squashfs"
-  [packages]="$default_packages -dnsmasq -odhcpd-ipv6only -nftables -firewall4"
+  [packages]="$default_packages -dnsmasq -odhcpd-ipv6only -nftables -firewall4 tailscale"
 )
 
 declare -Ag ax6000_uboot=(
@@ -50,7 +50,7 @@ declare -Ag n5100=(
     lm-sensors samba4-server luci-app-samba4 tailscale shadow-useradd"
   [config]="CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
-  [files]="/mnt/backup"
+  # [files]="/mnt/backup"
 )
 
 declare -Ag rpi4=(

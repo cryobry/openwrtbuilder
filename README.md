@@ -1,6 +1,6 @@
 # openwrtbuilder
 
-Sanely build and deploy OpenWRT images using the Image Builder or from source code.
+Build and deploy OpenWRT images using convenient profiles.
 
 ## Usage
 
@@ -15,6 +15,7 @@ Sanely build and deploy OpenWRT images using the Image Builder or from source co
 --source
   Build image from source, not from Image Builder
   Allows make config options to be passed in profile
+  Uses git worktree for multi-profile deduplication
 --ssh-upgrade HOST
   Example: root@192.168.1.1
 --ssh-backup SSH_PATH
