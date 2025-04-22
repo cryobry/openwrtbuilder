@@ -530,6 +530,9 @@ from_source() {
   # make dirclean # compiled output, toolchain, build tools
   # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
 
+  # Use a custom (faster) mirror
+  # execute sed -i -E 's;git.openwrt.org/(feed|project);github.com/openwrt;' feeds.conf.default
+
   # Update package feed
   ./scripts/feeds update -i -f &&
   ./scripts/feeds update -a -f &&
@@ -589,7 +592,7 @@ from_source() {
   execute make "${make_opts[@]}" "-j1" defconfig
   execute make "${make_opts[@]}" "-j1" download
   # ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)+1))")
-  make_opts+=("-j$(($(nproc)+1))")
+  make_opts+=("-j$(($(nproc)-1))")
 
   # Make image
   if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" world; then
