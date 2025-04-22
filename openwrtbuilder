@@ -591,8 +591,7 @@ from_source() {
   # Make prep
   execute make "${make_opts[@]}" "-j1" defconfig
   execute make "${make_opts[@]}" "-j1" download
-  # ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)+1))")
-  make_opts+=("-j$(($(nproc)-1))")
+  ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-1))")
 
   # Make image
   if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" world; then
