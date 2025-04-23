@@ -36,8 +36,6 @@ print_help() {
 	    Cleanup all source and output files
 	  --yes,-y
 	    Assume yes for all questions (automatic mode)
-	  --verbose
-	    Make make or imagebuilder noisier
 	  --debug,-d
 	  --help,-h
 
@@ -126,10 +124,10 @@ init() {
 parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
-  declare -g RESET=0 FROM_SOURCE=0 YES=0 VERBOSE=0 DEBUG=0
+  declare -g RESET=0 FROM_SOURCE=0 YES=0 DEBUG=0
   declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV
   local long_opts='release:,version:,profile:,buildroot:,source,'
-  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,verbose,debug,help'
+  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,debug,help'
 
   if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
     eval set -- "$_input"
@@ -144,7 +142,6 @@ parse_input() {
         --flash|-f) shift; FLASH_DEV="$1" ;;
         --reset) RESET=1 ;;
         --yes|-y) YES=1 ;;
-        --verbose) VERBOSE=1 ;;
         --debug|-d) echo "Debugging on"; DEBUG=1 ;;
         --help|-h) print_help; exit 0 ;;
         --) shift; break ;;
@@ -393,7 +390,7 @@ make_images() {
   #   fi
   # fi
 
-  ((VERBOSE)) && make_opts+=("V=s")
+  ((DEBUG)) && make_opts+=("V=sc")
 
   debug make "${make_opts[@]}" image BIN_DIR="$BIN_DIR" \
     PROFILE="$DEVICE" PACKAGES="$PACKAGES" \
@@ -523,7 +520,7 @@ from_source() {
   execute pushd "$WORKTREE_DIR" || return 1
   
   # Cleanup build environment
-  ((VERBOSE)) && make_opts+=("V=s")
+  ((DEBUG)) && make_opts+=("V=sc")
   execute make "${make_opts[@]}" "-j1" distclean
   # make clean # compiled output
   # make targetclean # compiled output, toolchain
