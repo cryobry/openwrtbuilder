@@ -190,6 +190,7 @@ install_dependencies() {
             python3-devel
             python3-setuptools
             python3-pyelftools
+            perl
             perl-base
             perl-Data-Dumper
             perl-File-Compare
@@ -591,7 +592,7 @@ from_source() {
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-1))")
 
   # Make image
-  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" world; then
+  if ! execute HOST_CFLAGS="-std=c17" ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" world; then
     echo "Error: make failed"
     return 1
   fi
