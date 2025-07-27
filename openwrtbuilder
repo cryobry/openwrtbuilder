@@ -592,7 +592,7 @@ from_source() {
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-1))")
 
   # Make image
-  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make HOST_CFLAGS="-std=c17" "${make_opts[@]}" world; then
+  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" world; then
     echo "Error: make failed"
     return 1
   fi
