@@ -536,6 +536,8 @@ from_source() {
     execute git -C "$WORKTREE_DIR" checkout "$wt_commit"
     execute git -C "$WORKTREE_DIR" pull
   else
+    [[ -d "$WORKTREE_DIR" ]] && execute rm -rf "$WORKTREE_DIR"
+    [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
     execute git -C "$SRC_DIR" worktree add --force --force --detach "$WORKTREE_DIR" "$wt_commit"
   fi
 
