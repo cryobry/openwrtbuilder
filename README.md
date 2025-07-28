@@ -4,7 +4,7 @@ Build and deploy OpenWRT images using convenient profiles.
 
 ## Usage
 
-`openwrtbuilder [--option [VALUE]]... -p PROFILE [-p PROFILE]...`
+`openwrtbuilder [OPTION [VALUE]]... -p PROFILE [-p PROFILE]...`
 
 ## Options
 
@@ -36,15 +36,19 @@ Build and deploy OpenWRT images using convenient profiles.
 
 ## Profiles
 
-See `./profiles` for example device profile definitions.
+See `profiles` for example device profile definitions.
 
 ## Examples
 
-* `./openwrtbuilder -p r4s -r snapshot --debug`
-* `./openwrtbuilder -p ax6000 -r 23.05.5 --source --debug`
-* `./openwrtbuilder -p rpi4 -r 23.05.5 --flash /dev/sdX`
-* `./openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1`
+* `openwrtbuilder -p r4s -r snapshot --debug`
+* `openwrtbuilder -p ax6000 -r 23.05.5 --source --debug`
+* `openwrtbuilder -p rpi4 -r 23.05.5 --flash /dev/sdX`
+* `openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1`
 
 ## Additional Info
 
 Did you find `openwrtbuilder` useful? [Buy me a coffee!](https://paypal.me/bryanroessler)
+
+[↓ ↓ ↓ Bitcoin ↓ ↓ ↓](bitcoin:bc1q7wy0kszjavgcrvkxdg7mf3s6rh506rasnhfa4a)
+
+[![Bitcoin](https://repos.bryanroessler.com/files/bc1q7wy0kszjavgcrvkxdg7mf3s6rh506rasnhfa4a.png)](bitcoin:bc1q7wy0kszjavgcrvkxdg7mf3s6rh506rasnhfa4a)
