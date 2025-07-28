@@ -47,7 +47,7 @@ See `profiles` for example device profile definitions.
 
 ## Additional Info
 
-Did you find `openwrtbuilder` useful? [Buy me a coffee!](https://paypal.me/bryanroessler)
+Find `openwrtbuilder` useful? [Paypal me a coffee!](https://paypal.me/bryanroessler)
 
 [↓ ↓ ↓ Bitcoin ↓ ↓ ↓](bitcoin:bc1q7wy0kszjavgcrvkxdg7mf3s6rh506rasnhfa4a)
 
