@@ -34,6 +34,8 @@ print_help() {
 	    Example: /dev/sdX
 	  --reset
 	    Cleanup all source and output files
+	  --depends
+	    Force dependency installation
 	  --yes,-y
 	    Assume yes for all questions (automatic mode)
 	  --debug,-d
@@ -124,10 +126,10 @@ init() {
 parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
-  declare -g RESET=0 FROM_SOURCE=0 YES=0 DEBUG=0
+  declare -gi RESET=0 FROM_SOURCE=0 YES=0 DEBUG=0 FORCE_DEPENDS=0
   declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV
   local long_opts='release:,version:,profile:,buildroot:,source,'
-  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,debug,help'
+  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,depends,yes,debug,help'
 
   if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
     eval set -- "$_input"
@@ -141,6 +143,7 @@ parse_input() {
         --ssh-backup) shift; SSH_BACKUP_PATH="$1" ;;
         --flash|-f) shift; FLASH_DEV="$1" ;;
         --reset) RESET=1 ;;
+        --depends) FORCE_DEPENDS=1 ;;
         --yes|-y) YES=1 ;;
         --debug|-d) echo "Debugging on"; DEBUG=1 ;;
         --help|-h) print_help; exit 0 ;;
@@ -165,7 +168,7 @@ install_dependencies() {
     lock_file="$BUILD_ROOT/.dependencies_ib"
   fi
 
-  if [[ ! -f $lock_file ]]; then
+  if ((FORCE_DEPENDS)) || [[ ! -f $lock_file ]]; then
     if ((FROM_SOURCE)); then
       # For building from source code
       # https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem

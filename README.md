@@ -25,6 +25,9 @@ Build and deploy OpenWRT images using convenient profiles.
 --reset
   Cleanup all source and output files
   Can be combined with -p to reset a specific profile
+--depends
+  Force dependency installation
+  Ignores .dependencies files
 --yes,-y
   Assume yes for all questions (automatic mode)
 --debug,-d
