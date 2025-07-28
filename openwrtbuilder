@@ -489,23 +489,25 @@ from_source() {
     [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
   fi
 
-  # Update source code
-  if [[ ! -d "$SRC_DIR" ]]; then
+  # Pull or clone source code
+  if [[ -d "$SRC_DIR" ]]; then
+    execute git -C "$SRC_DIR" worktree prune --verbose
+    execute git -C "$SRC_DIR" pull
+  else
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
   fi
-
-  execute git -C "$SRC_DIR" worktree prune --verbose
-  execute git -C "$SRC_DIR" pull
  
-  # Generate commitish for git worktree
+  # Determine commit-ish for git worktree
   case "$RELEASE" in
-    snapshot) wt_commit="origin/main" ;;
+    snapshot)
+      wt_commit="main"
+      ;;
     [0-9][0-9].[0-9][0-9].*)
-      local branch="openwrt-${RELEASE%.*}"
-      local tag="v$RELEASE"
+      branch="openwrt-${RELEASE%.*}"
+      tag="v$RELEASE"
       if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (n)?"; then
-        wt_commit="origin/$branch"
+        wt_commit="$branch"
       else
         wt_commit="$tag"
       fi
@@ -516,17 +518,30 @@ from_source() {
       ;;
   esac
 
-  # Pull existing or add new git worktree
-  if [[ -d "$WORKTREE_DIR" && -d "$worktree_meta" ]]; then
-    execute git -C "$WORKTREE_DIR" checkout "$wt_commit"
-    execute git -C "$WORKTREE_DIR" pull
-  else
+  # Clean up orphaned worktree if needed
+  if [[ ! -d "$WORKTREE_DIR" || ! -d "$worktree_meta" ]]; then
     [[ -d "$WORKTREE_DIR" ]] && execute rm -rf "$WORKTREE_DIR"
     [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
-    execute git -C "$SRC_DIR" worktree add --force --force --detach "$WORKTREE_DIR" "$wt_commit"
+    execute git -C "$SRC_DIR" worktree prune --verbose
   fi
 
-  # Print commit information
+  # Add or update worktree
+  if [[ -d "$WORKTREE_DIR" && -d "$worktree_meta" ]]; then
+    execute git -C "$WORKTREE_DIR" checkout "$wt_commit"
+    # Only pull if wt_commit is a branch
+    if execute git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
+      execute git -C "$WORKTREE_DIR" pull
+    fi
+  else
+    # If wt_commit is a branch, do not use --detach
+    if execute git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
+      execute git -C "$SRC_DIR" worktree add "$WORKTREE_DIR" "$wt_commit"
+    else
+      execute git -C "$SRC_DIR" worktree add --detach "$WORKTREE_DIR" "$wt_commit"
+    fi
+  fi
+
+  # Print commit information from state
   commit=$(git -C "$WORKTREE_DIR" rev-parse HEAD)
   description=$(git -C "$WORKTREE_DIR" describe)
   echo "Current commit hash: $commit"
@@ -537,8 +552,9 @@ from_source() {
   # Enter worktree
   execute pushd "$WORKTREE_DIR" || return 1
   
-  # Cleanup build environment
   ((DEBUG)) && make_opts+=("V=sc")
+  
+  # Cleanup build environment
   execute make "${make_opts[@]}" "-j1" distclean
   # make clean # compiled output
   # make targetclean # compiled output, toolchain

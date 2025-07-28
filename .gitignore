@@ -1,6 +1,7 @@
 src/
 bin/
 .vscode/
+*.code-workspace
 backups/
 .dependencies_source
 .dependencies_ib
