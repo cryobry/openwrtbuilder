@@ -175,21 +175,15 @@ install_dependencies() {
       case "$ID" in
         fedora|centos)
           pkg_list+=(
-            bash-completion
             bzip2
             clang # for qosify
             diffutils
             gcc
             gcc-c++
             git
-            libev-devel
-            libtirpc-devel
-            llvm15-libs
+            llvm15-libs # for qosify
             make
             ncurses-devel
-            net-snmp-devel
-            pam-devel
-            patch
             patch
             perl
             perl-Data-Dumper
@@ -211,7 +205,6 @@ install_dependencies() {
             unzip
             wget
             which
-            xz-devel
           ) ;;
         debian|ubuntu)
           pkg_list+=(
@@ -224,13 +217,9 @@ install_dependencies() {
             gcc-multilib
             gettext
             git
-            libev-dev
             liblzma-dev
             libncurses5-dev
-            libpam-dev
-            libsnmp-dev
             libssl-dev
-            libtirpc-dev
             python3-distutils
             rsync
             patch
@@ -260,8 +249,6 @@ install_dependencies() {
             groff
             gzip
             libelf
-            libev
-            libtirpc
             libtool
             libxslt
             m4
@@ -269,8 +256,6 @@ install_dependencies() {
             ncurses
             net-snmp
             openssl
-            pam
-            patch
             patch
             pkgconf
             python
@@ -564,7 +549,6 @@ from_source() {
   # execute sed -i -E 's;git.openwrt.org/(feed|project);github.com/openwrt;' feeds.conf.default
 
   # Update package feed
-  ./scripts/feeds update -i -f &&
   ./scripts/feeds update -a -f &&
   ./scripts/feeds install -a -f
 
