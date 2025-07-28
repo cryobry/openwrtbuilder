@@ -1,6 +1,6 @@
 # openwrtbuilder
 
-Build and deploy OpenWRT images using convenient profiles.
+Build and deploy OpenWRT images using convenient shell-style device profiles.
 
 ## Usage
 
