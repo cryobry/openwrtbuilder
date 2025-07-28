@@ -497,7 +497,7 @@ from_source() {
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
   fi
- 
+
   # Determine commit-ish for git worktree
   case "$RELEASE" in
     snapshot)
@@ -508,6 +508,8 @@ from_source() {
       tag="v$RELEASE"
       if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (n)?"; then
         wt_commit="$branch"
+        # Always fetch latest branch from origin
+        execute git -C "$SRC_DIR" fetch origin "$branch:$branch"
       else
         wt_commit="$tag"
       fi
@@ -515,6 +517,10 @@ from_source() {
     *)
       debug "Passing '$RELEASE' commit-ish to git worktree"
       wt_commit="$RELEASE"
+      # If it's a branch, fetch latest
+      if execute git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
+        execute git -C "$SRC_DIR" fetch origin "$wt_commit:$wt_commit"
+      fi
       ;;
   esac
 
@@ -552,6 +558,7 @@ from_source() {
   # Enter worktree
   execute pushd "$WORKTREE_DIR" || return 1
   
+  # Begin OpenWRT build process
   ((DEBUG)) && make_opts+=("V=sc")
   
   # Cleanup build environment
@@ -618,11 +625,12 @@ from_source() {
     echo "$config" >> "$seed_file"
   done
 
-  # Make prep
+  # Serial make prep is more reliable
   execute make "${make_opts[@]}" "-j1" defconfig
   execute make "${make_opts[@]}" "-j1" download
-  ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-1))")
+
   # make_opts+=("-j$(($(nproc)-1))")
+  ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-1))")
 
   # Make image
   if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" world; then
