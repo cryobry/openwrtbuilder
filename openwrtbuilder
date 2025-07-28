@@ -181,6 +181,11 @@ install_dependencies() {
             gcc-c++
             git
             make
+            libev-devel
+            pam-devel
+            libtirpc-devel
+            xz-devel
+            net-snmp-devel
             ncurses-devel
             patch
             rsync
@@ -220,6 +225,11 @@ install_dependencies() {
             git
             libncurses5-dev
             libssl-dev
+            libev-dev
+            libpam-dev
+            libtirpc-dev
+            liblzma-dev
+            libsnmp-dev
             python3-distutils
             rsync
             unzip
@@ -250,12 +260,16 @@ install_dependencies() {
             groff
             gzip
             libelf
+            libev
             libtool
+            libtirpc
             libxslt
             m4
             make
             ncurses
+            net-snmp
             openssl
+            pam
             patch
             pkgconf
             python
@@ -267,6 +281,7 @@ install_dependencies() {
             util-linux
             wget
             which
+            xz
             zlib
             patch)
           ;;
