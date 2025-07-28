@@ -469,10 +469,28 @@ from_source() {
   local seed_url="$1"
   local src_url="https://github.com/openwrt/openwrt.git"
   local seed_file="$WORKTREE_DIR/.config"
+  local worktree_name; worktree_name="$(basename "$WORKTREE_DIR")"
+  local worktree_meta="$SRC_DIR/.git/worktrees/$worktree_name"
   local pkg config commit seed_file wt_commit description
   local -a make_opts config_opts
 
   echo "Building from source is under development"
+
+  if ((DEBUG)); then
+    echo "Profile settings:"
+    for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
+    echo "Environment variables:"
+    declare -p
+  fi
+
+  if ((RESET)); then
+    if [[ -d "$WORKTREE_DIR" || -d "$worktree_meta" ]]; then
+      execute git -C "$SRC_DIR" worktree remove --force --force "$WORKTREE_DIR"
+      [[ -d "$WORKTREE_DIR" ]] && execute rm -rf "$WORKTREE_DIR"
+      [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
+    fi
+    [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
+  fi
 
   # Update source code
   if [[ ! -d "$SRC_DIR" ]]; then
@@ -480,7 +498,8 @@ from_source() {
     execute git clone "$src_url" "$SRC_DIR"
   fi
 
-  git -C "$SRC_DIR" pull
+  execute git -C "$SRC_DIR" worktree prune --verbose
+  execute git -C "$SRC_DIR" pull
  
   # Generate commitish for git worktree
   case "$RELEASE" in
@@ -500,17 +519,13 @@ from_source() {
       ;;
   esac
 
-  # TODO There's a bug in the make clean functions that seem to invoke a full make
-  if [[ -d "$WORKTREE_DIR" ]]; then
+  # Pull existing or add new git worktree
+  if [[ -d "$WORKTREE_DIR" && -d "$worktree_meta" ]]; then
     execute git -C "$WORKTREE_DIR" checkout "$wt_commit"
     execute git -C "$WORKTREE_DIR" pull
   else
-    execute git -C "$SRC_DIR" worktree add --force --detach "$WORKTREE_DIR" "$wt_commit"
+    execute git -C "$SRC_DIR" worktree add --force --force --detach "$WORKTREE_DIR" "$wt_commit"
   fi
-
-  # To workaround bug, don't use make *clean, blow it away and start fresh
-  # [[ -d "$WORKTREE_DIR" ]] && execute rm -rf "$WORKTREE_DIR"
-  # execute git -C "$SRC_DIR" worktree add --force --detach "$WORKTREE_DIR" "$wt_commit"
 
   # Print commit information
   commit=$(git -C "$WORKTREE_DIR" rev-parse HEAD)
@@ -769,23 +784,6 @@ main() {
     fi
 
     backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$RELEASE"
-
-    if ((RESET)); then
-      if ((FROM_SOURCE)); then
-        [[ -d $WORKTREE_DIR ]] && ask_ok "Remove $WORKTREE_DIR?"
-          execute git worktree remove --force "$WORKTREE_DIR"
-          execute rm -rf "$WORKTREE_DIR"
-      elif [[ -d $BUILD_DIR ]] && ask_ok "Remove $BUILD_DIR?"; then
-        execute rm -rf "$BUILD_DIR"
-      fi
-    fi
-
-    if ((DEBUG)); then
-      echo "Profile settings:"
-      for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
-      echo "Environment variables:"
-      declare -p
-    fi
 
     if ((FROM_SOURCE)); then
       from_source "$seed_url" || return $?
