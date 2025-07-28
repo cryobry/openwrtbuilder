@@ -500,16 +500,16 @@ from_source() {
 
   # Determine commit-ish for git worktree
   case "$RELEASE" in
-    snapshot)
-      wt_commit="main"
-      ;;
+    snapshot) wt_commit="main" ;;
     [0-9][0-9].[0-9][0-9].*)
       branch="openwrt-${RELEASE%.*}"
       tag="v$RELEASE"
       if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (n)?"; then
         wt_commit="$branch"
-        # Always fetch latest branch from origin
-        execute git -C "$SRC_DIR" fetch origin "$branch:$branch"
+        # Only fetch if branch is NOT checked out in any worktree
+        if ! git -C "$SRC_DIR" worktree list | grep -q "$branch"; then
+          execute git -C "$SRC_DIR" fetch origin "$branch:$branch"
+        fi
       else
         wt_commit="$tag"
       fi
@@ -517,9 +517,10 @@ from_source() {
     *)
       debug "Passing '$RELEASE' commit-ish to git worktree"
       wt_commit="$RELEASE"
-      # If it's a branch, fetch latest
       if execute git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
-        execute git -C "$SRC_DIR" fetch origin "$wt_commit:$wt_commit"
+        if ! git -C "$SRC_DIR" worktree list | grep -q "$wt_commit"; then
+          execute git -C "$SRC_DIR" fetch origin "$wt_commit:$wt_commit"
+        fi
       fi
       ;;
   esac
