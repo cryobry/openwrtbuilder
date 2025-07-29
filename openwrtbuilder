@@ -537,7 +537,7 @@ from_source() {
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
   fi
-  
+
   # Clean up orphaned or conflicting worktree if needed
   execute git -C "$SRC_DIR" worktree prune --verbose
 
@@ -574,7 +574,8 @@ from_source() {
   echo "Current commit hash: $commit"
   echo "Git worktree description: $description"
 
-  ((DEBUG)) && git --no-pager -C "$BUILD_DIR" log -1
+  ((DEBUG)) && git --no-pager -C "$BUILD_DIR" log --all --pretty=format:"%ai %H" |
+    sort -r | head -n1 | awk '{print $NF}' | xargs git show --no-patch
 
   # Enter worktree
   execute pushd "$BUILD_DIR" || return 1
