@@ -1,8 +1,6 @@
 # openwrtbuilder
 
-Build and deploy OpenWRT images using shell-style device profiles.
-
-Builds OpenWRT from source code or using the official Image Builder.
+Build and deploy OpenWRT images using shell-style device profiles, via source code or the official Image Builder.
 
 ## Usage
 
