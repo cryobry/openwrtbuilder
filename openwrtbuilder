@@ -319,16 +319,12 @@ install_dependencies() {
   fi
 }
 
-# @description Normalize user‐input release and compute the worktree/ref key
-# @arg $1 user release (eg "v24.10.2", "snapshot", "24.10.2-rc1", or a commitish)
-# @arg $2 build mode ("imagebuilder" or "source")
-# @stdout prints two words: <normalized_release> <ref>
+# @description Normalize release and set worktree reference
+# @arg $1 string Raw release input
+# @arg $2 string Build mode ("source" or "imagebuilder")
+# @returns string Normalized release and reference
 normalize_and_ref() {
   local input="$1" mode="$2"
-  # interpret “source” mode as “from_src”
-  local from_src=0
-  [[ "$mode" == "source" ]] && from_src=1
-
   local rel ref branch tag
 
   case "$input" in
@@ -336,9 +332,10 @@ normalize_and_ref() {
       rel="snapshot"
       ref="main"
       ;;
-    v[0-9][0-9].[0-9][0-9].*)
+    v[0-9][0-9].[0-9][0-9].*|[0-9][0-9].[0-9][0-9].*)
+      # strip optional leading “v”
       rel="${input#v}"
-      if (( from_src )); then
+      if [[ "$mode" == "source" ]]; then
         branch="openwrt-${rel%.*}"
         tag="v$rel"
         if ask_ok "Use branch $branch HEAD (y) or tag $tag (n)?"; then
@@ -350,12 +347,8 @@ normalize_and_ref() {
         ref="$rel"
       fi
       ;;
-    [0-9][0-9].[0-9][0-9].*)
-      rel="$input"
-      ref="$rel"
-      ;;
     *)
-      if (( from_src )); then
+      if [[ "$mode" == "source" ]]; then
         # arbitrary commit-ish allowed
         rel="$input"
         ref="$input"
