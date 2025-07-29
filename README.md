@@ -1,6 +1,8 @@
 # openwrtbuilder
 
-Build and deploy OpenWRT images using convenient shell-style device profiles.
+Build and deploy OpenWRT images using shell-style device profiles.
+
+Builds OpenWRT from source code or using the official Image Builder.
 
 ## Usage
 
@@ -36,10 +38,13 @@ Build and deploy OpenWRT images using convenient shell-style device profiles.
 
 ## Profiles
 
-See `profiles` for example device profile definitions.
+See `profiles` for example device profile definitions. Multiple `--profile` can be passed at once.
+
+The default build mode is  `imagebuilder` unless `--source` is passed. Default profile modes can be set individually in `profiles`.
 
 ## Examples
 
+* `openwrtbuilder -p r4s -p ax6000`
 * `openwrtbuilder -p r4s -r snapshot --debug`
 * `openwrtbuilder -p ax6000 -r 23.05.5 --source --debug`
 * `openwrtbuilder -p rpi4 -r 23.05.5 --flash /dev/sdX`
