@@ -512,13 +512,6 @@ from_source() {
 
   echo "Building from source is under development"
 
-  # Ensure branch exists locally (if it's a branch)
-  if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
-    if ! git -C "$SRC_DIR" worktree list | grep -q "$ref"; then
-      execute git -C "$SRC_DIR" fetch origin "$ref:$ref"
-    fi
-  fi
-
   # Remove all build directories and worktrees
   if ((RESET)); then
     if [[ -d "$BUILD_DIR" || -d "$worktree_meta" ]]; then
