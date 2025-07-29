@@ -10,6 +10,7 @@ default_packages="luci luci-ssl luci-proto-wireguard luci-app-statistics \
 
 # Current devices
 declare -Ag r4s=(
+  [mode]="source"
   [device]="friendlyarm_nanopi-r4s"
   [target]="rockchip/armv8"
   [filesystem]="ext4"
@@ -24,6 +25,7 @@ declare -Ag r4s=(
 )
 
 declare -Ag ax6000=(
+  [mode]="imagebuilder"
   [device]="xiaomi_redmi-router-ax6000-stock"
   [target]="mediatek/filogic"
   [release]="snapshot"
@@ -32,6 +34,7 @@ declare -Ag ax6000=(
 )
 
 declare -Ag ax6000_uboot=(
+  [mode]="imagebuilder"
   [device]="xiaomi_redmi-router-ax6000-ubootmod"
   [target]="mediatek/filogic"
   [release]="snapshot"

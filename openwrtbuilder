@@ -158,18 +158,22 @@ parse_input() {
 }
 
 # @description Install build dependencies on major distros
+# @arg $1 string Build mode ("source" or "imagebuilder")
 install_dependencies() {
   debug "${FUNCNAME[0]}"
+  local mode="$1"
   local -a pkg_list
   local lock_file
-  if ((FROM_SOURCE)); then
-    lock_file="$BUILD_ROOT/.dependencies_source"
-  else
-    lock_file="$BUILD_ROOT/.dependencies_ib"
+
+  # Set appropriate lock file based on mode
+  if [[ "$mode" == "source" ]]; then
+    lock_file="$BUILD_ROOT/.dependencies_source.lock"
+  elif [[ "$mode" == "imagebuilder" ]]; then
+    lock_file="$BUILD_ROOT/.dependencies_ib.lock"
   fi
 
-  if ((FORCE_DEPENDS)) || [[ ! -f $lock_file ]]; then
-    if ((FROM_SOURCE)); then
+  if [[ ! -f $lock_file ]]; then
+    if [[ "$mode" == "source" ]]; then
       # For building from source code see:
       # https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
       case "$ID" in
@@ -272,7 +276,7 @@ install_dependencies() {
           ) ;;
         *) debug "Unsupported OS, skipping dependencies"; return 1 ;;
       esac
-    else
+    elif [[ "$mode" == "imagebuilder" ]]; then
       # For Imagebuilder
       case "$ID" in
         fedora|centos)
@@ -315,25 +319,55 @@ install_dependencies() {
   fi
 }
 
-# @description Determine the commit to use for the OpenWRT ImageBuilder or worktree
-determine_wt_commit() {
-  local rel="$1" wt_commit branch tag
-  case "$rel" in
-    snapshot) wt_commit="main" ;;
-    [0-9][0-9].[0-9][0-9].*)
-      branch="openwrt-${rel%.*}"
-      tag="v$rel"
-      if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (n)?"; then
-        wt_commit="$branch"
+# @description Normalize user‐input release and compute the worktree/ref key
+# @arg $1 user release (eg "v24.10.2", "snapshot", "24.10.2-rc1", or a commitish)
+# @arg $2 build mode ("imagebuilder" or "source")
+# @stdout prints two words: <normalized_release> <ref>
+normalize_and_ref() {
+  local input="$1" mode="$2"
+  # interpret “source” mode as “from_src”
+  local from_src=0
+  [[ "$mode" == "source" ]] && from_src=1
+
+  local rel ref branch tag
+
+  case "$input" in
+    snapshot|latest|main|master)
+      rel="snapshot"
+      ref="main"
+      ;;
+    v[0-9][0-9].[0-9][0-9].*)
+      rel="${input#v}"
+      if (( from_src )); then
+        branch="openwrt-${rel%.*}"
+        tag="v$rel"
+        if ask_ok "Use branch $branch HEAD (y) or tag $tag (n)?"; then
+          ref="$branch"
+        else
+          ref="$tag"
+        fi
       else
-        wt_commit="$tag"
+        ref="$rel"
       fi
       ;;
-    *) wt_commit="$rel" ;;
+    [0-9][0-9].[0-9][0-9].*)
+      rel="$input"
+      ref="$rel"
+      ;;
+    *)
+      if (( from_src )); then
+        # arbitrary commit-ish allowed
+        rel="$input"
+        ref="$input"
+      else
+        echo "Error: invalid release '$input'" >&2
+        exit 1
+      fi
+      ;;
   esac
-  echo "$wt_commit"
-}
 
+  printf '%s %s' "$rel" "$ref"
+}
 
 # @description Acquires the OpenWRT Image Builder
 get_imagebuilder() {
@@ -355,17 +389,6 @@ get_imagebuilder() {
       execute "$DL_TOOL" "-o" "$file" "$url"
     fi
   done
-}
-
-add_repos() {
-  debug "${FUNCNAME[0]}"
-
-  if [[ -v P_ARR[repo] ]]; then
-    if ! grep -q "${P_ARR[repo]}" "$BUILD_DIR/repositories.conf"; then
-      echo "${P_ARR[repo]}" >> "$BUILD_DIR/repositories.conf"
-    fi
-    sed -i '/option check_signature/d' "$BUILD_DIR/repositories.conf"
-  fi
 }
 
 ssh_backup() {
@@ -747,7 +770,11 @@ main() {
     exit $?
   fi
 
-  install_dependencies
+  # Remove dependency lock files for --depends
+  if ((FORCE_DEPENDS)); then
+    [[ -f "$BUILD_ROOT/.dependencies_source.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_source.lock"
+    [[ -f "$BUILD_ROOT/.dependencies_ib.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_ib.lock"
+  fi
 
   # Run selected profiles
   for profile in "${PROFILES[@]}"; do
@@ -759,49 +786,34 @@ main() {
     fi
 
     # Store profile in P_ARR nameref
-    declare -gn P_ARR="$profile"
+    local -n P_ARR="$profile"
+    local mode="${P_ARR[mode]:="imagebuilder"}"
+    ((FROM_SOURCE)) && mode="source" # allow cli override
+    install_dependencies "$mode"
+    local repo="${P_ARR[repo]:-}"
     declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
     declare -g TARGET="${P_ARR[target]}"
     declare -g DEVICE="${P_ARR[device]}"
     declare -g PACKAGES="${P_ARR[packages]:-}"
 
-    # normalize RELEASE
-    local normalized
-    case "${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}" in
-      snapshot|latest|main|master) normalized="snapshot" ;;
-      v[0-9][0-9].[0-9][0-9].*) RELEASE="${RELEASE#v}" ;;
-      [0-9][0-9].[0-9][0-9].*) ;;
-      *)
-        if ! ((FROM_SOURCE)); then
-          echo "Error: Invalid release version format"
-          echo "Use semantic version, tag, or 'snapshot'"
-          exit 1
-        fi
-        ;;
-    esac
-    declare -g RELEASE="$normalized"
+    # pull in USER_RELEASE from args or profile default
+    local raw_release="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
 
-    local ref mode
-    if (( FROM_SOURCE )); then
-      ref=$(determine_wt_commit "$RELEASE")
-      mode="source"
-    else
-      ref="$RELEASE"
-      mode="imagebuilder"
-    fi
-    
+    # single call to normalize+ref
+    read -r release ref < <(normalize_and_ref "$raw_release" "$mode")
+
     declare -g SRC_DIR="$BUILD_ROOT/src/.openwrt"
     declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$mode-$ref"
     declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$mode-$ref"
 
-    if [[ "$RELEASE" == "snapshot" ]]; then
+    if [[ "$release" == "snapshot" ]]; then
       local url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
       local url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.zst"
       local img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
     else
-      local url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
-      local url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.zst"
-      local img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
+      local url_prefix="https://downloads.openwrt.org/releases/$release/targets/$TARGET"
+      local url_filename="openwrt-imagebuilder-$release-${TARGET//\//-}.Linux-x86_64.tar.zst"
+      local img_fname="openwrt-$release-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
     fi
 
     local ib_url="$url_prefix/$url_filename"
@@ -810,22 +822,27 @@ main() {
     local ib_sha256_file="$BUILD_DIR/sha256sums"
     local seed_url="$url_prefix/config.buildinfo"
 
-    if ((FROM_SOURCE)); then
+    if [[ "$mode" == "source" ]]; then
       declare -g SYSUPGRADEIMGGZ="$BIN_DIR/targets/$TARGET/$img_fname-sysupgrade.img.gz"
     else
       declare -g SYSUPGRADEIMGGZ="$BUILD_DIR/$img_fname-sysupgrade.img.gz"
     fi
 
-    backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$RELEASE"
+    backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$mode-$ref"
 
-    if ((FROM_SOURCE)); then
+    if [[ "$mode" == "source" ]]; then
       from_source "$seed_url" "$profile" "$ref" || return $?
-    else
+    elif [[ "$mode" == "imagebuilder" ]]; then
       [[ -d $BUILD_DIR ]] || mkdir -p "$BUILD_DIR"
       get_imagebuilder "$ib_url" "$ib_file" "$ib_sha256_url" "$ib_sha256_file" && 
       verify "$ib_file" "$ib_sha256_file" &&
       extract "$ib_file" "$BUILD_DIR" || return $?
-      add_repos
+      if [[ -v $repo ]]; then
+        if ! grep -q "$repo" "$BUILD_DIR/repositories.conf"; then
+          echo "$repo" >> "$BUILD_DIR/repositories.conf"
+        fi
+        sed -i '/option check_signature/d' "$BUILD_DIR/repositories.conf"
+      fi
       make_images
       # Verify output image for stock builds (in testing)
       if [[ ! -v P_ARR[packages] || -z ${P_ARR[packages]} ]]; then
