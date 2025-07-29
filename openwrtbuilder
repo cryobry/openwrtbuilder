@@ -770,6 +770,8 @@ main() {
     # single call to normalize+ref
     read -r release ref < <(normalize_and_ref "$raw_release" "$mode")
 
+    debug: "Using release: $release, ref: $ref, mode: $mode"
+
     declare -g SRC_DIR="$BUILD_ROOT/src/.openwrt"
     declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$mode-$ref"
     declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$mode-$ref"
