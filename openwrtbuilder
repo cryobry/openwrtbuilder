@@ -315,6 +315,26 @@ install_dependencies() {
   fi
 }
 
+# @description Determine the commit to use for the OpenWRT ImageBuilder or worktree
+determine_wt_commit() {
+  local rel="$1" wt_commit branch tag
+  case "$rel" in
+    snapshot) wt_commit="main" ;;
+    [0-9][0-9].[0-9][0-9].*)
+      branch="openwrt-${rel%.*}"
+      tag="v$rel"
+      if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (n)?"; then
+        wt_commit="$branch"
+      else
+        wt_commit="$tag"
+      fi
+      ;;
+    *) wt_commit="$rel" ;;
+  esac
+  echo "$wt_commit"
+}
+
+
 # @description Acquires the OpenWRT Image Builder
 get_imagebuilder() {
   debug "${FUNCNAME[0]}" "$*"
@@ -461,35 +481,41 @@ ssh_upgrade() {
 # @description Builds OpenWRT from source code using the the default buildbot as base
 # This enables the use of kernel config options in profiles
 # @arg $1 string .config seed URL
+# @arg $2 string Profile name
+# @arg $3 string Commit-ish or branch name
 from_source() {
   debug "${FUNCNAME[0]}" "$*"
   local seed_url="$1"
+  local profile="$2"
+  local wt_commit="$3"
   local src_url="https://github.com/openwrt/openwrt.git"
-  local seed_file="$WORKTREE_DIR/.config"
-  local worktree_name; worktree_name="$(basename "$WORKTREE_DIR")"
-  local worktree_meta="$SRC_DIR/.git/worktrees/$worktree_name"
   local pkg config commit seed_file wt_commit description
   local -a make_opts config_opts
 
   echo "Building from source is under development"
 
-  if ((DEBUG)); then
-    echo "Profile settings:"
-    for x in "${!P_ARR[@]}"; do printf "%s=%s\n" "$x" "${P_ARR[$x]}"; done
-    echo "Environment variables:"
-    declare -p
+  # Ensure branch exists locally (if it's a branch)
+  if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
+    if ! git -C "$SRC_DIR" worktree list | grep -q "$wt_commit"; then
+      execute git -C "$SRC_DIR" fetch origin "$wt_commit:$wt_commit"
+    fi
   fi
 
+  local worktree_dir="$BUILD_ROOT/src/$profile/$wt_commit"
+  local seed_file="$worktree_dir/.config"
+  local worktree_meta="$SRC_DIR/.git/worktrees/$wt_commit"
+
+  # existing RESET logic…
   if ((RESET)); then
-    if [[ -d "$WORKTREE_DIR" || -d "$worktree_meta" ]]; then
-      execute git -C "$SRC_DIR" worktree remove --force --force "$WORKTREE_DIR"
-      [[ -d "$WORKTREE_DIR" ]] && execute rm -rf "$WORKTREE_DIR"
+    if [[ -d "$worktree_dir" || -d "$worktree_meta" ]]; then
+      execute git -C "$SRC_DIR" worktree remove --force --force "$worktree_dir"
+      [[ -d "$worktree_dir" ]] && execute rm -rf "$worktree_dir"
       [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
     fi
     [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
   fi
 
-  # Pull or clone source code
+  # Pull or clone source repo
   if [[ -d "$SRC_DIR" ]]; then
     execute git -C "$SRC_DIR" worktree prune --verbose
     execute git -C "$SRC_DIR" pull
@@ -498,66 +524,39 @@ from_source() {
     execute git clone "$src_url" "$SRC_DIR"
   fi
 
-  # Determine commit-ish for git worktree
-  case "$RELEASE" in
-    snapshot) wt_commit="main" ;;
-    [0-9][0-9].[0-9][0-9].*)
-      branch="openwrt-${RELEASE%.*}"
-      tag="v$RELEASE"
-      if ask_ok "Use $branch branch HEAD (y, recommended) or $tag tag (n)?"; then
-        wt_commit="$branch"
-        # Only fetch if branch is NOT checked out in any worktree
-        if ! git -C "$SRC_DIR" worktree list | grep -q "$branch"; then
-          execute git -C "$SRC_DIR" fetch origin "$branch:$branch"
-        fi
-      else
-        wt_commit="$tag"
-      fi
-      ;;
-    *)
-      debug "Passing '$RELEASE' commit-ish to git worktree"
-      wt_commit="$RELEASE"
-      if execute git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
-        if ! git -C "$SRC_DIR" worktree list | grep -q "$wt_commit"; then
-          execute git -C "$SRC_DIR" fetch origin "$wt_commit:$wt_commit"
-        fi
-      fi
-      ;;
-  esac
-
   # Clean up orphaned worktree if needed
-  if [[ ! -d "$WORKTREE_DIR" || ! -d "$worktree_meta" ]]; then
-    [[ -d "$WORKTREE_DIR" ]] && execute rm -rf "$WORKTREE_DIR"
+  if [[ ! -d "$worktree_dir" || ! -d "$worktree_meta" ]]; then
+    [[ -d "$worktree_dir" ]] && execute rm -rf "$worktree_dir"
     [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
     execute git -C "$SRC_DIR" worktree prune --verbose
   fi
 
   # Add or update worktree
-  if [[ -d "$WORKTREE_DIR" && -d "$worktree_meta" ]]; then
-    execute git -C "$WORKTREE_DIR" checkout "$wt_commit"
-    # Only pull if wt_commit is a branch
-    if execute git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
-      execute git -C "$WORKTREE_DIR" pull
+  if [[ -d "$worktree_dir" && -d "$worktree_meta" ]]; then
+    execute git -C "$worktree_dir" checkout "$wt_commit"
+    # pull if wt_commit is a branch
+    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
+      execute git -C "$worktree_dir" pull
     fi
   else
-    # If wt_commit is a branch, do not use --detach
-    if execute git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
-      execute git -C "$SRC_DIR" worktree add "$WORKTREE_DIR" "$wt_commit"
+    # branch or tag?
+    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
+      execute git -C "$SRC_DIR" worktree add "$worktree_dir" "$wt_commit"
     else
-      execute git -C "$SRC_DIR" worktree add --detach "$WORKTREE_DIR" "$wt_commit"
+      execute git -C "$SRC_DIR" worktree add --detach "$worktree_dir" "$wt_commit"
     fi
   fi
 
-  # Print commit information from state
-  commit=$(git -C "$WORKTREE_DIR" rev-parse HEAD)
-  description=$(git -C "$WORKTREE_DIR" describe)
+  # Print commit info
+  commit=$(git -C "$worktree_dir" rev-parse HEAD)
+  description=$(git -C "$worktree_dir" describe)
   echo "Current commit hash: $commit"
   echo "Git worktree description: $description"
-  
-  ((DEBUG)) && git --no-pager -C "$WORKTREE_DIR" log -1
+
+  ((DEBUG)) && git --no-pager -C "$worktree_dir" log -1
 
   # Enter worktree
-  execute pushd "$WORKTREE_DIR" || return 1
+  execute pushd "$worktree_dir" || return 1
   
   # Begin OpenWRT build process
   ((DEBUG)) && make_opts+=("V=sc")
@@ -750,6 +749,7 @@ main() {
 
   install_dependencies
 
+  # Run selected profiles
   for profile in "${PROFILES[@]}"; do
     debug "Running profile: $profile"
 
@@ -764,11 +764,11 @@ main() {
     declare -g TARGET="${P_ARR[target]}"
     declare -g DEVICE="${P_ARR[device]}"
     declare -g PACKAGES="${P_ARR[packages]:-}"
-    declare -g RELEASE="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
 
     # normalize RELEASE
-    case "$RELEASE" in
-      snapshot|latest|main|master) RELEASE="snapshot" ;;
+    local normalized
+    case "${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}" in
+      snapshot|latest|main|master) normalized="snapshot" ;;
       v[0-9][0-9].[0-9][0-9].*) RELEASE="${RELEASE#v}" ;;
       [0-9][0-9].[0-9][0-9].*) ;;
       *)
@@ -779,11 +779,20 @@ main() {
         fi
         ;;
     esac
+    declare -g RELEASE="$normalized"
 
+    local ref mode
+    if (( FROM_SOURCE )); then
+      ref=$(determine_wt_commit "$RELEASE")
+      mode="source"
+    else
+      ref="$RELEASE"
+      mode="imagebuilder"
+    fi
+    
     declare -g SRC_DIR="$BUILD_ROOT/src/openwrt"
-    declare -g WORKTREE_DIR="$BUILD_ROOT/src/$profile/$RELEASE-src"
-    declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$RELEASE"
-    declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$RELEASE"
+    declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$mode-$ref"
+    declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$mode-$ref"
 
     if [[ "$RELEASE" == "snapshot" ]]; then
       local url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
@@ -810,7 +819,7 @@ main() {
     backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$RELEASE"
 
     if ((FROM_SOURCE)); then
-      from_source "$seed_url" || return $?
+      from_source "$seed_url" "$profile" "$ref" || return $?
     else
       [[ -d $BUILD_DIR ]] || mkdir -p "$BUILD_DIR"
       get_imagebuilder "$ib_url" "$ib_file" "$ib_sha256_url" "$ib_sha256_file" && 
