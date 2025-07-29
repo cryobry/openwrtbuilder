@@ -768,6 +768,7 @@ main() {
     local raw_release="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
 
     # single call to normalize+ref
+    execut normalize_and_ref "$raw_release" "$mode"
     read -r release ref < <(normalize_and_ref "$raw_release" "$mode")
 
     debug "Using release: $release, ref: $ref, mode: $mode"
