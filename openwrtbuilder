@@ -172,151 +172,151 @@ install_dependencies() {
     lock_file="$BUILD_ROOT/.dependencies_ib.lock"
   fi
 
-  if [[ ! -f $lock_file ]]; then
-    if [[ "$mode" == "source" ]]; then
-      # For building from source code see:
-      # https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
-      case "$ID" in
-        fedora|centos)
-          pkg_list+=(
-            bzip2
-            clang # for qosify
-            diffutils
-            gcc
-            gcc-c++
-            git
-            llvm15-libs # for qosify
-            make
-            ncurses-devel
-            patch
-            perl
-            perl-Data-Dumper
-            perl-File-Compare
-            perl-File-Copy
-            perl-FindBin
-            perl-IPC-Cmd
-            perl-JSON-PP
-            perl-Thread-Queue
-            perl-Time-Piece
-            perl-base
-            python3
-            python3-devel
-            python3-pyelftools
-            python3-setuptools
-            rsync
-            swig
-            tar
-            unzip
-            wget
-            which
-          ) ;;
-        debian|ubuntu)
-          pkg_list+=(
-            build-essential
-            clang
-            file
-            flex
-            g++
-            gawk
-            gcc-multilib
-            gettext
-            git
-            liblzma-dev
-            libncurses5-dev
-            libssl-dev
-            python3-distutils
-            rsync
-            patch
-            unzip
-            wget
-            zlib1g-dev
-          ) ;;
-        arch)
-          pkg_list+=(
-            autoconf
-            automake
-            base-devel
-            bash
-            binutils
-            bison
-            bzip2
-            clang
-            fakeroot
-            file
-            findutils
-            flex
-            gawk
-            gcc
-            gettext
-            git
-            grep
-            groff
-            gzip
-            libelf
-            libtool
-            libxslt
-            m4
-            make
-            ncurses
-            net-snmp
-            openssl
-            patch
-            pkgconf
-            python
-            rsync
-            sed
-            texinfo
-            time
-            unzip
-            util-linux
-            wget
-            which
-            xz
-            zlib
-          ) ;;
-        *) debug "Unsupported OS, skipping dependencies"; return 1 ;;
-      esac
-    elif [[ "$mode" == "imagebuilder" ]]; then
-      # For Imagebuilder
-      case "$ID" in
-        fedora|centos)
-          pkg_list+=(
-            @c-development 
-            @development-tools
-            @development-libs
-            perl-FindBin
-            zlib-static
-            elfutils-libelf-devel
-            gawk
-            unzip
-            file
-            wget
-            python3
-            axel
-            perl-IPC-Cmd
-            zstd) ;;
-        debian|ubuntu)
-          pkg_list+=(
-            build-essential
-            libncurses5-dev
-            libncursesw5-dev
-            zlib1g-dev
-            gawk
-            git
-            gettext
-            libssl-dev
-            xsltproc
-            wget
-            unzip
-            python
-            axel
-            zstd) ;;
-        *) debug "Unsupported OS for automatic dependency install"; return 1 ;;
-      esac
-    fi
+  [[ -f $lock_file ]] && debug "$lock_file lock file exists" && return 0
 
-    pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
+  if [[ "$mode" == "source" ]]; then
+    # For building from source code see:
+    # https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
+    case "$ID" in
+      fedora|centos)
+        pkg_list+=(
+          bzip2
+          clang # for qosify
+          diffutils
+          gcc
+          gcc-c++
+          git
+          llvm15-libs # for qosify
+          make
+          ncurses-devel
+          patch
+          perl
+          perl-Data-Dumper
+          perl-File-Compare
+          perl-File-Copy
+          perl-FindBin
+          perl-IPC-Cmd
+          perl-JSON-PP
+          perl-Thread-Queue
+          perl-Time-Piece
+          perl-base
+          python3
+          python3-devel
+          python3-pyelftools
+          python3-setuptools
+          rsync
+          swig
+          tar
+          unzip
+          wget
+          which
+        ) ;;
+      debian|ubuntu)
+        pkg_list+=(
+          build-essential
+          clang
+          file
+          flex
+          g++
+          gawk
+          gcc-multilib
+          gettext
+          git
+          liblzma-dev
+          libncurses5-dev
+          libssl-dev
+          python3-distutils
+          rsync
+          patch
+          unzip
+          wget
+          zlib1g-dev
+        ) ;;
+      arch)
+        pkg_list+=(
+          autoconf
+          automake
+          base-devel
+          bash
+          binutils
+          bison
+          bzip2
+          clang
+          fakeroot
+          file
+          findutils
+          flex
+          gawk
+          gcc
+          gettext
+          git
+          grep
+          groff
+          gzip
+          libelf
+          libtool
+          libxslt
+          m4
+          make
+          ncurses
+          net-snmp
+          openssl
+          patch
+          pkgconf
+          python
+          rsync
+          sed
+          texinfo
+          time
+          unzip
+          util-linux
+          wget
+          which
+          xz
+          zlib
+        ) ;;
+      *) debug "Unsupported OS, skipping dependency install"; return 1 ;;
+    esac
+  elif [[ "$mode" == "imagebuilder" ]]; then
+    # For Imagebuilder
+    case "$ID" in
+      fedora|centos)
+        pkg_list+=(
+          @c-development 
+          @development-tools
+          @development-libs
+          perl-FindBin
+          zlib-static
+          elfutils-libelf-devel
+          gawk
+          unzip
+          file
+          wget
+          python3
+          axel
+          perl-IPC-Cmd
+          zstd) ;;
+      debian|ubuntu)
+        pkg_list+=(
+          build-essential
+          libncurses5-dev
+          libncursesw5-dev
+          zlib1g-dev
+          gawk
+          git
+          gettext
+          libssl-dev
+          xsltproc
+          wget
+          unzip
+          python
+          axel
+          zstd) ;;
+      *) debug "Unsupported OS, skipping dependency install"; return 1 ;;
+    esac
   fi
+
+  pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
 }
 
 # @description Normalize release and set worktree reference
