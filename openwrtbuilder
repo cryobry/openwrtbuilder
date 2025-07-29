@@ -672,7 +672,7 @@ backup() {
   local file="$1" dir="$2"
   local creation_date base_name backup_file
 
-  [[ -f $file ]] || { debug "File not found: $file"; return 1; }
+  [[ -f $file ]] || return 1
   [[ -d $dir ]] || execute mkdir -p "$dir" || { debug "Failed to create directory: $dir"; return 1; }
 
   if creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" 2>/dev/null) && \
