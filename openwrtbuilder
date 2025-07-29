@@ -498,34 +498,32 @@ ssh_upgrade() {
 # This enables the use of kernel config options in profiles
 # @arg $1 string .config seed URL
 # @arg $2 string Profile name
-# @arg $3 string Commit-ish or branch name
+# @arg $3 string Worktree ref (commit-ish or branch name)
 from_source() {
   debug "${FUNCNAME[0]}" "$*"
   local seed_url="$1"
   local profile="$2"
-  local wt_commit="$3"
+  local ref="$3"
   local src_url="https://github.com/openwrt/openwrt.git"
-  local pkg config commit seed_file wt_commit description
+  local seed_file="$BUILD_DIR/.config"
+  local worktree_meta="$SRC_DIR/.git/worktrees/source-$ref"
+  local pkg config commit seed_file description
   local -a make_opts config_opts
 
   echo "Building from source is under development"
 
   # Ensure branch exists locally (if it's a branch)
-  if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
-    if ! git -C "$SRC_DIR" worktree list | grep -q "$wt_commit"; then
-      execute git -C "$SRC_DIR" fetch origin "$wt_commit:$wt_commit"
+  if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
+    if ! git -C "$SRC_DIR" worktree list | grep -q "$ref"; then
+      execute git -C "$SRC_DIR" fetch origin "$ref:$ref"
     fi
   fi
 
-  local worktree_dir="$BUILD_ROOT/src/$profile/$wt_commit"
-  local seed_file="$worktree_dir/.config"
-  local worktree_meta="$SRC_DIR/.git/worktrees/$wt_commit"
-
-  # existing RESET logic…
+  # Remove build directories and worktrees
   if ((RESET)); then
-    if [[ -d "$worktree_dir" || -d "$worktree_meta" ]]; then
-      execute git -C "$SRC_DIR" worktree remove --force --force "$worktree_dir"
-      [[ -d "$worktree_dir" ]] && execute rm -rf "$worktree_dir"
+    if [[ -d "$BUILD_DIR" || -d "$worktree_meta" ]]; then
+      execute git -C "$SRC_DIR" worktree remove --force --force "$BUILD_DIR"
+      [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
       [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
     fi
     [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
@@ -541,38 +539,38 @@ from_source() {
   fi
 
   # Clean up orphaned worktree if needed
-  if [[ ! -d "$worktree_dir" || ! -d "$worktree_meta" ]]; then
-    [[ -d "$worktree_dir" ]] && execute rm -rf "$worktree_dir"
+  if [[ ! -d "$BUILD_DIR" || ! -d "$worktree_meta" ]]; then
+    [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
     [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
     execute git -C "$SRC_DIR" worktree prune --verbose
   fi
 
   # Add or update worktree
-  if [[ -d "$worktree_dir" && -d "$worktree_meta" ]]; then
-    execute git -C "$worktree_dir" checkout "$wt_commit"
-    # pull if wt_commit is a branch
-    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
-      execute git -C "$worktree_dir" pull
+  if [[ -d "$BUILD_DIR" && -d "$worktree_meta" ]]; then
+    execute git -C "$BUILD_DIR" checkout "$ref"
+    # pull if ref is a branch
+    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
+      execute git -C "$BUILD_DIR" pull
     fi
   else
     # branch or tag?
-    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$wt_commit"; then
-      execute git -C "$SRC_DIR" worktree add "$worktree_dir" "$wt_commit"
+    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
+      execute git -C "$SRC_DIR" worktree add "$BUILD_DIR" "$ref"
     else
-      execute git -C "$SRC_DIR" worktree add --detach "$worktree_dir" "$wt_commit"
+      execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"
     fi
   fi
 
   # Print commit info
-  commit=$(git -C "$worktree_dir" rev-parse HEAD)
-  description=$(git -C "$worktree_dir" describe)
+  commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
+  description=$(git -C "$BUILD_DIR" describe)
   echo "Current commit hash: $commit"
   echo "Git worktree description: $description"
 
-  ((DEBUG)) && git --no-pager -C "$worktree_dir" log -1
+  ((DEBUG)) && git --no-pager -C "$BUILD_DIR" log -1
 
   # Enter worktree
-  execute pushd "$worktree_dir" || return 1
+  execute pushd "$BUILD_DIR" || return 1
   
   # Begin OpenWRT build process
   ((DEBUG)) && make_opts+=("V=sc")
