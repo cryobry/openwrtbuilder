@@ -519,7 +519,7 @@ from_source() {
     fi
   fi
 
-  # Remove build directories and worktrees
+  # Remove all build directories and worktrees
   if ((RESET)); then
     if [[ -d "$BUILD_DIR" || -d "$worktree_meta" ]]; then
       execute git -C "$SRC_DIR" worktree remove --force --force "$BUILD_DIR"
@@ -537,23 +537,30 @@ from_source() {
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
   fi
+  
+  # Clean up orphaned or conflicting worktree if needed
+  execute git -C "$SRC_DIR" worktree prune --verbose
 
-  # Clean up orphaned worktree if needed
-  if [[ ! -d "$BUILD_DIR" || ! -d "$worktree_meta" ]]; then
-    [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
-    [[ -d "$worktree_meta" ]] && execute rm -rf "$worktree_meta"
-    execute git -C "$SRC_DIR" worktree prune --verbose
+  # Remove build dir if it exists but is not a worktree
+  if [[ -d "$BUILD_DIR" ]] && ! git -C "$SRC_DIR" worktree list | grep -q "$BUILD_DIR"; then
+    execute rm -rf "$BUILD_DIR"
+  fi
+
+  # Remove any worktree using this ref elsewhere
+  existing_worktree=$(git -C "$SRC_DIR" worktree list | awk "/\\[$ref\\]/ {print \$1}")
+  if [[ -n "$existing_worktree" && "$existing_worktree" != "$BUILD_DIR" ]]; then
+    echo "Removing conflicting worktree at $existing_worktree for ref $ref"
+    execute git -C "$SRC_DIR" worktree remove --force "$existing_worktree"
+    [[ -d "$existing_worktree" ]] && execute rm -rf "$existing_worktree"
   fi
 
   # Add or update worktree
-  if [[ -d "$BUILD_DIR" && -d "$worktree_meta" ]]; then
+  if [[ -d "$BUILD_DIR" ]] && git -C "$SRC_DIR" worktree list | grep -q "$BUILD_DIR"; then
     execute git -C "$BUILD_DIR" checkout "$ref"
-    # pull if ref is a branch
     if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
       execute git -C "$BUILD_DIR" pull
     fi
   else
-    # branch or tag?
     if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
       execute git -C "$SRC_DIR" worktree add "$BUILD_DIR" "$ref"
     else
