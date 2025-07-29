@@ -790,7 +790,7 @@ main() {
       mode="imagebuilder"
     fi
     
-    declare -g SRC_DIR="$BUILD_ROOT/src/openwrt"
+    declare -g SRC_DIR="$BUILD_ROOT/src/.openwrt"
     declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$mode-$ref"
     declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$mode-$ref"
 
