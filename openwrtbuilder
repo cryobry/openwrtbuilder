@@ -324,7 +324,6 @@ install_dependencies() {
 # @arg $2 string Build mode ("source" or "imagebuilder")
 # @returns string Normalized release and reference
 normalize_and_ref() {
-  debug "${FUNCNAME[0]}" "$*"
   local input="$1" mode="$2"
   local rel ref branch tag
 
@@ -768,10 +767,7 @@ main() {
     local raw_release="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
 
     # single call to normalize+ref
-    debug "normalize_and_ref output: $(normalize_and_ref "$raw_release" "$mode")"
     read -r release ref < <(normalize_and_ref "$raw_release" "$mode")
-
-    debug "Using release: $release, ref: $ref, mode: $mode"
 
     declare -g SRC_DIR="$BUILD_ROOT/src/.openwrt"
     declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$mode-$ref"
