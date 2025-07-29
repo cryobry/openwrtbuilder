@@ -324,6 +324,7 @@ install_dependencies() {
 # @arg $2 string Build mode ("source" or "imagebuilder")
 # @returns string Normalized release and reference
 normalize_and_ref() {
+  debug "${FUNCNAME[0]}" "$*"
   local input="$1" mode="$2"
   local rel ref branch tag
 
@@ -524,58 +525,18 @@ from_source() {
 
   # Pull or clone source repo
   if [[ -d "$SRC_DIR" ]]; then
-    execute git -C "$SRC_DIR" worktree prune --verbose
     execute git -C "$SRC_DIR" pull
   else
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
   fi
 
-  # Clean up orphaned or conflicting worktree if needed
-  execute git -C "$SRC_DIR" worktree prune --verbose
-
-  # Remove build dir if it exists but is not a worktree
-  if [[ -d "$BUILD_DIR" ]] && ! git -C "$SRC_DIR" worktree list | grep -q "$BUILD_DIR"; then
+  # Remove existing build dir and add new worktree
+  if [[ -d "$BUILD_DIR" ]]; then
     execute rm -rf "$BUILD_DIR"
   fi
-
-  # Remove any worktree using this ref elsewhere
-  existing_worktree=$(git -C "$SRC_DIR" worktree list | awk "/\\[$ref\\]/ {print \$1}")
-  if [[ -n "$existing_worktree" && "$existing_worktree" != "$BUILD_DIR" ]]; then
-    echo "Removing conflicting worktree at $existing_worktree for ref $ref"
-    execute git -C "$SRC_DIR" worktree remove --force "$existing_worktree"
-    [[ -d "$existing_worktree" ]] && execute rm -rf "$existing_worktree"
-  fi
-
-  # Try local branch, then remote branch, then tag
-  if ! git -C "$SRC_DIR" rev-parse --verify "$ref" >/dev/null 2>&1; then
-    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/remotes/origin/$ref"; then
-      ref="origin/$ref"
-    elif git -C "$SRC_DIR" show-ref --verify --quiet "refs/tags/$ref"; then
-      : # ref is already correct
-    else
-      echo "Error: git ref '$ref' does not exist in $SRC_DIR"
-      return 1
-    fi
-  fi
-
-  # Add or update worktree
-  if [[ -d "$BUILD_DIR" ]] && git -C "$SRC_DIR" worktree list | grep -q "$BUILD_DIR"; then
-    execute git -C "$BUILD_DIR" checkout "$ref"
-    if [[ "$ref" =~ ^origin/ ]]; then
-      # For remote branches, create a local branch tracking remote
-      local local_branch="${ref#origin/}"
-      if ! git -C "$BUILD_DIR" rev-parse --verify "$local_branch" >/dev/null 2>&1; then
-        execute git -C "$BUILD_DIR" checkout -b "$local_branch" "$ref"
-      else
-        execute git -C "$BUILD_DIR" checkout "$local_branch"
-      fi
-    elif git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
-      execute git -C "$BUILD_DIR" pull
-    fi
-  else
-    execute git -C "$SRC_DIR" worktree add "$BUILD_DIR" "$ref"
-  fi
+  execute git -C "$SRC_DIR" worktree prune --verbose
+  execute git -C "$SRC_DIR" worktree add "$BUILD_DIR" "$ref"
 
   # Print commit info
   commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
