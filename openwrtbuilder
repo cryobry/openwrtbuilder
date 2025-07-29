@@ -547,18 +547,34 @@ from_source() {
     [[ -d "$existing_worktree" ]] && execute rm -rf "$existing_worktree"
   fi
 
+  # Try local branch, then remote branch, then tag
+  if ! git -C "$SRC_DIR" rev-parse --verify "$ref" >/dev/null 2>&1; then
+    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/remotes/origin/$ref"; then
+      ref="origin/$ref"
+    elif git -C "$SRC_DIR" show-ref --verify --quiet "refs/tags/$ref"; then
+      : # ref is already correct
+    else
+      echo "Error: git ref '$ref' does not exist in $SRC_DIR"
+      return 1
+    fi
+  fi
+
   # Add or update worktree
   if [[ -d "$BUILD_DIR" ]] && git -C "$SRC_DIR" worktree list | grep -q "$BUILD_DIR"; then
     execute git -C "$BUILD_DIR" checkout "$ref"
-    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
+    if [[ "$ref" =~ ^origin/ ]]; then
+      # For remote branches, create a local branch tracking remote
+      local local_branch="${ref#origin/}"
+      if ! git -C "$BUILD_DIR" rev-parse --verify "$local_branch" >/dev/null 2>&1; then
+        execute git -C "$BUILD_DIR" checkout -b "$local_branch" "$ref"
+      else
+        execute git -C "$BUILD_DIR" checkout "$local_branch"
+      fi
+    elif git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
       execute git -C "$BUILD_DIR" pull
     fi
   else
-    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/heads/$ref"; then
-      execute git -C "$SRC_DIR" worktree add "$BUILD_DIR" "$ref"
-    else
-      execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"
-    fi
+    execute git -C "$SRC_DIR" worktree add "$BUILD_DIR" "$ref"
   fi
 
   # Print commit info
