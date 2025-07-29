@@ -13,7 +13,7 @@ Build and deploy OpenWRT images using shell-style device profiles, via source co
 --release,-r,--version,-v RELEASE ("snapshot", "22.03.3")
 --buildroot,-b PATH (Default: script directory)
 --source
-  Build image from source, not from Image Builder
+  Build image from source code, not from Image Builder
   Allows make config options to be passed in profile
   Uses git worktree for multi-profile deduplication
 --ssh-upgrade HOST
@@ -27,7 +27,6 @@ Build and deploy OpenWRT images using shell-style device profiles, via source co
   Can be combined with -p to reset a specific profile
 --depends
   Force dependency installation
-  Ignores .dependencies files
 --yes,-y
   Assume yes for all questions (automatic mode)
 --debug,-d
