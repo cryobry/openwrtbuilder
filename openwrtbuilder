@@ -534,7 +534,7 @@ from_source() {
     execute rm -rf "$BUILD_DIR"
   fi
   execute git -C "$SRC_DIR" worktree prune --verbose
-  execute git -C "$SRC_DIR" worktree add "$BUILD_DIR" "$ref"
+  execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"
 
   # Print commit info
   commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
