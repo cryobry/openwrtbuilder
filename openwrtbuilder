@@ -537,11 +537,19 @@ from_source() {
   execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"
 
   # Add cherrypick commits if specified in profile
-  for commit in ${P_ARR[cherrypicks]}; do
-    echo "Cherry-picking $commit"
+  for entry in ${P_ARR[cherrypicks]}; do
+    remote="${entry%%:*}"
+    commit="${entry##*:}"
+    # Add remote if not present
+    if ! git -C "$BUILD_DIR" remote | grep -q "^$remote$"; then
+      execute git -C "$BUILD_DIR" remote add "$remote" "https://github.com/$remote/openwrt.git"
+    fi
+    # Fetch remote
+    execute git -C "$BUILD_DIR" fetch "$remote"
+    # Cherry-pick commit
     execute git -C "$BUILD_DIR" cherry-pick "$commit"
   done
-
+  
   # Print commit info
   commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
   description=$(git -C "$BUILD_DIR" describe)

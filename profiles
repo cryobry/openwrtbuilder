@@ -22,7 +22,7 @@ declare -Ag r4s=(
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32 \
     CONFIG_BUILDBOT=n"
   [files]="/mnt/backup"
-  [cherrypicks]="59d6e31 bb251b8"
+  [cherrypicks]="wurzerj:59d6e31 wurzerj:bb251b8"
 )
 
 declare -Ag ax6000=(
