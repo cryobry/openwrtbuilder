@@ -536,6 +536,12 @@ from_source() {
   execute git -C "$SRC_DIR" worktree prune --verbose
   execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"
 
+  # Add cherrypick commits if specified in profile
+  for commit in ${P_ARR[cherrypicks]}; do
+    echo "Cherry-picking $commit"
+    execute git -C "$BUILD_DIR" cherry-pick "$commit"
+  done
+
   # Print commit info
   commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
   description=$(git -C "$BUILD_DIR" describe)
