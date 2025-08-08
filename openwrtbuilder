@@ -843,5 +843,9 @@ main() {
   done
 }
 
+# Roughly turn debugging on for pre-init
+# Reset and reparse in parse_input() with getopt
+[[ " $* " =~ ( --debug | -d ) ]] && DEBUG=1
+
 main "$@"
 exit

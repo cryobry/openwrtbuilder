@@ -2,11 +2,12 @@
 # Device profiles for openwrtbuilder
 # shellcheck disable=SC2034
 
-# Default packages
+# Default (but optional) packages
 default_packages=(nano htop diffutils tar iperf3 zsh rsync
   openssh-sftp-server luci luci-ssl luci-proto-wireguard luci-app-statistics
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu)
 
+# Default (but optional) kernel configs
 default_configs=("CONFIG_ALL_KMODS=n" "CONFIG_BUILDBOT=n")
 
 # Current devices
