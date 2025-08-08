@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034
 # Device profiles for openwrtbuilder
+# shellcheck disable=SC2034
 
 # Default packages
 default_packages=(nano htop diffutils tar iperf3 zsh rsync

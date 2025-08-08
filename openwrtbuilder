@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build and deploy OpenWRT images using shell-style device profiles, via source code or the official Image Builder.# Copyright 2022-25 Bryan C. Roessler
+# Build and deploy OpenWRT images using shell-style device profiles, via source code or the official Image Builder.
+# Copyright 2022-25 Bryan C. Roessler
 # Apache 2.0 License
 # See README and profiles for device configuration
 
