@@ -3,10 +3,11 @@
 # Device profiles for openwrtbuilder
 
 # Default packages
-default_packages="luci luci-ssl luci-proto-wireguard luci-app-statistics \
-  collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack \
-  collectd-mod-cpu nano htop diffutils tar iperf3 zsh rsync \
-  openssh-sftp-server"
+default_packages=(nano htop diffutils tar iperf3 zsh rsync
+  openssh-sftp-server luci luci-ssl luci-proto-wireguard luci-app-statistics
+  collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu)
+
+default_configs=("CONFIG_ALL_KMODS=n" "CONFIG_BUILDBOT=n")
 
 # Current devices
 declare -Ag r4s=(
@@ -14,13 +15,14 @@ declare -Ag r4s=(
   [device]="friendlyarm_nanopi-r4s"
   [target]="rockchip/armv8"
   [filesystem]="ext4"
-  [packages]="$default_packages luci-app-ddns luci-app-sqm irqbalance \
+  [packages]="${default_packages[*]} \
+    luci-app-ddns luci-app-sqm irqbalance \
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
     curl ethtool ca-bundle tailscale"
-  [config]="CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
-    CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32 \
-    CONFIG_BUILDBOT=n CONFIG_ALL_KMODS=n"
+  [config]="${default_configs[*]} \
+    CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
+    CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
   [files]="/mnt/backup"
   # for 24.10 branch (Linux 6.6)
   # [cherrypicks]="wurzerj:59d6e31 wurzerj:bb251b8" # fix inconsistent reboot
@@ -32,7 +34,7 @@ declare -Ag ax6000=(
   [target]="mediatek/filogic"
   [release]="snapshot"
   [filesystem]="squashfs"
-  [packages]="$default_packages -dnsmasq -odhcpd-ipv6only -nftables -firewall4 tailscale"
+  [packages]="${default_packages[*]} -dnsmasq -odhcpd-ipv6only -nftables -firewall4 tailscale"
 )
 
 declare -Ag ax6000_uboot=(
@@ -41,19 +43,21 @@ declare -Ag ax6000_uboot=(
   [target]="mediatek/filogic"
   [release]="snapshot"
   [filesystem]="squashfs"
-  [packages]="$default_packages -dnsmasq -odhcpd-ipv6only -nftables -firewall4"
+  [packages]="${default_packages[*]} -dnsmasq -odhcpd-ipv6only -nftables -firewall4"
 )
 
 declare -Ag n5100=(
   [device]="generic"
   [target]="x86/64"
   [filesystem]="squashfs"
-  [packages]="$default_packages luci-app-ddns irqbalance collectd-mod-df \
+  [packages]="${default_packages[*]} \
+    luci-app-ddns irqbalance collectd-mod-df \
     usbutils kmod-usb-storage kmod-usb-storage-uas kmod-fs-btrfs \
     btrfs-progs block-mount cryptsetup kmod-crypto-xts smcroute \
     avahi-daemon curl ethtool ca-bundle smartmontools intel-microcode \
     lm-sensors samba4-server luci-app-samba4 tailscale shadow-useradd"
-  [config]="CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
+  [config]="${default_configs[*]} \
+    CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
   # [files]="/mnt/backup"
 )
@@ -62,8 +66,9 @@ declare -Ag rpi4=(
   [device]="rpi-4"
   [target]="bcm27xx/bcm2711"
   [filesystem]="ext4"
-  [packages]="$default_packages kmod-usb-net-asix-ax88179 kmod-usb-net-rtl8152 \
-    luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full luci-app-ddns luci-app-sqm"
+  [packages]="${default_packages[*]} \
+    luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full luci-app-ddns luci-app-sqm \
+    kmod-usb-net-asix-ax88179 kmod-usb-net-rtl8152"
 )
 
 declare -Ag r4s_stock=(
@@ -77,7 +82,8 @@ declare -Ag totolink=(
   [device]="totolink_x5000r"
   [target]="ramips/mt7621"
   [filesystem]="squashfs"
-  [packages]="$default_packages -dnsmasq -odhcpd-ipv6only -nftables -firewall4 \
+  [packages]="${default_packages[*]} \
+    -dnsmasq -odhcpd-ipv6only -nftables -firewall4 \
     -kmod-nft-offload collectd-mod-iwinfo"
 )
 
@@ -85,7 +91,7 @@ declare -Ag archer=(
   [device]="tplink_archer-c7-v2"
   [target]="ath79/generic"
   [filesystem]="squashfs"
-  [packages]="$default_packages -dnsmasq -odhcpd -iptables \
+  [packages]="${default_packages[*]} -dnsmasq -odhcpd -iptables \
     -ath10k-firmware-qca988x-ct ath10k-firmware-qca988x-ct-full-htt"
 )
 
@@ -93,14 +99,16 @@ declare -Ag linksys=(
   [device]="linksys_ea8300"
   [target]="ipq40xx/generic"
   [filesystem]="squashfs"
-  [packages]="$default_packages -dnsmasq -odhcpd -iptables"
+  [packages]="${default_packages[*]} \
+    -dnsmasq -odhcpd -iptables"
 )
 
 declare -Ag r2s=(
   [device]="friendlyarm_nanopi-r2s"
   [target]="rockchip/armv8"
   [filesystem]="ext4"
-  [packages]="$default_packages luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full \
+  [packages]="${default_packages[*]} \
+    luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full \
     luci-app-ddns luci-app-sqm luci-app-statistics collectd-mod-sensors \
     collectd-mod-thermal collectd-mod-conntrack smcroute curl ethtool"
 )
@@ -109,7 +117,8 @@ declare -Ag r2s_tr=(
   [device]="friendlyarm_nanopi-r2s"
   [target]="rockchip/armv8"
   [filesystem]="ext4"
-  [packages]="$default_packages luci-app-upnp luci-app-pbr luci-app-ddns \
+  [packages]="${default_packages[*]} \
+    luci-app-upnp luci-app-pbr luci-app-ddns \
     luci-app-statistics collectd-mod-sensors collectd-mod-thermal \
     collectd-mod-conntrack curl ethtool travelmate"
 )
