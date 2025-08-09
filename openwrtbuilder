@@ -186,6 +186,7 @@ install_dependencies() {
           gcc
           gcc-c++
           git
+          golang
           llvm15-libs # for qosify
           make
           ncurses-devel
@@ -222,6 +223,7 @@ install_dependencies() {
           gcc-multilib
           gettext
           git
+          golang
           liblzma-dev
           libncurses5-dev
           libssl-dev
@@ -250,6 +252,7 @@ install_dependencies() {
           gcc
           gettext
           git
+          golang
           grep
           groff
           gzip
