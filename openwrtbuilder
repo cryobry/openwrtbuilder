@@ -631,6 +631,15 @@ from_source() {
 
   # Serial make prep is more reliable
   execute make "${make_opts[@]}" "-j1" defconfig
+
+  # Re-apply custom config options after defconfig
+  for config in "${config_opts[@]}"; do
+    debug "Re-applying $config to $seed_file"
+    echo "$config" >> "$seed_file"
+  done
+
+  execute make "${make_opts[@]}" "-j1" oldconfig
+
   execute make "${make_opts[@]}" "-j1" download
 
   # make_opts+=("-j$(($(nproc)-1))")
