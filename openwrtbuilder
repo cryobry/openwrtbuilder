@@ -626,24 +626,18 @@ from_source() {
   config_opts+=("CONFIG_IB=n")
   config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
   
+  # Serial make prep is more reliable
+  execute make "${make_opts[@]}" "-j1" defconfig
+
   # Write options to config seed file
   for config in "${config_opts[@]}"; do
     debug "Writing $config to $seed_file"
     echo "$config" >> "$seed_file"
   done
 
-  # Serial make prep is more reliable
   execute make "${make_opts[@]}" "-j1" oldconfig
 
-  # # Re-apply custom config options after defconfig
-  # for config in "${config_opts[@]}"; do
-  #   debug "Re-applying $config to $seed_file"
-  #   echo "$config" >> "$seed_file"
-  # done
-
-  # execute make "${make_opts[@]}" "-j1" oldconfig
-
-  # make_opts+=("-j$(($(nproc)-1))")
+  # make_opts+=("-j$(($(nproc)-2))")
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
 
   # Make image
