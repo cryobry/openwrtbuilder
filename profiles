@@ -6,10 +6,10 @@
 default_packages=(nano htop diffutils tar iperf3 zsh rsync curl
   openssh-sftp-server luci luci-ssl luci-proto-wireguard luci-app-statistics
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
-  -libpfring) # unmaintained and causes compilation issues 8/11/25
+  -libpfring -kmod-pf-ring) # unmaintained and causes compilation issues 8/11/25
 
 # Default (but optional) kernel configs
-default_configs=("CONFIG_BUILDBOT=n")
+default_configs=("CONFIG_BUILDBOT=n" "CONFIG_PACKAGE_kmod-pf-ring=n")
 
 # Current devices
 declare -Ag r4s=(

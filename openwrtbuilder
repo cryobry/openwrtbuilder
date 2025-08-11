@@ -2,7 +2,7 @@
 # Build and deploy OpenWRT images using shell-style device profiles, via source code or the official Image Builder.
 # Copyright 2022-25 Bryan C. Roessler
 # Apache 2.0 License
-# See README and profiles for device configuration
+# See README and ./profiles for device configuration
 
 # Set default release
 : "${RELEASE:="24.10.2"}"
@@ -637,8 +637,8 @@ from_source() {
 
   execute bash -c "yes '' | make ${make_opts[*]} -j1 oldconfig"
 
-  # make_opts+=("-j$(($(nproc)-2))")
-  ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
+  make_opts+=("-j$(($(nproc)-2))")
+  #((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
 
   # Make image
   if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" download world; then
