@@ -6,11 +6,8 @@
 default_packages=(nano htop diffutils tar iperf3 zsh rsync curl
   openssh-sftp-server luci luci-ssl luci-proto-wireguard luci-app-statistics
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
-  -libpfring -kmod-pf-ring # unmaintained and causes compilation issues 8/11/25
-  -kmod-openvswitch -openvswitch # breaks on missing pfring
-  -kmod-ipt-rtpengine -iptables-mod-rtpengine # ""
-  -rtpengine rtpengine-no-transcode -rtpengine-recording -rtpengine-transcode # ""
-  -kamailio-mod-rtpengine) # ""
+  -kmod-ipt-rtpengine -kmod-openvswitch -kmod-openvswitch-geneve
+  -kmod-openvswitch-gre -kmod-openvswitch-vxlan -kmod-pf-ring)
 
 # Default (but optional) kernel configs
 default_configs=("CONFIG_BUILDBOT=n")
