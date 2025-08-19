@@ -172,7 +172,7 @@ install_dependencies() {
     lock_file="$BUILD_ROOT/.dependencies_ib.lock"
   fi
 
-  [[ -f $lock_file ]] && debug "$lock_file lock file exists" && return 0
+  [[ -f $lock_file ]] && debug "$lock_file lock file exists but --debug skips" && return 0
 
   if [[ "$mode" == "source" ]]; then
     # For building from source code see:
@@ -772,7 +772,7 @@ main() {
 
     # Store profile in P_ARR nameref
     local -n P_ARR="$profile"
-    local mode="${P_ARR[mode]:="imagebuilder"}"
+    local mode="${P_ARR[mode]:-"imagebuilder"}"
     ((FROM_SOURCE)) && mode="source" # allow cli override
     install_dependencies "$mode"
     local repo="${P_ARR[repo]:-}"

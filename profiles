@@ -37,7 +37,8 @@ declare -Ag ax6000=(
   [target]="mediatek/filogic"
   [release]="snapshot"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} -dnsmasq -odhcpd-ipv6only -nftables -firewall4 tailscale"
+  [packages]="${default_packages[*]} \
+    -dnsmasq -odhcpd-ipv6only -nftables -firewall4 tailscale"
 )
 
 declare -Ag ax6000_uboot=(
@@ -46,7 +47,8 @@ declare -Ag ax6000_uboot=(
   [target]="mediatek/filogic"
   [release]="snapshot"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} -dnsmasq -odhcpd-ipv6only -nftables -firewall4"
+  [packages]="${default_packages[*]} \
+    -dnsmasq -odhcpd-ipv6only -nftables -firewall4"
 )
 
 declare -Ag n5100=(
