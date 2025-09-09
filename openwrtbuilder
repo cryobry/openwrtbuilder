@@ -58,7 +58,7 @@ init() {
 
   # Save the script directory
   # https://stackoverflow.com/a/4774063
-  SCRIPT_DIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit $? ; pwd -P)"
+  SCRIPT_DIR=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")
 
   if [[ -e "/etc/os-release" ]]; then
     source "/etc/os-release"
@@ -172,7 +172,7 @@ install_dependencies() {
     lock_file="$BUILD_ROOT/.dependencies_ib.lock"
   fi
 
-  [[ -f $lock_file ]] && debug "$lock_file lock file exists but --debug skips" && return 0
+  [[ -f $lock_file ]] && debug "$lock_file lock file exists but skipping for --debug" && return 0
 
   if [[ "$mode" == "source" ]]; then
     # For building from source code see:
@@ -205,6 +205,7 @@ install_dependencies() {
           python3-devel
           python3-pyelftools
           python3-setuptools
+          quilt
           rsync
           swig
           tar
@@ -228,6 +229,7 @@ install_dependencies() {
           libncurses5-dev
           libssl-dev
           python3-distutils
+          quilt
           rsync
           patch
           unzip
@@ -267,6 +269,7 @@ install_dependencies() {
           patch
           pkgconf
           python
+          quilt
           rsync
           sed
           texinfo

@@ -3,7 +3,7 @@
 # shellcheck disable=SC2034
 
 # Default (but optional) packages (precede with "-" to exclude)
-default_packages=(nano htop diffutils tar iperf3 zsh rsync curl
+default_packages=(nano htop diffutils tar iperf3 zsh rsync curl tcpdump
   openssh-sftp-server luci luci-ssl luci-proto-wireguard luci-app-statistics
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
 )
