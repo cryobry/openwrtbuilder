@@ -530,7 +530,7 @@ from_source() {
 
   # Pull or clone source repo
   if [[ -d "$SRC_DIR" ]]; then
-    execute git -C "$SRC_DIR" pull
+    execute git -C "$SRC_DIR" fetch --all --prune --tags
   else
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
