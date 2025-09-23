@@ -541,7 +541,7 @@ from_source() {
     execute rm -rf "$BUILD_DIR"
   fi
   execute git -C "$SRC_DIR" worktree prune --verbose
-  execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"
+  execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "origin/$ref"
 
   # Add cherrypick commits if specified in profile
   for entry in ${P_ARR[cherrypicks]}; do
