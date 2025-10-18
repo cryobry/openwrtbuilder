@@ -636,7 +636,7 @@ from_source() {
   done
 
   # Serial make prep is more reliable
-  execute make "${make_opts[@]}" "-j1" olddefconfig
+  execute bash -c "yes '' | make ${make_opts[*]} -j1 olddefconfig"
 
   # make_opts+=("-j$(($(nproc)-2))")
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
