@@ -530,7 +530,7 @@ from_source() {
 
   # Pull or clone source repo
   if [[ -d "$SRC_DIR" ]]; then
-    execute git -C "$SRC_DIR" fetch --all --prune --tags
+    execute git -C "$SRC_DIR" pull --all --tags --prune
   else
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
@@ -628,9 +628,6 @@ from_source() {
   config_opts+=("CONFIG_SDK_LLVM_BPF=n")
   config_opts+=("CONFIG_IB=n")
   config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
-  
-  # Serial make prep is more reliable
-  execute make "${make_opts[@]}" "-j1" defconfig
 
   # Write options to config seed file
   for config in "${config_opts[@]}"; do
@@ -638,7 +635,8 @@ from_source() {
     echo "$config" >> "$seed_file"
   done
 
-  execute bash -c "yes '' | make ${make_opts[*]} -j1 oldconfig"
+  # Serial make prep is more reliable
+  execute make "${make_opts[@]}" "-j1" olddefconfig
 
   # make_opts+=("-j$(($(nproc)-2))")
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
@@ -791,8 +789,8 @@ main() {
     read -r release ref < <(normalize_and_ref "$raw_release" "$mode")
 
     declare -g SRC_DIR="$BUILD_ROOT/src/.openwrt"
-    declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$mode-$ref"
-    declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$mode-$ref"
+    declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$ref-$mode"
+    declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$ref-$mode"
 
     if [[ "$release" == "snapshot" ]]; then
       local url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
@@ -816,7 +814,7 @@ main() {
       declare -g SYSUPGRADEIMGGZ="$BUILD_DIR/$img_fname-sysupgrade.img.gz"
     fi
 
-    backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$mode-$ref"
+    backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$ref-$mode"
 
     if [[ "$mode" == "source" ]]; then
       from_source "$seed_url" "$profile" "$ref" || return $?
