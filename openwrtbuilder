@@ -528,18 +528,17 @@ from_source() {
     [[ -d "$BUILD_DIR" ]] && execute rm -rf "$BUILD_DIR"
   fi
 
-  # Pull or clone source repo
+  # Fetch or clone source repo (no local merges)
   if [[ -d "$SRC_DIR" ]]; then
-    execute git -C "$SRC_DIR" pull --all --tags --prune
+    execute git -C "$SRC_DIR" fetch origin --tags --prune
   else
     execute mkdir -p "$SRC_DIR"
     execute git clone "$src_url" "$SRC_DIR"
   fi
 
-  # Remove existing build dir and add new worktree
-  if [[ -d "$BUILD_DIR" ]]; then
-    execute rm -rf "$BUILD_DIR"
-  fi
+  # Recreate worktree from the remote ref
+  execute git -C "$SRC_DIR" worktree remove --force "$BUILD_DIR" || true
+  execute rm -rf "$BUILD_DIR"
   execute git -C "$SRC_DIR" worktree prune --verbose
   execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "origin/$ref"
 
