@@ -9,7 +9,7 @@ default_packages=(nano htop diffutils tar iperf3 zsh rsync curl tcpdump
 )
 
 # Default (but optional) kernel configs
-default_configs=("CONFIG_BUILDBOT=n")
+default_configs=("CONFIG_BUILDBOT=n CONFIG_ALL_KMODS=n")
 
 # Current devices
 declare -Ag r4s=(
