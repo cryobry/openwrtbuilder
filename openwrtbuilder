@@ -593,6 +593,10 @@ from_source() {
   # Set compilation output dir
   config_opts+=("CONFIG_BINARY_FOLDER=\"$BIN_DIR\"")
 
+  # Only build explicit kmods
+  execute sed -i '/^CONFIG_ALL_KMODS=/d' "$seed_file"
+  config_opts+=("CONFIG_ALL_KMODS=n")
+
   # Add custom packages
   for pkg in $PACKAGES; do
     if [[ $pkg == -* ]]; then
