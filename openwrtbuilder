@@ -5,7 +5,7 @@
 # See README and ./profiles for device configuration
 
 # Set default release
-: "${RELEASE:="24.10.3"}"
+: "${RELEASE:="24.10.4"}"
 
 # @internal
 print_help() {
@@ -584,23 +584,17 @@ from_source() {
   ./scripts/feeds update -a -f &&
   ./scripts/feeds install -a -f
 
-  # Grab the release seed config
-  if ! execute "$DL_TOOL" "-o" "$seed_file" "$seed_url"; then
-    echo "Could not obtain $seed_file from $seed_url"
-    return 1
-  fi
+  config_opts=(
+    "CONFIG_TARGET_${TARGET//\//_}=y"
+    "CONFIG_TARGET_${TARGET//\//_}_${TARGET##*/}=y"
+    "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
+    "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
+    "CONFIG_TARGET_ROOTFS_${FILESYSTEM^^}=y"
 
-  # Add custom packages
-  for pkg in $PACKAGES; do
-    if [[ $pkg == -* ]]; then
-      config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
-    else
-      config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
-    fi
-  done
+    # Needed?
+    "CONFIG_TARGET_MULTI_PROFILE=n"
 
-  # Disable unecessary buildbot config options
-  config_opts+=(
+    # Not sure if needed yet
     "CONFIG_BUILDBOT=n"
     "CONFIG_ALL_KMODS=n" 
     "CONFIG_ALL_NONSHARED=n"
@@ -610,29 +604,17 @@ from_source() {
     "CONFIG_SDK_LLVM_BPF=n"
     "CONFIG_IB=n"
     "CONFIG_MAKE_TOOLCHAIN=n"
+    "CONFIG_TARGET_PER_DEVICE_ROOTFS=n"
   )
 
-  # Only compile selected fs
-  execute sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
-  config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
-  case "$FILESYSTEM" in
-    squashfs) config_opts+=(
-      "CONFIG_TARGET_ROOTFS_EXT4FS=n"
-      "CONFIG_TARGET_ROOTFS_SQUASHFS=y"
-    ) ;;
-    ext4) config_opts+=(
-      "CONFIG_TARGET_ROOTFS_SQUASHFS=n"
-      "CONFIG_TARGET_ROOTFS_EXT4FS=y"
-    ) ;;
-  esac
-
-  # Only compile selected target image
-  execute sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
-  config_opts+=(
-    "CONFIG_TARGET_MULTI_PROFILE=n"
-    "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
-    "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
-  )
+  # Add custom packages
+  for pkg in $PACKAGES; do
+    if [[ $pkg == -* ]]; then
+      config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
+    else
+      config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
+    fi
+  done
 
   # Add profile config options
   for config in ${P_ARR[config]}; do
