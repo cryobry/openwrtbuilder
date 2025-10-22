@@ -514,7 +514,29 @@ from_source() {
   local seed_file="$BUILD_DIR/.config"
   local worktree_meta="$SRC_DIR/.git/worktrees/source-$ref"
   local pkg config commit seed_file description
-  local -a make_opts config_opts
+  local -a make_opts
+  local -a config_opts=(
+    "CONFIG_TARGET_${TARGET//\//_}=y"
+    "CONFIG_TARGET_${TARGET//\//_}_${TARGET##*/}=y"
+    "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
+    "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
+    "CONFIG_TARGET_ROOTFS_${FILESYSTEM^^}=y"
+
+    # Needed?
+    "CONFIG_TARGET_MULTI_PROFILE=n"
+
+    # Not sure if needed yet
+    "CONFIG_BUILDBOT=n"
+    "CONFIG_ALL_KMODS=n" 
+    "CONFIG_ALL_NONSHARED=n"
+    "CONFIG_DEVEL=n"
+    "CONFIG_COLLECT_KERNEL_DEBUG=n"
+    "CONFIG_SDK=n"
+    "CONFIG_SDK_LLVM_BPF=n"
+    "CONFIG_IB=n"
+    "CONFIG_MAKE_TOOLCHAIN=n"
+    "CONFIG_TARGET_PER_DEVICE_ROOTFS=n"
+  )
 
   echo "Building from source is under development"
 
@@ -584,29 +606,6 @@ from_source() {
   ./scripts/feeds update -a -f &&
   ./scripts/feeds install -a -f
 
-  config_opts=(
-    "CONFIG_TARGET_${TARGET//\//_}=y"
-    "CONFIG_TARGET_${TARGET//\//_}_${TARGET##*/}=y"
-    "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
-    "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
-    "CONFIG_TARGET_ROOTFS_${FILESYSTEM^^}=y"
-
-    # Needed?
-    "CONFIG_TARGET_MULTI_PROFILE=n"
-
-    # Not sure if needed yet
-    "CONFIG_BUILDBOT=n"
-    "CONFIG_ALL_KMODS=n" 
-    "CONFIG_ALL_NONSHARED=n"
-    "CONFIG_DEVEL=n"
-    "CONFIG_COLLECT_KERNEL_DEBUG=n"
-    "CONFIG_SDK=n"
-    "CONFIG_SDK_LLVM_BPF=n"
-    "CONFIG_IB=n"
-    "CONFIG_MAKE_TOOLCHAIN=n"
-    "CONFIG_TARGET_PER_DEVICE_ROOTFS=n"
-  )
-
   # Add custom packages
   for pkg in $PACKAGES; do
     if [[ $pkg == -* ]]; then
@@ -641,7 +640,7 @@ from_source() {
 
   execute popd || return 1
 
-  # Symlink output images to root of BIN_DIR (match Image Builder)
+  # Symlink output images to root of BIN_DIR (match Image Builder behavior)
   shopt -s nullglob
   for image in "$BIN_DIR/targets/${TARGET}/"*.{img,img.gz,ubi}; do
     execute ln -fs "$image" "$BIN_DIR/${image##*/}"
