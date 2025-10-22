@@ -590,9 +590,6 @@ from_source() {
     return 1
   fi
 
-  # Set compilation output dir
-  config_opts+=("CONFIG_BINARY_FOLDER=\"$BIN_DIR\"")
-
   # Add custom packages
   for pkg in $PACKAGES; do
     if [[ $pkg == -* ]]; then
@@ -602,31 +599,45 @@ from_source() {
     fi
   done
 
-  # Add config options from profile
-  for config in ${P_ARR[config]}; do
-    config_opts+=("$config")
-  done
+  # Disable unecessary buildbot config options
+  config_opts+=(
+    "CONFIG_BUILDBOT=n"
+    "CONFIG_ALL_KMODS=n" 
+    "CONFIG_ALL_NONSHARED=n"
+    "CONFIG_DEVEL=n"
+    "CONFIG_COLLECT_KERNEL_DEBUG=n"
+    "CONFIG_SDK=n"
+    "CONFIG_SDK_LLVM_BPF=n"
+    "CONFIG_IB=n"
+    "CONFIG_MAKE_TOOLCHAIN=n"
+  )
 
   # Only compile selected fs
   execute sed -i '/CONFIG_TARGET_ROOTFS_/d' "$seed_file"
   config_opts+=("CONFIG_TARGET_PER_DEVICE_ROOTFS=n")
-  if [[ $FILESYSTEM == "squashfs" ]]; then
-    config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=n")
-    config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y")
-  elif [[ $FILESYSTEM == "ext4" ]]; then
-    config_opts+=("CONFIG_TARGET_ROOTFS_SQUASHFS=n")
-    config_opts+=("CONFIG_TARGET_ROOTFS_EXT4FS=y")
-  fi
+  case "$FILESYSTEM" in
+    squashfs) config_opts+=(
+      "CONFIG_TARGET_ROOTFS_EXT4FS=n"
+      "CONFIG_TARGET_ROOTFS_SQUASHFS=y"
+    ) ;;
+    ext4) config_opts+=(
+      "CONFIG_TARGET_ROOTFS_SQUASHFS=n"
+      "CONFIG_TARGET_ROOTFS_EXT4FS=y"
+    ) ;;
+  esac
 
   # Only compile selected target image
   execute sed -i '/CONFIG_TARGET_DEVICE_/d' "$seed_file"
-  config_opts+=("CONFIG_TARGET_MULTI_PROFILE=n")
-  config_opts+=("CONFIG_TARGET_PROFILE=DEVICE_$DEVICE")
-  config_opts+=("CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y")
-  config_opts+=("CONFIG_SDK=n")
-  config_opts+=("CONFIG_SDK_LLVM_BPF=n")
-  config_opts+=("CONFIG_IB=n")
-  config_opts+=("CONFIG_MAKE_TOOLCHAIN=n")
+  config_opts+=(
+    "CONFIG_TARGET_MULTI_PROFILE=n"
+    "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
+    "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
+  )
+
+  # Add profile config options
+  for config in ${P_ARR[config]}; do
+    config_opts+=("$config")
+  done
 
   # Write options to config seed file
   for config in "${config_opts[@]}"; do
@@ -641,7 +652,7 @@ from_source() {
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
 
   # Make image
-  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" download world; then
+  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" BIN_DIR="$BIN_DIR" download world; then
     echo "Error: make failed"
     return 1
   fi
