@@ -558,29 +558,35 @@ from_source() {
     execute git clone "$src_url" "$SRC_DIR"
   fi
 
-  # Recreate worktree from the remote ref
-  execute git -C "$SRC_DIR" worktree remove --force "$BUILD_DIR" || true
-  execute rm -rf "$BUILD_DIR"
-  execute git -C "$SRC_DIR" worktree prune --verbose
-  execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "origin/$ref"
+  if [[ -d "$BUILD_DIR/.git" ]]; then
+    # Keep worktree and reset to desired ref (handles branches and tags)
+    execute git -C "$BUILD_DIR" fetch origin --tags --prune
+    execute git -C "$BUILD_DIR" reset --hard "origin/$ref" ||
+      execute git -C "$BUILD_DIR" reset --hard "$ref" ||
+      execute git -C "$BUILD_DIR" checkout --detach "$ref"
+  else
+    execute git -C "$SRC_DIR" worktree prune --verbose
+    # Prefer local tag/branch if present, otherwise use remote-tracking branch
+    if ! execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"; then
+      execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "origin/$ref"
+    fi
+  fi
 
-  # Add cherrypick commits if specified in profile
+  # Add cherrypick commits if specified in profile (skip if already included)
   for entry in ${P_ARR[cherrypicks]}; do
     remote="${entry%%:*}"
     commit="${entry##*:}"
-    # Add remote if not present
     if ! git -C "$BUILD_DIR" remote | grep -q "^$remote$"; then
       execute git -C "$BUILD_DIR" remote add "$remote" "https://github.com/$remote/openwrt.git"
     fi
-    # Fetch remote
     execute git -C "$BUILD_DIR" fetch "$remote"
-    # Cherry-pick commit
-    execute git -C "$BUILD_DIR" cherry-pick "$commit"
+    execute git -C "$BUILD_DIR" merge-base --is-ancestor "$commit" HEAD ||
+      execute git -C "$BUILD_DIR" cherry-pick "$commit"
   done
   
   # Print commit info
   commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
-  description=$(git -C "$BUILD_DIR" describe)
+  description=$(git -C "$BUILD_DIR" describe --always --dirty)
   echo "Current commit hash: $commit"
   echo "Git worktree description: $description"
 
@@ -592,8 +598,15 @@ from_source() {
   # Begin OpenWRT build process
   ((DEBUG)) && make_opts+=("V=sc")
   
-  # Cleanup build environment
-  execute make "${make_opts[@]}" "-j1" distclean
+  # Cleanup build environment: heavy clean only when --reset was used earlier
+  if ((RESET)); then
+    execute make "${make_opts[@]}" "-j1" distclean
+  else
+    debug "Skipping distclean for incremental build"
+  fi
+  
+  # Advanced build environment cleanup options for debugging and future use
+  # execute make "${make_opts[@]}" "-j1" distclean
   # make clean # compiled output
   # make targetclean # compiled output, toolchain
   # make dirclean # compiled output, toolchain, build tools
