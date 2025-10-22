@@ -558,11 +558,11 @@ from_source() {
     execute git clone "$src_url" "$SRC_DIR"
   fi
 
-  if [[ -d "$BUILD_DIR/.git" ]]; then
-    # Keep worktree and reset to desired ref (handles branches and tags)
+  # Reuse worktree if present; otherwise create it (support branches and tags)
+  if git -C "$BUILD_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     execute git -C "$BUILD_DIR" fetch origin --tags --prune
-    execute git -C "$BUILD_DIR" reset --hard "origin/$ref" ||
-      execute git -C "$BUILD_DIR" reset --hard "$ref" ||
+    execute git -C "$BUILD_DIR" reset --hard "origin/$ref" || \
+      execute git -C "$BUILD_DIR" reset --hard "$ref" || \
       execute git -C "$BUILD_DIR" checkout --detach "$ref"
   else
     execute git -C "$SRC_DIR" worktree prune --verbose
