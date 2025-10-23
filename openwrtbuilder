@@ -519,6 +519,8 @@ from_source() {
   local pkg config commit seed_file description
   local -a make_opts
   local -a config_opts=(
+    "CONFIG_TARGET_${TARGET//\//_}=y"
+    "CONFIG_TARGET_${TARGET//\//_}_${TARGET##*/}=y"
     "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
     "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
     "CONFIG_TARGET_ROOTFS_${FILESYSTEM^^}=y"
