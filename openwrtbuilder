@@ -607,7 +607,7 @@ from_source() {
   fi
   
   # Use a custom (faster) mirror
-  # execute sed -i -E 's;git.openwrt.org/(feed|project);github.com/openwrt;' feeds.conf.default
+  execute sed -i -E 's;git.openwrt.org/(feed|project);github.com/openwrt;' feeds.conf.default
 
   # Update package feed
   ./scripts/feeds update -a -f &&
