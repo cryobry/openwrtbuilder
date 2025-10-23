@@ -519,8 +519,6 @@ from_source() {
   local pkg config commit seed_file description
   local -a make_opts
   local -a config_opts=(
-    "CONFIG_TARGET_${TARGET//\//_}=y"
-    "CONFIG_TARGET_${TARGET//\//_}_${TARGET##*/}=y"
     "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
     "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
     "CONFIG_TARGET_ROOTFS_${FILESYSTEM^^}=y"
@@ -629,7 +627,8 @@ from_source() {
     config_opts+=("$config")
   done
 
-  # Write options to config seed file
+  # Reset and write options to config seed file
+  [[ -f $seed_file ]] && execute rm -f "$seed_file"
   for config in "${config_opts[@]}"; do
     debug "Writing $config to $seed_file"
     echo "$config" >> "$seed_file"
