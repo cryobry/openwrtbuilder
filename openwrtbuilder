@@ -22,18 +22,16 @@ print_help() {
 	  --release,-r,--version,-v RELEASE ("snapshot", "22.03.5") 
 	  --buildroot,-b PATH
 	    Default: location of openwrtbuilder script
-	  --source
+	  --source[=CLEAN]
 	    Build image from source, not from Image Builder
-	    Allows make config options to be passed in profile
-	    Uses git worktree for multi-profile deduplication
+	    Optional CLEAN runs the given clean mode before building
+	      (clean|targetclean|dirclean|distclean)
 	  --ssh-upgrade HOST
 	    Examples: root@192.168.1.1, root@router.lan
 	  --ssh-backup SSH_PATH
 	    Enabled by default for --ssh-upgrade
 	  --flash,-f DEVICE
 	    Example: /dev/sdX
-	  --reset
-	    Cleanup all source and output files
 	  --depends
 	    Force dependency installation
 	  --yes,-y
@@ -127,8 +125,8 @@ parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
   declare -gi RESET=0 FROM_SOURCE=0 YES=0 DEBUG=0 FORCE_DEPENDS=0
-  declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV
-  local long_opts='release:,version:,profile:,buildroot:,source,'
+  declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV SOURCE_CLEAN 
+  local long_opts='release:,version:,profile:,buildroot:,source::,'
   long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,depends,yes,debug,help'
 
   if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
@@ -138,7 +136,12 @@ parse_input() {
         --release|-r|--version|-v) shift; USER_RELEASE="$1" ;;
         --profile|-p) shift; PROFILES+=("$1") ;;
         --buildroot|-b) shift; BUILD_ROOT="$1" ;;
-        --source|-s) FROM_SOURCE=1 ;;
+        --source|-s) FROM_SOURCE=1
+          case "$1" in
+            -*|"") ;; # if empty
+            *) SOURCE_CLEAN="$1"; shift ;;
+          esac
+          ;;
         --ssh-upgrade) shift; SSH_UPGRADE_PATH="$1" ;;
         --ssh-backup) shift; SSH_BACKUP_PATH="$1" ;;
         --flash|-f) shift; FLASH_DEV="$1" ;;
@@ -540,7 +543,7 @@ from_source() {
 
   echo "Building from source is under development"
 
-  # Remove all build directories and worktrees
+  # Remove all build directories and worktrees if --reset
   if ((RESET)); then
     if [[ -d "$BUILD_DIR" || -d "$worktree_meta" ]]; then
       execute git -C "$SRC_DIR" worktree remove --force --force "$BUILD_DIR"
@@ -599,19 +602,16 @@ from_source() {
   ((DEBUG)) && make_opts+=("V=sc")
   
   # Cleanup build environment: heavy clean only when --reset was used earlier
-  if ((RESET)); then
-    execute make "${make_opts[@]}" "-j1" distclean
-  else
-    debug "Skipping distclean for incremental build"
-  fi
-  
-  # Advanced build environment cleanup options for debugging and future use
-  # execute make "${make_opts[@]}" "-j1" distclean
   # make clean # compiled output
   # make targetclean # compiled output, toolchain
   # make dirclean # compiled output, toolchain, build tools
   # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
-
+  if [[ -n $SOURCE_CLEAN ]]; then
+    execute make "${make_opts[@]}" "-j1" "$SOURCE_CLEAN"
+  else
+    debug "Skipping cleanup step"
+  fi
+  
   # Use a custom (faster) mirror
   # execute sed -i -E 's;git.openwrt.org/(feed|project);github.com/openwrt;' feeds.conf.default
 
@@ -640,13 +640,14 @@ from_source() {
   done
 
   # Expand seed into full config
-  execute make "-j1" defconfig
+  execute make "${make_opts[@]}" "-j1" defconfig
 
   # Run serial make download for better reliability
-  execute make "-j1" download
+  execute make "${make_opts[@]}" "-j1" download
 
-  # make_opts+=("-j$(($(nproc)-2))")
-  ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
+  # (Optional) Disable multicore make world
+  # ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
+  make_opts+=("-j$(($(nproc)-2))")
 
   # Make image
   if ! execute ionice -c2 -n7 nice -n19 make "${make_opts[@]}" BIN_DIR="$BIN_DIR" world; then
