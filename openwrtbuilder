@@ -640,13 +640,16 @@ from_source() {
   done
 
   # Expand seed into full config
-  execute make "${make_opts[@]}" "-j1" defconfig
+  execute make "-j1" defconfig
+
+  # Run serial make download for better reliability
+  execute make "-j1" download
 
   # make_opts+=("-j$(($(nproc)-2))")
   ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
 
   # Make image
-  if ! execute ionice -c 3 chrt --idle 0 nice -n19 make "${make_opts[@]}" BIN_DIR="$BIN_DIR" download world; then
+  if ! execute ionice -c2 -n7 nice -n19 make "${make_opts[@]}" BIN_DIR="$BIN_DIR" world; then
     echo "Error: make failed"
     return 1
   fi

@@ -19,7 +19,7 @@ declare -Ag r4s=(
   [target]="rockchip/armv8"
   [filesystem]="ext4"
   [packages]="${default_packages[*]} \
-    luci-app-ddns luci-app-sqm irqbalance \
+    luci-app-ddns luci-app-sqm \
     adblock luci-app-adblock \
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
