@@ -69,7 +69,7 @@ declare -Ag n5100=(
 )
 
 declare -Ag w1700k=(
-  [mode]="imagebuilder"
+  [mode]="source"
   [device]="gemtek_w1700k"
   [target]="airoha/an7581"
   [filesystem]="squashfs"
