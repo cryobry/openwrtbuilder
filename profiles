@@ -29,7 +29,8 @@ declare -Ag r4s=(
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
   [files]="/mnt/backup"
   # For 24.10 branch (Linux 6.6)
-  # [cherrypicks]="wurzerj:59d6e31 wurzerj:bb251b8" # fix inconsistent reboot
+  # [cherrypicks]="https://github.com/wurzerj/openwrt.git:59d6e31 \
+  # https://github.com/wurzerj/openwrt.git:bb251b8" # fix inconsistent reboot
 )
 
 declare -Ag ax6000=(
@@ -82,7 +83,6 @@ declare -Ag w1700k=(
     ethtool ca-bundle tailscale"
   [cherrypicks]="\
     https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:4cfd50f648 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:bbf3e6d7e1 \
     https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:59bb20c522 \
     https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:1d58331f5c \
     https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:c2712ff093 \
@@ -92,8 +92,9 @@ declare -Ag w1700k=(
     https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:ef002d6422 \
     https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:af3e569610 \
     https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:66b0757616 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:1c7d47a1f4 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:94d9ad7d4c"
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:26398bc2c6 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:16be0246ca \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:3cdf63b0ec"
 )
 
 declare -Ag rpi4=(
