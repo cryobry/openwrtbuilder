@@ -571,14 +571,34 @@ from_source() {
     fi
   fi
 
-  # Add cherrypick commits if specified in profile (skip if already included)
+  # Add cherrypicks
   for entry in ${P_ARR[cherrypicks]}; do
-    remote="${entry%%:*}"
+    url_branch="${entry%%:*}"
     commit="${entry##*:}"
-    if ! git -C "$BUILD_DIR" remote | grep -q "^$remote$"; then
-      execute git -C "$BUILD_DIR" remote add "$remote" "https://github.com/$remote/openwrt.git"
+
+    branch=""
+    url="$url_branch"
+    if [[ "$url_branch" == *"@"* ]]; then
+      url="${url_branch%@*}"
+      branch="${url_branch#*@}"
     fi
-    execute git -C "$BUILD_DIR" fetch "$remote"
+
+    remote="${url%.git}"
+    remote="${remote##*/}"
+    remote=${remote//[^A-Za-z0-9._-]/_}
+    [[ -z $remote ]] && remote="cherry"
+
+    if ! git -C "$BUILD_DIR" remote | grep -q "^$remote$"; then
+      execute git -C "$BUILD_DIR" remote add "$remote" "$url"
+    else
+      execute git -C "$BUILD_DIR" remote set-url "$remote" "$url"
+    fi
+
+    if [[ -n $branch ]]; then
+      execute git -C "$BUILD_DIR" fetch "$remote" "$branch"
+    else
+      execute git -C "$BUILD_DIR" fetch "$remote"
+    fi
     execute git -C "$BUILD_DIR" merge-base --is-ancestor "$commit" HEAD ||
       execute git -C "$BUILD_DIR" cherry-pick "$commit"
   done
