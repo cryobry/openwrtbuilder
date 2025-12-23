@@ -82,19 +82,19 @@ declare -Ag w1700k=(
     lm-sensors samba4-server luci-app-samba4 tailscale shadow-useradd \
     ethtool ca-bundle tailscale"
   [cherrypicks]="\
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:4cfd50f648 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:59bb20c522 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:1d58331f5c \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:c2712ff093 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:dc3dd61835 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:32caca6a76 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:cf66b89f84 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:ef002d6422 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:af3e569610 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:66b0757616 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:26398bc2c6 \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:16be0246ca \
-    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:3cdf63b0ec"
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:8d449e968cfaa774ab7a219b3a5ab4251b2f9352 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:3033241393ef6eb562539c6a3ccb9d3cf1a25d05 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:79a21e0986a9efe6de3a07394a71ac15a2107b16 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:2f8a1cbf901df0d325dfe112fdfe8013a72c8305 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:71b09bc5852797cdbf7cb3b56a7d8fcd9d4ca9db \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:fe0135f0b7037a9cc1985d5937dd24cb99bfccb1 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:cdb937180fb971fe702078f0e0fef63f2fcce337 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:6dc847c802b9dc597fc2c64711ca85499f128d1d \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:b6e6cf911915dd987eecde908a2013419565cff4 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:708089948949e66f5234249fc631e0453b58942e \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:9841a707a577385498591bcfb56b836176325c2f \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:8446ec6431a3247683a27070d3c69f2789b52c70 \
+    https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:05380e2ef5fb96c171da23453ba32aa349a4b126"
 )
 
 declare -Ag rpi4=(
