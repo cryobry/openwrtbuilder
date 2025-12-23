@@ -573,7 +573,7 @@ from_source() {
 
   # Add cherrypicks
   for entry in ${P_ARR[cherrypicks]}; do
-    url_branch="${entry%%:*}"
+    url_branch="${entry%:*}"
     commit="${entry##*:}"
 
     branch=""
@@ -599,6 +599,13 @@ from_source() {
     else
       execute git -C "$BUILD_DIR" fetch "$remote"
     fi
+
+    # Verify commit exists before attempting cherry-pick
+    if ! git -C "$BUILD_DIR" cat-file -e "$commit^{commit}" 2>/dev/null; then
+      debug "Commit $commit not found after fetching from $remote; skipping"
+      continue
+    fi
+
     execute git -C "$BUILD_DIR" merge-base --is-ancestor "$commit" HEAD ||
       execute git -C "$BUILD_DIR" cherry-pick "$commit"
   done
