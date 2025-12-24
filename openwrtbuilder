@@ -609,6 +609,38 @@ from_source() {
     execute git -C "$BUILD_DIR" merge-base --is-ancestor "$commit" HEAD ||
       execute git -C "$BUILD_DIR" cherry-pick "$commit"
   done
+
+  # Merge entire branches
+  for entry in ${P_ARR[branches]}; do
+    url_branch="$entry"
+    branch=""
+    url="$url_branch"
+    if [[ "$url_branch" == *"@"* ]]; then
+      url="${url_branch%@*}"
+      branch="${url_branch#*@}"
+    fi
+
+    remote="${url%.git}"
+    remote="${remote##*/}"
+    remote=${remote//[^A-Za-z0-9._-]/_}
+    [[ -z $remote ]] && remote="merge"
+
+    if ! git -C "$BUILD_DIR" remote | grep -q "^$remote$"; then
+      execute git -C "$BUILD_DIR" remote add "$remote" "$url"
+    else
+      execute git -C "$BUILD_DIR" remote set-url "$remote" "$url"
+    fi
+
+    if [[ -n $branch ]]; then
+      execute git -C "$BUILD_DIR" fetch "$remote" "$branch"
+      echo "Merging $remote/$branch into $(git -C "$BUILD_DIR" rev-parse --abbrev-ref HEAD)"
+      execute git -C "$BUILD_DIR" merge --allow-unrelated-histories -m "Merge $remote/$branch" "$remote/$branch" || \
+        { debug "Merge conflict or failed for $remote/$branch"; return 1; }
+    else
+      debug "Cannot merge: no branch specified in entry '$entry'"
+      continue
+    fi
+  done
   
   # Print commit info
   commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
