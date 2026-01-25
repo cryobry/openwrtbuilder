@@ -5,11 +5,11 @@
 RELEASE="25.12.0-rc3" # override default release in openwrtbuilder
 
 # Default (but optional) packages (precede with "-" to exclude)
-default_packages=(nano htop diffutils tar iperf3 zsh rsync curl tcpdump
+default_packages=(nano vim htop diffutils tar iperf3 zsh rsync tcpdump
   openssh-sftp-server 
   luci luci-ssl luci-proto-wireguard luci-app-statistics luci-app-filemanager
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
-  ethtool apk-openssl
+  ca-bundle ethtool apk-openssl
 )
 
 # Default (but optional) kernel configs
@@ -83,7 +83,7 @@ declare -Ag w1700k=(
     luci-app-sqm \
     smcroute avahi-daemon \
     lm-sensors samba4-server luci-app-samba4 shadow-useradd \
-    ethtool ca-bundle tailscale"
+    ca-bundle tailscale"
   # [cherrypicks]="\
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:8d449e968cfaa774ab7a219b3a5ab4251b2f9352 \
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:3033241393ef6eb562539c6a3ccb9d3cf1a25d05 \
@@ -109,7 +109,8 @@ declare -Ag w1700k_ap=(
   [release]="snapshot"
   [packages]="${default_packages[*]} \
     -dnsmasq -odhcpd-ipv6only -nftables -firewall4 \
-    wpad-openssl libiwinfo-data irqbalance tailscale bridger \
+    irqblance luci-app-irqbalance \
+    wpad-openssl libiwinfo-data tailscale bridger switch smp_util \
     kmod-crypto-hw-eip93"
   [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@minimal"
 )
