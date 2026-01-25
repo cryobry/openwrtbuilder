@@ -106,7 +106,7 @@ declare -Ag w1700k_ap=(
   [packages]="${default_packages[*]} \
     -dnsmasq -odhcpd-ipv6only -nftables -firewall4 \
     tailscale"
-  [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos"
+  [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@minimal"
 )
 
 declare -Ag rpi4=(
