@@ -97,6 +97,17 @@ declare -Ag w1700k=(
   [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@minimal"
 )
 
+declare -Ag w1700k_ap=(
+  [mode]="source"
+  [device]="gemtek_w1700k"
+  [target]="airoha/an7581"
+  [filesystem]="squashfs"
+  [release]="snapshot"
+  [packages]="${default_packages[*]} \
+    -dnsmasq -odhcpd-ipv6only -nftables -firewall4 tailscale"
+  [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@minimal"
+)
+
 declare -Ag rpi4=(
   [device]="rpi-4"
   [target]="bcm27xx/bcm2711"
