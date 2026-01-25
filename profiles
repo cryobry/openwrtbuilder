@@ -76,10 +76,9 @@ declare -Ag w1700k=(
   [filesystem]="squashfs"
   [release]="snapshot"
   [packages]="${default_packages[*]} \
-    luci-app-ddns luci-app-sqm \
-    adblock luci-app-adblock \
+    luci-app-sqm \
     smcroute avahi-daemon \
-    lm-sensors samba4-server luci-app-samba4 tailscale shadow-useradd \
+    lm-sensors samba4-server luci-app-samba4 shadow-useradd \
     ethtool ca-bundle tailscale"
   # [cherrypicks]="\
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:8d449e968cfaa774ab7a219b3a5ab4251b2f9352 \
@@ -95,7 +94,7 @@ declare -Ag w1700k=(
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:9841a707a577385498591bcfb56b836176325c2f \
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:8446ec6431a3247683a27070d3c69f2789b52c70 \
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:05380e2ef5fb96c171da23453ba32aa349a4b126"
-  [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos"
+  [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@minimal"
 )
 
 declare -Ag rpi4=(
