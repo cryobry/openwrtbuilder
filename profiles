@@ -41,7 +41,6 @@ declare -Ag ax6000=(
   [mode]="imagebuilder"
   [device]="xiaomi_redmi-router-ax6000-stock"
   [target]="mediatek/filogic"
-  [release]="snapshot"
   [filesystem]="squashfs"
   [packages]="${default_packages[*]} \
     tailscale"
