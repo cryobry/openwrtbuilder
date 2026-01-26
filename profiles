@@ -9,7 +9,7 @@ default_packages=(nano vim htop diffutils tar iperf3 zsh rsync tcpdump
   openssh-sftp-server 
   luci luci-ssl luci-proto-wireguard luci-app-statistics luci-app-filemanager
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
-  ca-bundle ethtool apk-openssl
+  ca-bundle ethtool
 )
 
 # Default (but optional) kernel configs
