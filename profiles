@@ -44,7 +44,7 @@ declare -Ag ax6000=(
   [release]="snapshot"
   [filesystem]="squashfs"
   [packages]="${default_packages[*]} \
-    -dnsmasq -odhcpd-ipv6only -nftables -firewall4 tailscale"
+    tailscale"
 )
 
 declare -Ag ax6000_uboot=(
