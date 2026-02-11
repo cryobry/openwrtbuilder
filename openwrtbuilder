@@ -5,7 +5,7 @@
 # See README and ./profiles for device configuration
 
 # Set default release
-: "${RELEASE:="24.10.5"}"
+: "${DEFAULT_RELEASE:=${RELEASE:="24.10.5"}}"
 
 # @internal
 print_help() {
@@ -19,15 +19,16 @@ print_help() {
 
 	OPTIONS
 	  --profile,-p PROFILE
-	  --release,-r,--version,-v RELEASE ("snapshot", "22.03.5") 
+	  --release,-r,--version,-v RELEASE ("snapshot", "24.10.5")
+	    Default: From profile or hardcoded RELEASE    
 	  --buildroot,-b PATH
 	    Default: location of openwrtbuilder script
 	  --cpus,-c NUM
 	    Default: # of host CPUS minus 1
-	  --source[=CLEAN]
-	    Build image from source, not from Image Builder
-	    Optional CLEAN runs the given clean mode before building
-	      (clean|targetclean|dirclean|distclean)
+	  --mode,-m imagebuilder|source
+	    Default: imagebuilder
+	  --clean clean|targetclean|dirclean|distclean
+	    Optional clean step for source mode
 	  --ssh-upgrade HOST
 	    Examples: root@192.168.1.1, root@router.lan
 	  --ssh-backup SSH_PATH
@@ -37,7 +38,7 @@ print_help() {
 	  --depends
 	    Force dependency installation
 	  --yes,-y
-	    Assume yes for all questions (automatic mode)
+	    Assume yes for all questions (non-interactive)
 	  --debug,-d
 	  --help,-h
 
@@ -52,7 +53,7 @@ print_help() {
 # @internal
 init() {
   debug "${FUNCNAME[0]}"
-  declare -g ID RPM_MGR SCRIPT_DIR DL_TOOL CPUS
+  declare -g ID RPM_MGR SCRIPT_DIR DL_TOOL
 
   ((DEBUG)) || echo "To enable debugging output, use --debug or -d"
 
@@ -126,24 +127,20 @@ init() {
 parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
-  declare -gi RESET=0 FROM_SOURCE=0 YES=0 DEBUG=0 FORCE_DEPENDS=0 CPUS=0
-  declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV SOURCE_CLEAN 
-  local long_opts='release:,version:,profile:,buildroot:,cpus:,source::,'
+  declare -gi RESET=0 YES=0 DEBUG=0 FORCE_DEPENDS=0 CPUS=0
+  declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV USER_MODE USER_CLEAN 
+  local long_opts='release:,version:,profile:,buildroot:,cpus:,mode:,clean:'
   long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,depends,yes,debug,help'
 
-  if _input=$(getopt -o +r:v:p:b:c:sf:ydh -l $long_opts -- "$@"); then
+  if _input=$(getopt -o +r:v:p:b:m:c:f:ydh -l $long_opts -- "$@"); then
     eval set -- "$_input"
     while true; do
       case "$1" in
         --release|-r|--version|-v) shift; USER_RELEASE="$1" ;;
         --profile|-p) shift; PROFILES+=("$1") ;;
         --buildroot|-b) shift; BUILD_ROOT="$1" ;;
-        --source|-s) FROM_SOURCE=1
-          case "$1" in
-            -*|"") ;; # if empty
-            *) SOURCE_CLEAN="$1"; shift ;;
-          esac
-          ;;
+        --mode|-m) shift; USER_MODE="$1" ;;
+        --clean) shift; USER_CLEAN="$1" ;;
         --cpus|-c) shift; CPUS="$1" ;;
         --ssh-upgrade) shift; SSH_UPGRADE_PATH="$1" ;;
         --ssh-backup) shift; SSH_BACKUP_PATH="$1" ;;
@@ -175,7 +172,7 @@ install_dependencies() {
   if [[ "$mode" == "source" ]]; then
     lock_file="$BUILD_ROOT/.dependencies_source.lock"
   elif [[ "$mode" == "imagebuilder" ]]; then
-    lock_file="$BUILD_ROOT/.dependencies_ib.lock"
+    lock_file="$BUILD_ROOT/.dependencies_imagebuilder.lock"
   fi
 
   [[ -f $lock_file ]] && debug "$lock_file lock file exists but skipping for --debug" && return 0
@@ -508,18 +505,12 @@ ssh_upgrade() {
 
 # @description Builds OpenWRT from source code using the the default buildbot as base
 # This enables the use of kernel config options in profiles
-# @arg $1 string .config seed URL
-# @arg $2 string Profile name
-# @arg $3 string Worktree ref (commit-ish or branch name)
 from_source() {
-  debug "${FUNCNAME[0]}" "$*"
-  local seed_url="$1"
-  local profile="$2"
-  local ref="$3"
+  debug "${FUNCNAME[0]}"
   local src_url="https://github.com/openwrt/openwrt.git"
   local seed_file="$BUILD_DIR/.config"
-  local worktree_meta="$SRC_DIR/.git/worktrees/source-$ref"
-  local pkg config commit seed_file description
+  local worktree_meta="$SRC_DIR/.git/worktrees/source-$REF"
+  local pkg config commit description
   local -a make_opts
   local -a config_opts=(
     "CONFIG_TARGET_${TARGET%%/*}=y"
@@ -563,22 +554,21 @@ from_source() {
   # Reuse worktree if present; otherwise create it (support branches and tags)
   if git -C "$BUILD_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     execute git -C "$BUILD_DIR" fetch origin --tags --prune
-    execute git -C "$BUILD_DIR" reset --hard "origin/$ref" || \
-      execute git -C "$BUILD_DIR" reset --hard "$ref" || \
-      execute git -C "$BUILD_DIR" checkout --detach "$ref"
+    execute git -C "$BUILD_DIR" reset --hard "origin/$REF" || \
+      execute git -C "$BUILD_DIR" reset --hard "$REF" || \
+      execute git -C "$BUILD_DIR" checkout --detach "$REF"
   else
     execute git -C "$SRC_DIR" worktree prune --verbose
     # Prefer local tag/branch if present, otherwise use remote-tracking branch
-    if ! execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$ref"; then
-      execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "origin/$ref"
+    if ! execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "$REF"; then
+      execute git -C "$SRC_DIR" worktree add --detach "$BUILD_DIR" "origin/$REF"
     fi
   fi
 
   # Add cherrypicks
-  for entry in ${P_ARR[cherrypicks]}; do
-    url_branch="${entry%:*}"
-    commit="${entry##*:}"
-
+  for cherrypick in $CHERRYPICKS; do
+    url_branch="${cherrypick%:*}"
+    commit="${cherrypick##*:}"
     branch=""
     url="$url_branch"
     if [[ "$url_branch" == *"@"* ]]; then
@@ -614,8 +604,8 @@ from_source() {
   done
 
   # Merge entire branches
-  for entry in ${P_ARR[branches]}; do
-    url_branch="$entry"
+  for branch in $BRANCHES; do
+    url_branch="$branch"
     branch=""
     url="$url_branch"
     if [[ "$url_branch" == *"@"* ]]; then
@@ -640,7 +630,7 @@ from_source() {
       execute git -C "$BUILD_DIR" merge --allow-unrelated-histories -m "Merge $remote/$branch" "$remote/$branch" || \
         { debug "Merge conflict or failed for $remote/$branch"; return 1; }
     else
-      debug "Cannot merge: no branch specified in entry '$entry'"
+      debug "Cannot merge: no branch specified in entry '$branch'"
       continue
     fi
   done
@@ -664,8 +654,8 @@ from_source() {
   # make targetclean # compiled output, toolchain
   # make dirclean # compiled output, toolchain, build tools
   # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
-  if [[ -n $SOURCE_CLEAN ]]; then
-    execute make "${make_opts[@]}" "-j1" "$SOURCE_CLEAN"
+  if [[ -n $CLEAN ]]; then
+    execute make "${make_opts[@]}" "-j1" "$CLEAN"
   else
     debug "Skipping cleanup step"
   fi
@@ -687,7 +677,7 @@ from_source() {
   done
 
   # Add profile config options
-  for config in ${P_ARR[config]}; do
+  for config in $CONFIGS; do
     config_opts+=("$config")
   done
 
@@ -724,32 +714,6 @@ from_source() {
   shopt -u nullglob
 
   return 0
-}
-
-# @description Backs up a file to a chosen directory using its timestamp
-# @arg $1 string File to backup
-# @arg $2 string Directory to backup to
-backup() {
-  debug "${FUNCNAME[0]}" "$*"
-  local file="$1" dir="$2"
-  local creation_date base_name backup_file
-
-  [[ -f $file ]] || return 1
-  [[ -d $dir ]] || execute mkdir -p "$dir" || { debug "Failed to create directory: $dir"; return 1; }
-
-  if creation_date=$(stat -c %w "$file" 2>/dev/null || stat -c %y "$file" 2>/dev/null) && \
-     [[ $creation_date != "-" && -n $creation_date ]] && \
-     creation_date=$(date -d "$creation_date" +%y%m%d%H%M 2>/dev/null); then
-    debug "Creation date: $creation_date"
-  else
-    creation_date="unknown"
-    debug "Unable to determine creation date, using 'unknown'"
-  fi
-
-  base_name="${file##*/}"
-  backup_file="$dir/$creation_date-$base_name"
-
-  [[ -f $backup_file ]] || execute cp --archive "$file" "$backup_file"
 }
 
 # @section Helper functions
@@ -826,82 +790,92 @@ main() {
   # Remove dependency lock files for --depends
   if ((FORCE_DEPENDS)); then
     [[ -f "$BUILD_ROOT/.dependencies_source.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_source.lock"
-    [[ -f "$BUILD_ROOT/.dependencies_ib.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_ib.lock"
-  fi
-
-  # Set number of parallel jobs for make and imagebuilder
-  declare -gi JOBS
-  if ((CPUS)); then
-    JOBS="$CPUS" # user overide (--cpus)
-  else
-    JOBS=$(nproc || echo 4) # fallback to quad-core if nproc fails
-    ((JOBS > 1)) && JOBS=$((JOBS - 1)) # leave one CPU free
+    [[ -f "$BUILD_ROOT/.dependencies_imagebuilder.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_imagebuilder.lock"
   fi
 
   # Run selected profiles
-  for profile in "${PROFILES[@]}"; do
-    debug "Running profile: $profile"
+  for PROFILE in "${PROFILES[@]}"; do
+    debug "Running profile: $PROFILE"
 
-    if [[ ! ${!profile@a} = A ]]; then
-      echo "Profile '$profile' does not exist"
+    if [[ ! ${!PROFILE@a} = A ]]; then
+      echo "Profile '$PROFILE' does not exist"
       return 1
     fi
 
-    # Store profile in P_ARR nameref
-    local -n P_ARR="$profile"
-    local mode="${P_ARR[mode]:-"imagebuilder"}"
-    ((FROM_SOURCE)) && mode="source" # allow cli override
-    install_dependencies "$mode"
-    local repo="${P_ARR[repo]:-}"
+    # Store profile in P_ARR nameref and set global profile vars
+    local -n P_ARR="$PROFILE"
+    declare -g REPO="${P_ARR[repo]:-}"
     declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
     declare -g TARGET="${P_ARR[target]}"
     declare -g DEVICE="${P_ARR[device]}"
-    declare -g PACKAGES="${P_ARR[packages]:-}"
+    declare -g MODE="${USER_MODE:-${P_ARR[mode]:-imagebuilder}}"
+    declare -g CLEAN="${USER_CLEAN:-${P_ARR[clean]:-}}"
+    declare -g PACKAGES="${P_ARR[packages]:-}" # scalar
+    declare -g CHERRYPICKS="${P_ARR[cherrypicks]:-}" # scalar
+    declare -g BRANCHES="${P_ARR[branches]:-}" # scalar
+    declare -g CONFIGS="${P_ARR[configs]:-}" # scalar
 
-    # pull in USER_RELEASE from args or profile default
-    local raw_release="${USER_RELEASE:=${P_ARR[release]:=$RELEASE}}"
+    install_dependencies "$MODE"
 
-    # single call to normalize+ref
-    read -r release ref < <(normalize_and_ref "$raw_release" "$mode")
+    # Set number of parallel jobs for make and imagebuilder
+    declare -gi JOBS
+    if ((CPUS)); then
+      JOBS="$CPUS" # user overide (--cpus)
+    else
+      JOBS=$(nproc || echo 4) # fallback to quad-core if nproc fails
+      ((JOBS > 1)) && JOBS=$((JOBS - 1)) # leave one CPU free
+    fi
+
+    # Normalize RELEASE and set REF committish
+    local raw_release="${USER_RELEASE:=${P_ARR[release]:=$DEFAULT_RELEASE}}"
+    declare -g RELEASE REF
+    read -r RELEASE REF < <(normalize_and_ref "$raw_release" "$MODE")
 
     declare -g SRC_DIR="$BUILD_ROOT/src/.openwrt"
-    declare -g BUILD_DIR="$BUILD_ROOT/src/$profile/$ref-$mode"
-    declare -g BIN_DIR="$BUILD_ROOT/bin/$profile/$ref-$mode"
+    declare -g BUILD_DIR="$BUILD_ROOT/src/$PROFILE/$REF-$MODE"
+    declare -g BIN_DIR="$BUILD_ROOT/bin/$PROFILE/$REF-$MODE"
 
-    if [[ "$release" == "snapshot" ]]; then
+    if [[ "$RELEASE" == "snapshot" ]]; then
       local url_prefix="https://downloads.openwrt.org/snapshots/targets/$TARGET"
       local url_filename="openwrt-imagebuilder-${TARGET//\//-}.Linux-x86_64.tar.zst"
       local img_fname="openwrt-${TARGET//\//-}-$DEVICE-$FILESYSTEM" 
     else
-      local url_prefix="https://downloads.openwrt.org/releases/$release/targets/$TARGET"
-      local url_filename="openwrt-imagebuilder-$release-${TARGET//\//-}.Linux-x86_64.tar.zst"
-      local img_fname="openwrt-$release-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
+      local url_prefix="https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET"
+      local url_filename="openwrt-imagebuilder-$RELEASE-${TARGET//\//-}.Linux-x86_64.tar.zst"
+      local img_fname="openwrt-$RELEASE-${TARGET//\//-}-$DEVICE-$FILESYSTEM"
     fi
 
-    local ib_url="$url_prefix/$url_filename"
-    local ib_file="$BUILD_DIR/$url_filename"
-    local ib_sha256_url="$url_prefix/sha256sums"
-    local ib_sha256_file="$BUILD_DIR/sha256sums"
-    local seed_url="$url_prefix/config.buildinfo"
+    local imagebuilder_url="$url_prefix/$url_filename"
+    local imagebuilder_file="$BUILD_DIR/$url_filename"
+    local imagebuilder_sha256_url="$url_prefix/sha256sums"
+    local imagebuilder_sha256_file="$BUILD_DIR/sha256sums"
 
-    if [[ "$mode" == "source" ]]; then
+    if [[ "$MODE" == "source" ]]; then
       declare -g SYSUPGRADEIMGGZ="$BIN_DIR/targets/$TARGET/$img_fname-sysupgrade.img.gz"
     else
       declare -g SYSUPGRADEIMGGZ="$BUILD_DIR/$img_fname-sysupgrade.img.gz"
     fi
 
-    backup "$SYSUPGRADEIMGGZ" "$BACKUP_DIR/$profile/$ref-$mode"
+    # Backup existing output directory
+    if [[ -d "$BIN_DIR" ]]; then
+      local timestamp
+      timestamp=$(date +%y%m%d%H%M)
+      execute mkdir -p "$BACKUP_DIR/$PROFILE/$REF-$MODE-$timestamp"
+      execute rsync -a --delete "$BIN_DIR/" "$BACKUP_DIR/$PROFILE/$REF-$MODE-$timestamp/"
+    fi
 
-    if [[ "$mode" == "source" ]]; then
-      from_source "$seed_url" "$profile" "$ref" || return $?
-    elif [[ "$mode" == "imagebuilder" ]]; then
+    if [[ "$MODE" == "source" ]]; then
+      from_source || return $?
+    elif [[ "$MODE" == "imagebuilder" ]]; then
       [[ -d $BUILD_DIR ]] || mkdir -p "$BUILD_DIR"
-      get_imagebuilder "$ib_url" "$ib_file" "$ib_sha256_url" "$ib_sha256_file" && 
-      verify "$ib_file" "$ib_sha256_file" &&
-      extract "$ib_file" "$BUILD_DIR" || return $?
-      if [[ -v $repo ]]; then
-        if ! grep -q "$repo" "$BUILD_DIR/repositories.conf"; then
-          echo "$repo" >> "$BUILD_DIR/repositories.conf"
+      get_imagebuilder "$imagebuilder_url" "$imagebuilder_file" "$imagebuilder_sha256_url" "$imagebuilder_sha256_file" && 
+      verify "$imagebuilder_file" "$imagebuilder_sha256_file" &&
+      extract "$imagebuilder_file" "$BUILD_DIR" || return $?
+
+      # Add external repositories for the Image Builder build
+      if [[ -n $REPO ]]; then
+        if ! grep -q "$REPO" "$BUILD_DIR/repositories.conf"; then
+          echo "$REPO" >> "$BUILD_DIR/repositories.conf"
         fi
         sed -i '/option check_signature/d' "$BUILD_DIR/repositories.conf"
       fi
@@ -912,7 +886,7 @@ main() {
         local -a outfiles=("$BIN_DIR"/*.img.gz "$BIN_DIR"/*.img)
         shopt -u nullglob
         for outfile in "${outfiles[@]}"; do
-          verify "$outfile" "$ib_sha256_file" || return 1
+          verify "$outfile" "$imagebuilder_sha256_file" || return 1
         done
       fi
       #copyFiles

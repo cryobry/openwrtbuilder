@@ -2,15 +2,14 @@
 # Device profiles for openwrtbuilder
 # shellcheck disable=SC2034
 
-RELEASE="25.12.0-rc4" # overrides default release in openwrtbuilder
+DEFAULT_RELEASE="25.12.0-rc4" # overrides default release in openwrtbuilder
 
 # Default packages (precede with "-" to exclude)
 default_packages=(
-  nano vim htop diffutils tar iperf3 zsh rsync tcpdump
+  ca-bundle nano vim htop diffutils tar iperf3 zsh rsync tcpdump ethtool
   openssh-sftp-server 
   luci luci-ssl luci-proto-wireguard luci-app-statistics luci-app-filemanager
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
-  ca-bundle ethtool
 )
 
 # Default kernel configs
@@ -29,7 +28,7 @@ declare -Ag r4s=(
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
     ethtool ca-bundle tailscale"
-  [config]="${default_configs[*]} \
+  [configs]="${default_configs[*]} \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
   [files]="/mnt/backup"
@@ -67,7 +66,7 @@ declare -Ag n5100=(
     btrfs-progs block-mount cryptsetup kmod-crypto-xts smcroute \
     avahi-daemon ethtool ca-bundle smartmontools intel-microcode \
     lm-sensors samba4-server luci-app-samba4 tailscale shadow-useradd"
-  [config]="${default_configs[*]} \
+  [configs]="${default_configs[*]} \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
   # [files]="/mnt/backup"
