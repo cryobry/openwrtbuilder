@@ -22,6 +22,8 @@ print_help() {
 	  --release,-r,--version,-v RELEASE ("snapshot", "22.03.5") 
 	  --buildroot,-b PATH
 	    Default: location of openwrtbuilder script
+	  --cpus,-c NUM
+	    Default: # of host CPUS minus 1
 	  --source[=CLEAN]
 	    Build image from source, not from Image Builder
 	    Optional CLEAN runs the given clean mode before building
@@ -50,7 +52,7 @@ print_help() {
 # @internal
 init() {
   debug "${FUNCNAME[0]}"
-  declare -g ID RPM_MGR SCRIPT_DIR DL_TOOL
+  declare -g ID RPM_MGR SCRIPT_DIR DL_TOOL CPUS
 
   ((DEBUG)) || echo "To enable debugging output, use --debug or -d"
 
@@ -124,12 +126,12 @@ init() {
 parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
-  declare -gi RESET=0 FROM_SOURCE=0 YES=0 DEBUG=0 FORCE_DEPENDS=0
+  declare -gi RESET=0 FROM_SOURCE=0 YES=0 DEBUG=0 FORCE_DEPENDS=0 CPUS=0
   declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV SOURCE_CLEAN 
-  local long_opts='release:,version:,profile:,buildroot:,source::,'
+  local long_opts='release:,version:,profile:,buildroot:,cpus:,source::,'
   long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,depends,yes,debug,help'
 
-  if _input=$(getopt -o +r:v:p:b:sf:ydh -l $long_opts -- "$@"); then
+  if _input=$(getopt -o +r:v:p:b:c:sf:ydh -l $long_opts -- "$@"); then
     eval set -- "$_input"
     while true; do
       case "$1" in
@@ -142,6 +144,7 @@ parse_input() {
             *) SOURCE_CLEAN="$1"; shift ;;
           esac
           ;;
+        --cpus|-c) shift; CPUS="$1" ;;
         --ssh-upgrade) shift; SSH_UPGRADE_PATH="$1" ;;
         --ssh-backup) shift; SSH_BACKUP_PATH="$1" ;;
         --flash|-f) shift; FLASH_DEV="$1" ;;
@@ -441,7 +444,7 @@ make_images() {
   debug make "${make_opts[@]}" image BIN_DIR="$BIN_DIR" \
     PROFILE="$DEVICE" PACKAGES="$PACKAGES" \
     FILES="$FILES_DIR" --directory="$BUILD_DIR" \
-    --jobs="$(($(nproc) - 1))"
+    --jobs="$JOBS"
 
   make "${make_opts[@]}" image \
     BIN_DIR="$BIN_DIR" \
@@ -449,7 +452,7 @@ make_images() {
     PACKAGES="$PACKAGES" \
     FILES="$FILES_DIR" \
     --directory="$BUILD_DIR" \
-    --jobs="$(($(nproc) - 1))"  \
+    --jobs="$JOBS"  \
     > "$BUILD_DIR/make.log"
 }
 
@@ -702,8 +705,8 @@ from_source() {
   execute make "${make_opts[@]}" "-j1" download
 
   # (Optional) Disable multicore make world
-  # ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$(($(nproc)-2))")
-  make_opts+=("-j$(($(nproc)-2))")
+  # ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$JOBS)")
+  make_opts+=("-j$JOBS")
 
   # Make image
   if ! execute ionice -c2 -n7 nice -n19 make "${make_opts[@]}" BIN_DIR="$BIN_DIR" world; then
@@ -824,6 +827,15 @@ main() {
   if ((FORCE_DEPENDS)); then
     [[ -f "$BUILD_ROOT/.dependencies_source.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_source.lock"
     [[ -f "$BUILD_ROOT/.dependencies_ib.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_ib.lock"
+  fi
+
+  # Set number of parallel jobs for make and imagebuilder
+  declare -gi JOBS
+  if ((CPUS)); then
+    JOBS="$CPUS" # user overide (--cpus)
+  else
+    JOBS=$(nproc || echo 4) # fallback to quad-core if nproc fails
+    ((JOBS > 1)) && JOBS=$((JOBS - 1)) # leave one CPU free
   fi
 
   # Run selected profiles
