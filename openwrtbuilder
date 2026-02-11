@@ -861,7 +861,7 @@ main() {
       local timestamp
       timestamp=$(date +%y%m%d%H%M)
       execute mkdir -p "$BACKUP_DIR/$PROFILE/$REF-$MODE-$timestamp"
-      execute rsync -a --delete "$BIN_DIR/" "$BACKUP_DIR/$PROFILE/$REF-$MODE-$timestamp/"
+      execute rsync -a --delete --exclude 'packages/' "$BIN_DIR/" "$BACKUP_DIR/$PROFILE/$REF-$MODE-$timestamp/"
     fi
 
     if [[ "$MODE" == "source" ]]; then

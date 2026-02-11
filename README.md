@@ -12,10 +12,12 @@ Build and deploy OpenWRT images using shell-style device profiles, via source co
 --profile,-p PROFILE
 --release,-r,--version,-v RELEASE ("snapshot", "22.03.3")
 --buildroot,-b PATH (Default: script directory)
---source
-  Build image from source code, not from Image Builder.
-  Allows make config options to be passed in profile.
-  Uses git worktree for multi-profile deduplication.
+--cpus,-c NUM
+	Default: # of host CPUS minus 1
+--mode,-m imagebuilder|source
+  Default: imagebuilder
+--clean clean|targetclean|dirclean|distclean
+  Optional clean step for source mode
 --ssh-upgrade HOST
   Example: root@192.168.1.1
 --ssh-backup SSH_PATH
@@ -37,13 +39,13 @@ Build and deploy OpenWRT images using shell-style device profiles, via source co
 
 See `profiles` for example device profile definitions. Multiple `--profile` can be passed at once.
 
-The default build mode is  `imagebuilder` unless `--source` is passed. Default profile modes can be set individually in `profiles`.
+The default build mode is  `imagebuilder` unless `--mode=source` is passed. Default profile modes can be set individually in `profiles`.
 
 ## Examples
 
 * `openwrtbuilder -p r4s -p ax6000`
 * `openwrtbuilder -p r4s -r snapshot --debug`
-* `openwrtbuilder -p ax6000 -r 23.05.5 --source --debug`
+* `openwrtbuilder -p ax6000 -r 23.05.5 --mode source --debug`
 * `openwrtbuilder -p rpi4 -r 23.05.5 --flash /dev/sdX`
 * `openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1`
 
