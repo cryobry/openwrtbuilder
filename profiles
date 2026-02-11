@@ -2,17 +2,18 @@
 # Device profiles for openwrtbuilder
 # shellcheck disable=SC2034
 
-RELEASE="25.12.0-rc3" # override default release in openwrtbuilder
+RELEASE="25.12.0-rc4" # overrides default release in openwrtbuilder
 
-# Default (but optional) packages (precede with "-" to exclude)
-default_packages=(nano vim htop diffutils tar iperf3 zsh rsync tcpdump
+# Default packages (precede with "-" to exclude)
+default_packages=(
+  nano vim htop diffutils tar iperf3 zsh rsync tcpdump
   openssh-sftp-server 
   luci luci-ssl luci-proto-wireguard luci-app-statistics luci-app-filemanager
   collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
   ca-bundle ethtool
 )
 
-# Default (but optional) kernel configs
+# Default kernel configs
 default_configs=(
 )
 
@@ -23,8 +24,8 @@ declare -Ag r4s=(
   [target]="rockchip/armv8"
   [filesystem]="ext4"
   [packages]="${default_packages[*]} \
-    luci-app-ddns luci-app-sqm \
     adblock luci-app-adblock \
+    irqbalance luci-app-irqbalance \
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
     ethtool ca-bundle tailscale"
