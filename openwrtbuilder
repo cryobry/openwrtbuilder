@@ -5,7 +5,7 @@
 # See README and ./profiles for device configuration
 
 # Set default release
-: "${DEFAULT_RELEASE:=${RELEASE:="25.12.1"}}"
+: "${DEFAULT_RELEASE:=${RELEASE:="25.12.2"}}"
 
 # @internal
 print_help() {
