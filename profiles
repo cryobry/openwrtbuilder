@@ -13,7 +13,7 @@ default_packages=(
 )
 
 # Default kernel configs
-default_configs=(
+default_kconfigs=(
 )
 
 # Current devices
@@ -27,9 +27,9 @@ declare -Ag r4s=(
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
     ethtool ca-bundle tailscale"
-  [configs]="${default_configs[*]} \
-    CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
-    CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
+  [kconfigs]="${default_kconfigs[*]} \
+    CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32 \
+    CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y"
   [files]="/mnt/backup"
   # For 24.10 branch (Linux 6.6)
   # [cherrypicks]="https://github.com/wurzerj/openwrt.git:59d6e31 \
@@ -65,7 +65,7 @@ declare -Ag n5100=(
     btrfs-progs block-mount cryptsetup kmod-crypto-xts smcroute \
     avahi-daemon ethtool ca-bundle smartmontools intel-microcode \
     lm-sensors samba4-server luci-app-samba4 tailscale shadow-useradd"
-  [configs]="${default_configs[*]} \
+  [kconfigs]="${default_kconfigs[*]} \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
   # [files]="/mnt/backup"
@@ -107,7 +107,6 @@ declare -Ag w1700k_ap=(
   [release]="snapshot"
   [packages]="${default_packages[*]} \
     -dnsmasq -odhcpd-ipv6only -nftables -firewall4 \
-    irqblance luci-app-irqbalance \
     wpad-openssl libiwinfo-data tailscale bridger switch smp_util \
     kmod-crypto-hw-eip93"
   # [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@minimal"

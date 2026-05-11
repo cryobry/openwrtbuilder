@@ -175,7 +175,7 @@ install_dependencies() {
     lock_file="$BUILD_ROOT/.dependencies_imagebuilder.lock"
   fi
 
-  [[ -f $lock_file ]] && debug "$lock_file lock file exists but skipping for --debug" && return 0
+  [[ -f $lock_file ]] && debug "$lock_file lock file exists, skipping dependency install" && return 0
 
   if [[ "$mode" == "source" ]]; then
     # For building from source code see:
@@ -403,31 +403,51 @@ ssh_backup() {
   [[ -d "$FILES_DIR" ]] || execute mkdir -p "$FILES_DIR"
 
   # Make backup archive on remote
-  if ! execute "ssh -t $SSH_BACKUP_PATH sysupgrade -b /tmp/$backup_fname"; then
+  if ! execute ssh -t "$SSH_BACKUP_PATH" sysupgrade -b "/tmp/$backup_fname"; then
     echo "SSH backup failed"
     exit 1
   fi
 
   # Move backup archive locally
-  if ! execute "rsync -avz --remove-source-files $SSH_BACKUP_PATH:/tmp/$backup_fname $BUILD_DIR/"; then
+  if ! execute rsync -avz --remove-source-files "$SSH_BACKUP_PATH:/tmp/$backup_fname" "$BUILD_DIR/"; then
     echo "Could not copy SSH backup"
     exit 1
   fi
 
   # Extract backup archive
-  if ! execute "tar -C $FILES_DIR -xzf $BUILD_DIR/$backup_fname"; then
+  if ! execute tar -C "$FILES_DIR" -xzf "$BUILD_DIR/$backup_fname"; then
     echo "Could not extract SSH backup"
     exit 1
   fi
 
-  execute "rm $BUILD_DIR/$backup_fname"
+  execute rm "$BUILD_DIR/$backup_fname"
 }
 
 make_images() {
   debug "${FUNCNAME[0]}"
-  local -a make_opts
+  local -a make_opts; ((DEBUG)) && make_opts+=("V=sc")
+  local rootfs_partsize
+  
+  # Image Builder accepts ROOTFS_PARTSIZE, not CONFIG_TARGET_ROOTFS_PARTSIZE.
+  # Parse profile KCONFIGS (scalar string) and extract only this value.
+  for kconfig in $KCONFIGS; do
+    case "$kconfig" in
+      CONFIG_TARGET_ROOTFS_PARTSIZE=*) rootfs_partsize="${kconfig#*=}" ;;
+    esac
+  done
+
+  local -a make_cmd=(make "${make_opts[@]}" image
+    BIN_DIR="$BIN_DIR"
+    PROFILE="$DEVICE"
+    PACKAGES="$PACKAGES"
+    FILES="$FILES_DIR"
+    --directory="$BUILD_DIR"
+    --jobs="$JOBS")
+
+  [[ -n "$rootfs_partsize" ]] && make_cmd+=("ROOTFS_PARTSIZE=$rootfs_partsize")
 
   # Reuse the existing output
+  # TODO Disable for now since it was causing issues
   # if [[ -d "$BIN_DIR" ]]; then
   #   if ask_ok "$BIN_DIR exists. Rebuild?"; then
   #     execute rm -rf "$BIN_DIR"
@@ -436,21 +456,9 @@ make_images() {
   #   fi
   # fi
 
-  ((DEBUG)) && make_opts+=("V=sc")
-
-  debug make "${make_opts[@]}" image BIN_DIR="$BIN_DIR" \
-    PROFILE="$DEVICE" PACKAGES="$PACKAGES" \
-    FILES="$FILES_DIR" --directory="$BUILD_DIR" \
-    --jobs="$JOBS"
-
-  make "${make_opts[@]}" image \
-    BIN_DIR="$BIN_DIR" \
-    PROFILE="$DEVICE" \
-    PACKAGES="$PACKAGES" \
-    FILES="$FILES_DIR" \
-    --directory="$BUILD_DIR" \
-    --jobs="$JOBS"  \
-    > "$BUILD_DIR/make.log"
+  # Debug manually so we can log output
+  debug "${make_cmd[*]}"
+  "${make_cmd[@]}" > "$BUILD_DIR/make.log" 2>&1
 }
 
 flash_images() {
@@ -504,15 +512,14 @@ ssh_upgrade() {
 }
 
 # @description Builds OpenWRT from source code using the the default buildbot as base
-# This enables the use of kernel config options in profiles
 from_source() {
   debug "${FUNCNAME[0]}"
   local src_url="https://github.com/openwrt/openwrt.git"
   local seed_file="$BUILD_DIR/.config"
   local worktree_meta="$SRC_DIR/.git/worktrees/source-$REF"
-  local pkg config commit description
+  local pkg kconfig commit description
   local -a make_opts
-  local -a config_opts=(
+  local -a kconfigs=(
     "CONFIG_TARGET_${TARGET%%/*}=y"
     "CONFIG_TARGET_${TARGET//\//_}=y"
     "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
@@ -670,22 +677,23 @@ from_source() {
   # Add custom packages
   for pkg in $PACKAGES; do
     if [[ $pkg == -* ]]; then
-      config_opts+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
+      kconfigs+=("CONFIG_PACKAGE_${pkg#-}=n") # remove package
     else
-      config_opts+=("CONFIG_PACKAGE_$pkg=y") # add package
+      kconfigs+=("CONFIG_PACKAGE_$pkg=y") # add package
     fi
   done
 
-  # Add profile config options
-  for config in $CONFIGS; do
-    config_opts+=("$config")
+  # Add profile kconfig options
+  # $KCONFIGS is a scalar, use a loop to split and avoid SC2068
+  for kconfig in $KCONFIGS; do
+    kconfigs+=("$kconfig")
   done
 
   # Reset and write options to config seed file
   [[ -f $seed_file ]] && execute rm -f "$seed_file"
-  for config in "${config_opts[@]}"; do
-    debug "Writing $config to $seed_file"
-    echo "$config" >> "$seed_file"
+  for kconfig in "${kconfigs[@]}"; do
+    debug "Writing $kconfig to $seed_file"
+    echo "$kconfig" >> "$seed_file"
   done
 
   # Expand seed into full config
@@ -813,7 +821,7 @@ main() {
     declare -g PACKAGES="${P_ARR[packages]:-}" # scalar
     declare -g CHERRYPICKS="${P_ARR[cherrypicks]:-}" # scalar
     declare -g BRANCHES="${P_ARR[branches]:-}" # scalar
-    declare -g CONFIGS="${P_ARR[configs]:-}" # scalar
+    declare -g KCONFIGS="${P_ARR[kconfigs]:-}" # scalar
 
     install_dependencies "$MODE"
 
