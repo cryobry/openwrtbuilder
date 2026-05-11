@@ -24,7 +24,6 @@ declare -Ag r4s=(
   [filesystem]="ext4"
   [packages]="${default_packages[*]} \
     adblock luci-app-adblock \
-    irqbalance luci-app-irqbalance \
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
     ethtool ca-bundle tailscale"
