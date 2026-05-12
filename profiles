@@ -31,7 +31,6 @@ declare -Ag r4s=(
   [kconfigs]="${default_kconfigs[*]} \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32 \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y"
-  [files]="/mnt/backup"
   # For 24.10 branch (Linux 6.6)
   # [cherrypicks]="https://github.com/wurzerj/openwrt.git:59d6e31 \
   # https://github.com/wurzerj/openwrt.git:bb251b8" # fix inconsistent reboot
@@ -69,7 +68,6 @@ declare -Ag n5100=(
   [kconfigs]="${default_kconfigs[*]} \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
-  # [files]="/mnt/backup"
 )
 
 declare -Ag w1700k=(
