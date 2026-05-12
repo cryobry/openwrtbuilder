@@ -24,6 +24,7 @@ declare -Ag r4s=(
   [filesystem]="ext4"
   [packages]="${default_packages[*]} \
     adblock luci-app-adblock \
+    luci-app-sqm \
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
     kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
     ethtool ca-bundle tailscale"
@@ -45,7 +46,7 @@ declare -Ag ax6000=(
     tailscale"
 )
 
-declare -Ag ax6000_uboot=(
+declare -Ag ax6000_uboot_ap=(
   [mode]="imagebuilder"
   [device]="xiaomi_redmi-router-ax6000-ubootmod"
   [target]="mediatek/filogic"
