@@ -41,12 +41,37 @@ See `profiles` for example device profile definitions. Multiple `--profile` can 
 
 The default build mode is  `imagebuilder` unless `--mode=source` is passed. Default profile modes can be set individually in `profiles`.
 
+`--mode=imagebuilder` inherits `CONFIG_TARGET_ROOTFS_PARTSIZE=`, but all other kconfigs only work in `--mode=source`. 
+
+Profile keys:
+
+| Key | Required | Description |
+|---|---|---|
+| `mode` | No | Build mode for this profile: `imagebuilder` or `source`. CLI `--mode` overrides profile value. |
+| `device` | Yes | OpenWrt device/profile id used by build commands (for example `friendlyarm_nanopi-r4s`). |
+| `target` | Yes | OpenWrt target/subtarget (for example `rockchip/armv8`, `x86/64`). |
+| `filesystem` | No | Root filesystem type (`squashfs`, `ext4`, etc). Defaults to `squashfs`. |
+| `packages` | No | Space-separated package list. Prefix with `-` to remove a package in Image Builder or source config generation. |
+| `kconfigs` | No | Space-separated Kconfig symbols. In `imagebuilder` mode only `CONFIG_TARGET_ROOTFS_PARTSIZE=<MB>` is used (mapped to `ROOTFS_PARTSIZE`). In `source` mode all entries are written to `.config` seed. |
+| `files` | No | Host directory containing custom overlay files. In `imagebuilder` mode this is passed as `FILES=<dir>`. In `source` mode contents are synced into `<build dir>/files/` before build. Defaults to `<buildroot>/src/files`. |
+| `cherrypicks` | No | Space-separated entries in `URL@branch:commit` form. Each commit is fetched and cherry-picked in `source` mode. |
+| `branches` | No | Space-separated `URL@branch` entries to merge into the source worktree in `source` mode. |
+| `release` | No | Default release/ref for the profile (for example `snapshot`, `25.12.3`). CLI `--release` overrides it. |
+| `clean` | No | Optional source cleanup step (`clean`, `targetclean`, `dirclean`, `distclean`). CLI `--clean` overrides it. |
+| `repo` | No | Extra Image Builder repository line appended to `repositories.conf` before build. |
+
+Notes:
+
+* The profile file uses associative arrays (`declare -Ag name=( [key]="value" ... )`).
+* `packages`, `kconfigs`, `cherrypicks`, and `branches` are parsed as scalar whitespace-separated strings.
+* If a profile-specific `files` path is configured, it must exist.
+
 ## Examples
 
 * `openwrtbuilder -p r4s -p ax6000`
 * `openwrtbuilder -p r4s -r snapshot --debug`
-* `openwrtbuilder -p ax6000 -r 23.05.5 --mode source --debug`
-* `openwrtbuilder -p rpi4 -r 23.05.5 --flash /dev/sdX`
+* `openwrtbuilder -p ax6000 -r 25.12.3 --mode source --debug`
+* `openwrtbuilder -p rpi4 -r 25.12.3 --flash /dev/sdX`
 * `openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1`
 
 ## Additional Info
