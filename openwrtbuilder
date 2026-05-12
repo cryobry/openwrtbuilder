@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # Build and deploy OpenWRT images using shell-style device profiles, via source code or the official Image Builder.
-# Copyright 2022-25 Bryan C. Roessler
+# Copyright 2022-26 Bryan C. Roessler
 # Apache 2.0 License
 # See README and ./profiles for device configuration
 
 # Set default release
-: "${DEFAULT_RELEASE:=${RELEASE:="25.12.3"}}"
+: "${DEFAULT_RELEASE:=${RELEASE:="25.12.3"}}" # do find all replace
 
 # @internal
-print_help() {
+usage() {
   debug "${FUNCNAME[0]}"
 
   cat <<-'EOF'
 	Build and deploy OpenWRT images using convenient profiles.
 
 	USAGE:
-	  openwrtbuilder [OPTION [VALUE]]... -p PROFILE [-p PROFILE]...
+	  openwrtbuilder [OPTIONS] [-p PROFILE]...
 
 	OPTIONS
 	  --profile,-p PROFILE
-	  --release,-r,--version,-v RELEASE ("snapshot", "24.10.5")
+	  --release,-r,--version,-v RELEASE ("snapshot", "25.12.3")
 	    Default: From profile or hardcoded RELEASE    
 	  --buildroot,-b PATH
 	    Default: location of openwrtbuilder script
@@ -45,7 +45,7 @@ print_help() {
 	EXAMPLES
 	  openwrtbuilder -p r4s -r snapshot
 	  openwrtbuilder -p ax6000 -r 23.05.0-rc3 --mode source --debug
-	  openwrtbuilder -p rpi4 -r 24.10.0 --flash /dev/sdX
+	  openwrtbuilder -p rpi4 -r 25.12.3 --flash /dev/sdX
 	  openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		  
 	EOF
 }
@@ -66,7 +66,7 @@ init() {
   else
     echo "/etc/os-release not found"
     echo "Your OS is unsupported"
-    print_help
+    usage
     exit 1
   fi
 
@@ -149,14 +149,14 @@ parse_input() {
         --depends) FORCE_DEPENDS=1 ;;
         --yes|-y) YES=1 ;;
         --debug|-d) echo "Debugging on"; DEBUG=1 ;;
-        --help|-h) print_help; exit 0 ;;
+        --help|-h) usage; exit 0 ;;
         --) shift; break ;;
       esac
       shift
     done
   else
     echo "Incorrect options provided"
-    print_help; exit 1
+    usage; exit 1
   fi
 }
 
