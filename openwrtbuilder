@@ -458,7 +458,8 @@ make_images() {
 
   # Debug manually so we can log output
   debug "${make_cmd[*]}"
-  "${make_cmd[@]}" > "$BUILD_DIR/make.log" 2>&1
+  "${make_cmd[@]}" 2>&1 | tee "$BUILD_DIR/make.log"
+  return "${PIPESTATUS[0]}" # bash-specific way to return exit code of piped command
 }
 
 flash_images() {
@@ -466,9 +467,8 @@ flash_images() {
   local img_gz="$1"
   local dev="$2"
   local img="${img_gz%.gz}"
-  local partitions
 
-  if [[ ! -e "$dev" ]]; then
+  if [[ ! -b "$dev" ]]; then
     echo "The device specified by --flash could not be found"
     return 1
   fi
@@ -476,13 +476,13 @@ flash_images() {
   [[ -f $img_gz ]] || { echo "$img_gz does not exist"; return 1; }
 
   execute gunzip -qfk "$img_gz"
-    
-  echo "Unmounting target device $dev partitions"
-  partitions=("$dev"?*)
-  execute sudo umount "${partitions[@]}"
+  [[ -f "$img" ]] || { echo "Extracted image '$img' is missing"; return 1; }
 
   if execute sudo dd if="$img" of="$dev" bs=2M conv=fsync; then
     sync
+    if command -v partprobe &>/dev/null; then
+      execute sudo partprobe "$dev" || debug "partprobe failed for $dev"
+    fi
     echo "Image flashed successfully!"
   else
     echo "dd failed!"
@@ -674,6 +674,13 @@ from_source() {
   ./scripts/feeds update -a -f &&
   ./scripts/feeds install -a -f
 
+  # Apply custom files overlay for source builds.
+  execute rm -rf "$BUILD_DIR/files"
+  if [[ -d "$FILES_DIR" ]]; then
+    execute mkdir -p "$BUILD_DIR/files"
+    execute rsync -a "$FILES_DIR/" "$BUILD_DIR/files/"
+  fi
+
   # Add custom packages
   for pkg in $PACKAGES; do
     if [[ $pkg == -* ]]; then
@@ -774,7 +781,6 @@ main() {
 
   # Fallback to SCRIPT_DIR if BUILD_ROOT has not been set
   declare -g BUILD_ROOT="${BUILD_ROOT:=$SCRIPT_DIR}"
-  declare -g FILES_DIR="${FILES_DIR:=$BUILD_ROOT/src/files}"
   declare -g BACKUP_DIR="$SCRIPT_DIR/backups"
 
   # This could be dangerous
@@ -822,6 +828,15 @@ main() {
     declare -g CHERRYPICKS="${P_ARR[cherrypicks]:-}" # scalar
     declare -g BRANCHES="${P_ARR[branches]:-}" # scalar
     declare -g KCONFIGS="${P_ARR[kconfigs]:-}" # scalar
+    declare -g FILES_DIR="${P_ARR[files]:-$BUILD_ROOT/src/files}"
+
+    if [[ ! -d "$FILES_DIR" ]]; then
+      if [[ -v P_ARR[files] ]]; then
+        echo "Profile '$PROFILE' files directory does not exist: $FILES_DIR"
+        return 1
+      fi
+      execute mkdir -p "$FILES_DIR"
+    fi
 
     install_dependencies "$MODE"
 
