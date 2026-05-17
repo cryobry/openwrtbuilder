@@ -56,7 +56,7 @@ Profile keys:
 | `files` | No | Host directory containing custom overlay files. In `imagebuilder` mode this is passed as `FILES=<dir>`. In `source` mode contents are synced into `<build dir>/files/` before build. Defaults to `<buildroot>/src/files`. |
 | `cherrypicks` | No | Space-separated entries in `URL@branch:commit` form. Each commit is fetched and cherry-picked in `source` mode. |
 | `branches` | No | Space-separated `URL@branch` entries to merge into the source worktree in `source` mode. |
-| `release` | No | Default release/ref for the profile (for example `snapshot`, `25.12.3`). CLI `--release` overrides it. |
+| `release` | No | Default release/ref for the profile (for example `snapshot`, `25.12.4`). CLI `--release` overrides it. |
 | `clean` | No | Optional source cleanup step (`clean`, `targetclean`, `dirclean`, `distclean`). CLI `--clean` overrides it. |
 | `repo` | No | Extra Image Builder repository line appended to `repositories.conf` before build. |
 
@@ -70,8 +70,8 @@ Notes:
 
 * `openwrtbuilder -p r4s -p ax6000`
 * `openwrtbuilder -p r4s -r snapshot --debug`
-* `openwrtbuilder -p ax6000 -r 25.12.3 --mode source --debug`
-* `openwrtbuilder -p rpi4 -r 25.12.3 --flash /dev/sdX`
+* `openwrtbuilder -p ax6000 -r 25.12.4 --mode source --debug`
+* `openwrtbuilder -p rpi4 -r 25.12.4 --flash /dev/sdX`
 * `openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1`
 
 ## Additional Info
