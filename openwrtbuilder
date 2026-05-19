@@ -440,6 +440,7 @@ make_images() {
     BIN_DIR="$BIN_DIR"
     PROFILE="$DEVICE"
     PACKAGES="$PACKAGES"
+    ROOTFS_FILESYSTEM="$FILESYSTEM"
     FILES="$FILES_DIR"
     --directory="$BUILD_DIR"
     --jobs="$JOBS")
@@ -517,14 +518,33 @@ from_source() {
   local src_url="https://github.com/openwrt/openwrt.git"
   local seed_file="$BUILD_DIR/.config"
   local worktree_meta="$SRC_DIR/.git/worktrees/source-$REF"
-  local pkg kconfig commit description
+  local pkg kconfig commit description rootfs_kconfig
   local -a make_opts
+
+  echo "Building from source is under development"
+
+  # Convert filesystem to corresponding KCONFIG value
+  case "${FILESYSTEM,,}" in
+    squashfs) rootfs_kconfig="SQUASHFS" ;;
+    ext4|ext4fs) rootfs_kconfig="EXT4FS" ;;
+    ubifs) rootfs_kconfig="UBIFS" ;;
+    erofs) rootfs_kconfig="EROFS" ;;
+    jffs2) rootfs_kconfig="JFFS2" ;;
+    all) rootfs_kconfig="all";;
+    *) echo "Error: unsupported filesystem '$FILESYSTEM' for source mode"; return 1 ;;
+  esac
+
+  # Default KCONFIG options for all profiles (can be overridden by profile-specific KCONFIGS)
   local -a kconfigs=(
     "CONFIG_TARGET_${TARGET%%/*}=y"
     "CONFIG_TARGET_${TARGET//\//_}=y"
     "CONFIG_TARGET_PROFILE=DEVICE_$DEVICE"
     "CONFIG_TARGET_${TARGET//\//_}_DEVICE_$DEVICE=y"
-    "CONFIG_TARGET_ROOTFS_${FILESYSTEM^^}=y"
+    "CONFIG_TARGET_ROOTFS_SQUASHFS=n"
+    "CONFIG_TARGET_ROOTFS_EXT4FS=n"
+    "CONFIG_TARGET_ROOTFS_UBIFS=n"
+    "CONFIG_TARGET_ROOTFS_EROFS=n"
+    "CONFIG_TARGET_ROOTFS_JFFS2=n"
     "CONFIG_TARGET_MULTI_PROFILE=n"
     "CONFIG_BUILDBOT=n"
     "CONFIG_ALL_KMODS=n" 
@@ -538,7 +558,16 @@ from_source() {
     "CONFIG_TARGET_PER_DEVICE_ROOTFS=n"
   )
 
-  echo "Building from source is under development"
+  # Add KCONFIG for selected filesystem(s)
+  if [[ $rootfs_kconfig == "all" ]]; then
+    kconfigs+=("CONFIG_TARGET_ROOTFS_SQUASHFS=y"
+      "CONFIG_TARGET_ROOTFS_EXT4FS=y"
+      "CONFIG_TARGET_ROOTFS_UBIFS=y"
+      "CONFIG_TARGET_ROOTFS_EROFS=y"
+      "CONFIG_TARGET_ROOTFS_JFFS2=y")
+  else
+    kconfigs+=("CONFIG_TARGET_ROOTFS_${rootfs_kconfig}=y")
+  fi
 
   # Remove all build directories and worktrees if --reset
   if ((RESET)); then
@@ -819,7 +848,7 @@ main() {
     # Store profile in P_ARR nameref and set global profile vars
     local -n P_ARR="$PROFILE"
     declare -g REPO="${P_ARR[repo]:-}"
-    declare -g FILESYSTEM="${P_ARR[filesystem]:="squashfs"}"
+    declare -g FILESYSTEM="${P_ARR[filesystem]:-squashfs}"
     declare -g TARGET="${P_ARR[target]}"
     declare -g DEVICE="${P_ARR[device]}"
     declare -g MODE="${USER_MODE:-${P_ARR[mode]:-imagebuilder}}"
