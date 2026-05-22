@@ -704,11 +704,11 @@ from_source() {
   ./scripts/feeds install -a -f
 
   # Apply custom files overlay for source builds.
-  execute rm -rf "$BUILD_DIR/files"
-  if [[ -d "$FILES_DIR" ]]; then
-    execute mkdir -p "$BUILD_DIR/files"
-    execute rsync -a "$FILES_DIR/" "$BUILD_DIR/files/"
-  fi
+  # execute rm -rf "$BUILD_DIR/files"
+  # if [[ -d "$FILES_DIR" ]]; then
+  #   execute mkdir -p "$BUILD_DIR/files"
+  #   execute rsync -a "$FILES_DIR/" "$BUILD_DIR/files/"
+  # fi
 
   # Add custom packages
   for pkg in $PACKAGES; do
