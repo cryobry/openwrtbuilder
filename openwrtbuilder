@@ -35,6 +35,10 @@ usage() {
 	    Enabled by default for --ssh-upgrade
 	  --flash,-f DEVICE
 	    Example: /dev/sdX
+	  --mirror PREFIX
+	    Mirror prefix for feeds (default: github.com/openwrt)
+	  --dl-timeout SECONDS
+	    Per-file max download time for source builds (default: 300)
 	  --depends
 	    Force dependency installation
 	  --yes,-y
@@ -128,8 +132,8 @@ parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
   declare -gi RESET=0 YES=0 DEBUG=0 FORCE_DEPENDS=0 CPUS=0
-  declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV USER_MODE USER_CLEAN 
-  local long_opts='release:,version:,profile:,buildroot:,cpus:,mode:,clean:'
+  declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV USER_MODE USER_CLEAN USER_MIRROR USER_DL_TIMEOUT
+  local long_opts='release:,version:,profile:,buildroot:,cpus:,mode:,clean:,mirror:,dl-timeout:'
   long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,depends,yes,debug,help'
 
   if _input=$(getopt -o +r:v:p:b:m:c:f:ydh -l $long_opts -- "$@"); then
@@ -145,6 +149,8 @@ parse_input() {
         --ssh-upgrade) shift; SSH_UPGRADE_PATH="$1" ;;
         --ssh-backup) shift; SSH_BACKUP_PATH="$1" ;;
         --flash|-f) shift; FLASH_DEV="$1" ;;
+        --mirror) shift; USER_MIRROR="$1" ;;
+        --dl-timeout) shift; USER_DL_TIMEOUT="$1" ;;
         --reset) RESET=1 ;;
         --depends) FORCE_DEPENDS=1 ;;
         --yes|-y) YES=1 ;;
@@ -697,7 +703,8 @@ from_source() {
   fi
   
   # Use a custom (faster) mirror
-  execute sed -i -E 's;git.openwrt.org/(feed|project);github.com/openwrt;' feeds.conf.default
+  local mirror_prefix="${USER_MIRROR:-github.com/openwrt}"
+  execute sed -i -E "s;git.openwrt.org/(feed|project);${mirror_prefix};" feeds.conf.default
 
   # Update package feed
   ./scripts/feeds update -a -f &&
@@ -736,7 +743,8 @@ from_source() {
   execute make "${make_opts[@]}" "-j1" defconfig
 
   # Run serial make download for better reliability
-  execute make "${make_opts[@]}" "-j1" download
+  # CURL_EXTRA_ARGS is picked up by OpenWRT's scripts/download.pl
+  CURL_EXTRA_ARGS="--max-time ${USER_DL_TIMEOUT:-300}" execute make "${make_opts[@]}" "-j1" download
 
   # (Optional) Disable multicore make world
   # ((DEBUG)) && make_opts+=("-j1") || make_opts+=("-j$JOBS)")
