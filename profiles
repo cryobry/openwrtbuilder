@@ -6,10 +6,26 @@ DEFAULT_RELEASE="25.12.4" # overrides default release in openwrtbuilder
 
 # Default packages (precede with "-" to exclude)
 default_packages=(
-  ca-bundle nano vim htop diffutils tar iperf3 zsh rsync tcpdump ethtool
-  openssh-sftp-server 
-  luci luci-ssl luci-proto-wireguard luci-app-statistics luci-app-filemanager
-  collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
+  ca-bundle base-files apk-mbedtls libustream-mbedtls openssh-sftp-server dropbear
+  fstools libc libgcc logd mtd netifd
+  nano vim htop diffutils tar iperf3 zsh rsync tcpdump ethtool
+  odhcp6c ppp ppp-mod-pppoe procd-ujail
+  uboot-envtools uci uclient-fetch urandom-seed urngd
+  luci luci-ssl luci-app-statistics luci-app-filemanager luci-app-attendedsysupgrade
+  lm-sensors collectd-mod-sensors collectd-mod-thermal collectd-mod-conntrack collectd-mod-cpu
+  tailscale
+)
+
+default_router=("${default_packages[@]}"
+  dnsmasq odhcpd-ipv6only nftables firewall4
+  luci-proto-wireguard luci-app-sqm
+  adblock luci-app-adblock
+  kmod-nft-offload
+)
+
+default_ap=("${default_packages[@]}"
+  -dnsmasq -odhcpd-ipv6only -nftables -firewall4
+  -kmod-nft-offload
 )
 
 # Default kernel configs
@@ -23,12 +39,11 @@ declare -Ag router=(
   [device]="friendlyarm_nanopi-r4s"
   [target]="rockchip/armv8"
   [filesystem]="ext4"
-  [packages]="${default_packages[*]} \
-    adblock luci-app-adblock \
-    luci-app-sqm \
+  [packages]="${default_router[*]} \
+    kmod-r8169 \
     collectd-mod-df usbutils kmod-usb-storage kmod-usb-storage-uas \
-    kmod-fs-btrfs btrfs-progs block-mount smcroute avahi-daemon \
-    ethtool ca-bundle tailscale"
+    kmod-fs-btrfs btrfs-progs block-mount \
+    smcroute avahi-daemon"
   [kconfigs]="${default_kconfigs[*]} \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32 \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y"
@@ -40,8 +55,9 @@ declare -Ag abby_router=(
   [device]="xiaomi_redmi-router-ax6000-stock"
   [target]="mediatek/filogic"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} \
-    tailscale"
+  [packages]="${default_router[*]} \
+    kmod-crypto-hw-safexcel kmod-leds-ws2812b kmod-mt7915e \
+    kmod-mt7986-firmware mt7986-wo-firmware"
 )
 
 declare -Ag ax6000_uboot_ap=(
@@ -50,36 +66,68 @@ declare -Ag ax6000_uboot_ap=(
   [target]="mediatek/filogic"
   [release]="snapshot"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} \
-    -dnsmasq -odhcpd-ipv6only -nftables -firewall4"
+  [packages]="${default_ap[*]} \
+    kmod-crypto-hw-safexcel kmod-leds-ws2812b kmod-mt7915e \
+    kmod-mt7986-firmware mt7986-wo-firmware"
 )
 
-# Currently testing
-declare -Ag w1700k_ap_fanboy_ubi2=(
+# Testing
+declare -Ag w1700k_ap=(
   [mode]="source"
-  [device]="gemtek_w1700k"
+  [device]="gemtek_w1700k-ubi"
   [target]="airoha/an7581"
   [filesystem]="squashfs"
   [release]="snapshot"
-  [packages]="${default_packages[*]} \
-    -dnsmasq -odhcpd-ipv6only -nftables -firewall4 \
-    wpad-openssl libiwinfo-data tailscale bridger switch smp_util \
-    kmod-crypto-hw-eip93"
+  [packages]="${default_ap[*]} \
+    wpad-basic-mbedtls libiwinfo-data \
+    kmod-gpio-button-hotplug kmod-leds-gpio \
+    airoha-en7581-npu-firmware airoha-en7581-mt7996-npu-firmware \
+    kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
+    fitblk"
+)
+
+declare -Ag w1700k_ap_fanboy=(
+  [mode]="source"
+  [device]="gemtek_w1700k-ubi"
+  [target]="airoha/an7581"
+  [filesystem]="squashfs"
+  [release]="snapshot"
+  [packages]="${default_ap[*]} \
+    wpad-basic-mbedtls libiwinfo-data \
+    kmod-gpio-button-hotplug kmod-leds-gpio \
+    airoha-en7581-npu-firmware airoha-en7581-mt7996-npu-firmware \
+    kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
+    fitblk"
   [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@ubi2"
 )
 
-# Deprecated: Last working profile for w1700k with stock (non-ubi) partitions
 declare -Ag w1700k=(
   [mode]="source"
-  [device]="gemtek_w1700k"
+  [device]="gemtek_w1700k-ubi"
   [target]="airoha/an7581"
   [filesystem]="squashfs"
   [release]="snapshot"
-  [packages]="${default_packages[*]} \
-    luci-app-sqm \
-    smcroute avahi-daemon \
-    lm-sensors samba4-server luci-app-samba4 shadow-useradd \
-    ca-bundle tailscale"
+  [packages]="${default_router[*]} \
+    wpad-basic-mbedtls libiwinfo-data \
+    kmod-gpio-button-hotplug kmod-leds-gpio \
+    airoha-en7581-npu-firmware airoha-en7581-mt7996-npu-firmware \
+    kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
+    fitblk"
+)
+
+# Deprecated: Last working profile for w1700k with stock (non-ubi) partitions
+declare -Ag w1700k_fanboy=(
+  [mode]="source"
+  [device]="gemtek_w1700k-ubi"
+  [target]="airoha/an7581"
+  [filesystem]="squashfs"
+  [release]="snapshot"
+  [packages]="${default_router[*]} \
+    wpad-basic-mbedtls libiwinfo-data \
+    kmod-gpio-button-hotplug kmod-leds-gpio \
+    airoha-en7581-npu-firmware airoha-en7581-mt7996-npu-firmware \
+    kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
+    fitblk"
   # [cherrypicks]="\
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:8d449e968cfaa774ab7a219b3a5ab4251b2f9352 \
   #   https://github.com/OpenWRT-fanboy/OpenW1700k.git@lumos:3033241393ef6eb562539c6a3ccb9d3cf1a25d05 \
@@ -101,8 +149,8 @@ declare -Ag rpi4=(
   [device]="rpi-4"
   [target]="bcm27xx/bcm2711"
   [filesystem]="ext4"
-  [packages]="${default_packages[*]} \
-    luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full luci-app-ddns luci-app-sqm \
+  [packages]="${default_router[*]} \
+    luci-app-pbr -dnsmasq dnsmasq-full \
     kmod-usb-net-asix-ax88179 kmod-usb-net-rtl8152"
 )
 
@@ -118,12 +166,12 @@ declare -Ag n5100=(
   [device]="generic"
   [target]="x86/64"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} \
-    luci-app-ddns irqbalance collectd-mod-df \
+  [packages]="${default_router[*]} \
+    irqbalance collectd-mod-df \
     usbutils kmod-usb-storage kmod-usb-storage-uas kmod-fs-btrfs \
     btrfs-progs block-mount cryptsetup kmod-crypto-xts smcroute \
-    avahi-daemon ethtool ca-bundle smartmontools intel-microcode \
-    lm-sensors samba4-server luci-app-samba4 tailscale shadow-useradd"
+    avahi-daemon smartmontools intel-microcode \
+    samba4-server luci-app-samba4 shadow-useradd"
   [kconfigs]="${default_kconfigs[*]} \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32"
@@ -133,16 +181,14 @@ declare -Ag totolink=(
   [device]="totolink_x5000r"
   [target]="ramips/mt7621"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} \
-    -dnsmasq -odhcpd-ipv6only -nftables -firewall4 \
-    -kmod-nft-offload collectd-mod-iwinfo"
+  [packages]="${default_ap[*]}"
 )
 
 declare -Ag archer=(
   [device]="tplink_archer-c7-v2"
   [target]="ath79/generic"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} -dnsmasq -odhcpd -iptables \
+  [packages]="${default_ap[*]} \
     -ath10k-firmware-qca988x-ct ath10k-firmware-qca988x-ct-full-htt"
 )
 
@@ -150,26 +196,24 @@ declare -Ag linksys=(
   [device]="linksys_ea8300"
   [target]="ipq40xx/generic"
   [filesystem]="squashfs"
-  [packages]="${default_packages[*]} \
-    -dnsmasq -odhcpd -iptables"
+  [packages]="${default_ap[*]}"
 )
 
 declare -Ag r2s=(
   [device]="friendlyarm_nanopi-r2s"
   [target]="rockchip/armv8"
   [filesystem]="ext4"
-  [packages]="${default_packages[*]} \
-    luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full \
-    luci-app-ddns luci-app-sqm luci-app-statistics collectd-mod-sensors \
-    collectd-mod-thermal collectd-mod-conntrack smcroute curl ethtool"
+  [packages]="${default_router[*]} \
+    kmod-usb-net-rtl8152 \
+    luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full smcroute"
 )
 
 declare -Ag r2s_tr=(
   [device]="friendlyarm_nanopi-r2s"
   [target]="rockchip/armv8"
   [filesystem]="ext4"
-  [packages]="${default_packages[*]} \
-    luci-app-upnp luci-app-pbr luci-app-ddns \
-    luci-app-statistics collectd-mod-sensors collectd-mod-thermal \
-    collectd-mod-conntrack curl ethtool travelmate"
+  [packages]="${default_router[*]} \
+    kmod-usb-net-rtl8152 \
+    luci-app-upnp luci-app-pbr -dnsmasq dnsmasq-full \
+    travelmate"
 )
