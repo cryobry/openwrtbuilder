@@ -115,6 +115,8 @@ declare -Ag w1700k=(
     airoha-en7581-npu-firmware airoha-en7581-mt7996-npu-firmware \
     kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
     fitblk"
+  # tools: m4: update to 1.4.21 (fixes GCC15/C23 _Generic build failure)
+  [cherrypicks]="https://github.com/openwrt/openwrt@main:ce9a0ff3fb88d037080aaf95af92ac5da4fcfdba"
 )
 
 # Deprecated: Last working profile for w1700k with stock (non-ubi) partitions
