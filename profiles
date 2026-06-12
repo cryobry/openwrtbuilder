@@ -18,7 +18,7 @@ default_packages=(
 
 default_router=("${default_packages[@]}"
   dnsmasq odhcpd-ipv6only nftables firewall4
-  luci-proto-wireguard luci-app-sqm
+  luci-proto-wireguard luci-app-sqm luci-app-watchcat
   adblock luci-app-adblock
   kmod-nft-offload
 )
@@ -116,7 +116,7 @@ declare -Ag w1700k=(
     kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
     fitblk"
   # tools: m4: update to 1.4.21 (fixes GCC15/C23 _Generic build failure)
-  [cherrypicks]="https://github.com/openwrt/openwrt@main:ce9a0ff3fb88d037080aaf95af92ac5da4fcfdba"
+  # [cherrypicks]="https://github.com/openwrt/openwrt@main:ce9a0ff3fb88d037080aaf95af92ac5da4fcfdba"
 )
 
 # Deprecated: Last working profile for w1700k with stock (non-ubi) partitions
