@@ -2,7 +2,7 @@
 # Device profiles for openwrtbuilder
 # shellcheck disable=SC2034
 
-DEFAULT_RELEASE="25.12.4" # overrides default release in openwrtbuilder
+DEFAULT_RELEASE="25.12.5" # overrides default release in openwrtbuilder
 
 # Default packages (precede with "-" to exclude)
 default_packages=(

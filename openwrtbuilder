@@ -5,7 +5,7 @@
 # See README and ./profiles for device configuration
 
 # Set default release
-: "${DEFAULT_RELEASE:=${RELEASE:="25.12.4"}}" # do find all replace
+: "${DEFAULT_RELEASE:=${RELEASE:="25.12.5"}}" # do find all replace
 
 # @internal
 usage() {
