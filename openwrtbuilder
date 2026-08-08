@@ -555,6 +555,7 @@ from_source() {
   # @description Applies a cherrypick to a git repo worktree
   apply_cherrypick() {
     local repo_dir="$1"
+    local is_shallow=""
 
     if ! git -C "$repo_dir" remote | grep -q "^$remote$"; then
       execute git -C "$repo_dir" remote add "$remote" "$url"
@@ -565,8 +566,20 @@ from_source() {
     execute git -C "$repo_dir" fetch "$remote" "$branch"
 
     if ! git -C "$repo_dir" cat-file -e "$commit^{commit}" 2>/dev/null; then
-      debug "Commit $commit not found after fetching from $remote; skipping"
-      return 0
+      # Some feed repositories are shallow; fetch full history and retry once.
+      is_shallow=$(git -C "$repo_dir" rev-parse --is-shallow-repository 2>/dev/null || echo "false")
+      if [[ "$is_shallow" == "true" ]]; then
+        debug "Commit $commit not found; unshallowing $repo_dir and retrying"
+        if ! execute git -C "$repo_dir" fetch --unshallow "$remote" "$branch"; then
+          debug "Unshallow fetch failed for $repo_dir; retrying with full-depth fetch"
+          execute git -C "$repo_dir" fetch "$remote" "$branch" --depth=2147483647
+        fi
+      fi
+
+      if ! git -C "$repo_dir" cat-file -e "$commit^{commit}" 2>/dev/null; then
+        debug "Commit $commit not found after retry; skipping"
+        return 0
+      fi
     fi
 
     execute git -C "$repo_dir" merge-base --is-ancestor "$commit" HEAD ||
