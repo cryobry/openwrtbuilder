@@ -2,11 +2,12 @@
 # Build and deploy OpenWRT images using shell-style device profiles, via source code or the official Image Builder.
 # Copyright 2022-26 Bryan C. Roessler
 # Apache 2.0 License
-# See README and ./profiles for device configuration
+# See README and profiles for device configuration
 
 # Set default release
 : "${DEFAULT_RELEASE:=${RELEASE:="25.12.5"}}" # do find all replace
 
+# @description Print usage information
 # @internal
 usage() {
   debug "${FUNCNAME[0]}"
@@ -19,7 +20,7 @@ usage() {
 
 	OPTIONS
 	  --profile,-p PROFILE
-	  --release,-r,--version,-v RELEASE ("snapshot", "25.12.4")
+	  --release,-r,--version,-v RELEASE ("snapshot", "25.12.5")
 	    Default: From profile or hardcoded RELEASE    
 	  --buildroot,-b PATH
 	    Default: location of openwrtbuilder script
@@ -49,11 +50,12 @@ usage() {
 	EXAMPLES
 	  openwrtbuilder -p r4s -r snapshot
 	  openwrtbuilder -p ax6000 -r 23.05.0-rc3 --mode source --debug
-	  openwrtbuilder -p rpi4 -r 25.12.4 --flash /dev/sdX
+	  openwrtbuilder -p rpi4 -r 25.12.5 --flash /dev/sdX
 	  openwrtbuilder -p linksys -r snapshot --ssh-upgrade root@192.168.1.1		  
 	EOF
 }
 
+# @description Detect host platform and initialize global variables
 # @internal
 init() {
   debug "${FUNCNAME[0]}"
@@ -86,10 +88,10 @@ init() {
         RPM_MGR="yum"
       fi
       ;;
-    rhel) ID="centos" ;;
+    rhel|almalinux|rocky) ID="centos" ;;
     linuxmint|neon|*ubuntu*) ID="ubuntu" ;;
     *suse*) ID="suse" ;;
-    raspbian) ID="debian" ;;
+    raspbian|raspios) ID="debian" ;;
     *)
       echo "Autodetecting distro, this may be unreliable"
       for cmd in dnf yum apt pacman; do
@@ -469,6 +471,7 @@ make_images() {
   return "${PIPESTATUS[0]}" # bash-specific way to return exit code of piped command
 }
 
+# @description Flashes OpenWRT image to a hardware device (SD card, USB drive, etc.)
 flash_images() {
   debug "${FUNCNAME[0]}"
   local img_gz="$1"
@@ -497,6 +500,7 @@ flash_images() {
   fi
 }
 
+# @description Upgrades OpenWRT via SSH using sysupgrade
 ssh_upgrade() {
   debug "${FUNCNAME[0]}"
   local img_gz="$1"
@@ -528,6 +532,7 @@ from_source() {
   local cherrypick url_branch branch url remote feed_dir repo_name
   local -a make_opts
 
+  # @description Preprocess a cherrypick spec into its components
   preprocess_cherrypick() {
     local spec="$1"
 
@@ -547,6 +552,7 @@ from_source() {
     [[ -z $remote ]] && remote="cherry"
   }
 
+  # @description Applies a cherrypick to a git repo worktree
   apply_cherrypick() {
     local repo_dir="$1"
 
@@ -636,9 +642,12 @@ from_source() {
   # Reuse worktree if present; otherwise create it (support branches and tags)
   if git -C "$BUILD_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     execute git -C "$BUILD_DIR" fetch origin --tags --prune
-    execute git -C "$BUILD_DIR" reset --hard "origin/$REF" || \
+    if git -C "$SRC_DIR" show-ref --verify --quiet "refs/remotes/origin/$REF"; then
+      execute git -C "$BUILD_DIR" reset --hard "origin/$REF"
+    else
       execute git -C "$BUILD_DIR" reset --hard "$REF" || \
-      execute git -C "$BUILD_DIR" checkout --detach "$REF"
+        execute git -C "$BUILD_DIR" checkout --detach "$REF"
+    fi
   else
     execute git -C "$SRC_DIR" worktree prune --verbose
     # Prefer local tag/branch if present, otherwise use remote-tracking branch
@@ -692,6 +701,7 @@ from_source() {
   echo "Current commit hash: $commit"
   echo "Git worktree description: $description"
 
+  # Print last commit log
   ((DEBUG)) && git --no-pager -C "$BUILD_DIR" log -1
 
   # Enter worktree
@@ -794,7 +804,7 @@ from_source() {
 
 # @section Helper functions
 # @internal
-debug() { ((DEBUG)) && echo "Debug: $*"; }
+debug() { ((DEBUG)) && echo "[DEBUG] $*"; }
 ask_ok() {
   ((YES)) && return
   local r
@@ -850,6 +860,7 @@ main() {
     exit 1
   fi
 
+  # Create output directories if they don't exist
   for dir in "$BUILD_ROOT/src" "$BUILD_ROOT/bin"; do
     [[ -d "$dir" ]] || execute mkdir -p "$dir"
   done
