@@ -54,7 +54,7 @@ Profile keys:
 | `packages` | No | Space-separated package list. Prefix with `-` to remove a package in Image Builder or source config generation. |
 | `kconfigs` | No | Space-separated Kconfig symbols. In `imagebuilder` mode only `CONFIG_TARGET_ROOTFS_PARTSIZE=<MB>` is used (mapped to `ROOTFS_PARTSIZE`). In `source` mode all entries are written to `.config` seed. |
 | `files` | No | Host directory containing custom overlay files. In `imagebuilder` mode this is passed as `FILES=<dir>`. In `source` mode contents are synced into `<build dir>/files/` before build. Defaults to `<buildroot>/src/files`. |
-| `cherrypicks` | No | Space-separated entries in `URL@branch:commit` form. Each commit is fetched and cherry-picked in `source` mode. |
+| `cherrypicks` | No | Space-separated source-mode cherry-picks in `URL@branch:commit` form. The target is inferred from the repo basename: `openwrt` applies to the main source tree, any other basename applies to `feeds/<basename>` after feeds update/install. |
 | `branches` | No | Space-separated `URL@branch` entries to merge into the source worktree in `source` mode. |
 | `release` | No | Default release/ref for the profile (for example `snapshot`, `25.12.4`). CLI `--release` overrides it. |
 | `clean` | No | Optional source cleanup step (`clean`, `targetclean`, `dirclean`, `distclean`). CLI `--clean` overrides it. |
@@ -64,6 +64,7 @@ Notes:
 
 * The profile file uses associative arrays (`declare -Ag name=( [key]="value" ... )`).
 * `packages`, `kconfigs`, `cherrypicks`, and `branches` are parsed as scalar whitespace-separated strings.
+* `cherrypicks` entries always use `URL@branch:commit` format; target selection is automatic from repo basename.
 * If a profile-specific `files` path is configured, it must exist.
 
 ## Examples

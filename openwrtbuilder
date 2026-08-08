@@ -525,7 +525,47 @@ from_source() {
   local seed_file="$BUILD_DIR/.config"
   local worktree_meta="$SRC_DIR/.git/worktrees/source-$REF"
   local pkg kconfig commit description rootfs_kconfig
+  local cherrypick url_branch branch url remote feed_dir repo_name
   local -a make_opts
+
+  preprocess_cherrypick() {
+    local spec="$1"
+
+    url_branch="${spec%:*}"
+    if [[ "$url_branch" == *"@"* ]]; then
+      url="${url_branch%@*}"
+      branch="${url_branch#*@}"
+    else
+      url="$url_branch"
+      branch=""
+    fi
+    commit="${spec##*:}"
+    repo_name="${url%.git}"
+    repo_name="${repo_name##*/}"
+    remote="$repo_name"
+    remote=${remote//[^A-Za-z0-9._-]/_}
+    [[ -z $remote ]] && remote="cherry"
+  }
+
+  apply_cherrypick() {
+    local repo_dir="$1"
+
+    if ! git -C "$repo_dir" remote | grep -q "^$remote$"; then
+      execute git -C "$repo_dir" remote add "$remote" "$url"
+    else
+      execute git -C "$repo_dir" remote set-url "$remote" "$url"
+    fi
+
+    execute git -C "$repo_dir" fetch "$remote" "$branch"
+
+    if ! git -C "$repo_dir" cat-file -e "$commit^{commit}" 2>/dev/null; then
+      debug "Commit $commit not found after fetching from $remote; skipping"
+      return 0
+    fi
+
+    execute git -C "$repo_dir" merge-base --is-ancestor "$commit" HEAD ||
+      execute git -C "$repo_dir" cherry-pick "$commit"
+  }
 
   echo "Building from source is under development"
 
@@ -607,42 +647,11 @@ from_source() {
     fi
   fi
 
-  # Add cherrypicks
+  # Apply OpenWrt-targeted cherrypicks before branch merges.
   for cherrypick in $CHERRYPICKS; do
-    url_branch="${cherrypick%:*}"
-    commit="${cherrypick##*:}"
-    branch=""
-    url="$url_branch"
-    if [[ "$url_branch" == *"@"* ]]; then
-      url="${url_branch%@*}"
-      branch="${url_branch#*@}"
-    fi
-
-    remote="${url%.git}"
-    remote="${remote##*/}"
-    remote=${remote//[^A-Za-z0-9._-]/_}
-    [[ -z $remote ]] && remote="cherry"
-
-    if ! git -C "$BUILD_DIR" remote | grep -q "^$remote$"; then
-      execute git -C "$BUILD_DIR" remote add "$remote" "$url"
-    else
-      execute git -C "$BUILD_DIR" remote set-url "$remote" "$url"
-    fi
-
-    if [[ -n $branch ]]; then
-      execute git -C "$BUILD_DIR" fetch "$remote" "$branch"
-    else
-      execute git -C "$BUILD_DIR" fetch "$remote"
-    fi
-
-    # Verify commit exists before attempting cherry-pick
-    if ! git -C "$BUILD_DIR" cat-file -e "$commit^{commit}" 2>/dev/null; then
-      debug "Commit $commit not found after fetching from $remote; skipping"
-      continue
-    fi
-
-    execute git -C "$BUILD_DIR" merge-base --is-ancestor "$commit" HEAD ||
-      execute git -C "$BUILD_DIR" cherry-pick "$commit"
+    preprocess_cherrypick "$cherrypick"
+    [[ "$repo_name" == "openwrt" ]] || continue
+    apply_cherrypick "$BUILD_DIR"
   done
 
   # Merge entire branches
@@ -676,7 +685,7 @@ from_source() {
       continue
     fi
   done
-  
+
   # Print commit info
   commit=$(git -C "$BUILD_DIR" rev-parse HEAD)
   description=$(git -C "$BUILD_DIR" describe --always --dirty)
@@ -687,10 +696,10 @@ from_source() {
 
   # Enter worktree
   execute pushd "$BUILD_DIR" || return 1
-  
+
   # Begin OpenWRT build process
   ((DEBUG)) && make_opts+=("V=sc")
-  
+
   # Cleanup build environment: heavy clean only when --reset was used earlier
   # make clean # compiled output
   # make targetclean # compiled output, toolchain
@@ -701,14 +710,29 @@ from_source() {
   else
     debug "Skipping cleanup step"
   fi
-  
+
   # Use a custom (faster) mirror
   local mirror_prefix="${USER_MIRROR:-github.com/openwrt}"
   execute sed -i -E "s;git.openwrt.org/(feed|project);${mirror_prefix};" feeds.conf.default
 
   # Update package feed
-  ./scripts/feeds update -a -f &&
-  ./scripts/feeds install -a -f
+  if ! ./scripts/feeds update -a -f || ! ./scripts/feeds install -a -f; then
+    echo "Error: feeds update/install failed"
+    return 1
+  fi
+
+  # Apply feed-targeted cherrypicks after feeds are checked out/updated.
+  for cherrypick in $CHERRYPICKS; do
+    preprocess_cherrypick "$cherrypick"
+    [[ "$repo_name" == "openwrt" ]] && continue
+
+    feed_dir="$BUILD_DIR/feeds/$repo_name"
+    if [[ ! -d "$feed_dir/.git" ]]; then
+      debug "Feed repo '$repo_name' not found at $feed_dir; skipping"
+      continue
+    fi
+    apply_cherrypick "$feed_dir"
+  done
 
   # Apply custom files overlay for source builds.
   # execute rm -rf "$BUILD_DIR/files"

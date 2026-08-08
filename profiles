@@ -45,7 +45,7 @@ declare -Ag router=(
     kmod-fs-btrfs btrfs-progs block-mount \
     smcroute avahi-daemon"
   # Backport tailscale 1.102.2 to 25.12 branch
-  [cherrypicks]="https://github.com/openwrt/openwrt@main:ce9a0ff3fb88d037080aaf95af92ac5da4fcfdba"
+  [cherrypicks]="https://github.com/openwrt/packages@master:58708c70345b31897b08ad1697d8bf4f3c022972"
   [kconfigs]="${default_kconfigs[*]} \
     CONFIG_TARGET_ROOTFS_PARTSIZE=512 CONFIG_TARGET_KERNEL_PARTSIZE=32 \
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y"
