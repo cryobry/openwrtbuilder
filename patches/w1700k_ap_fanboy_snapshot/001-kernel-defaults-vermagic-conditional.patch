@@ -1,7 +1,0 @@
---- a/include/kernel-defaults.mk
-+++ b/include/kernel-defaults.mk
-@@ -130 +130,3 @@ define Kernel/Configure/Default
--	[ -f ../../../files/etc/vermagic.txt ] && cp ../../../files/etc/vermagic.txt $(LINUX_DIR)/.vermagic
-+	if [ -f ../../../files/etc/vermagic.txt ]; then \
-+		cp ../../../files/etc/vermagic.txt $(LINUX_DIR)/.vermagic; \
-+	fi
