@@ -108,6 +108,21 @@ declare -Ag w1700k_ap_fanboy=(
   [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@ubi2"
 )
 
+declare -Ag w1700k_ap_fanboy_snapshot=(
+  [mode]="source"
+  [device]="gemtek_w1700k-ubi"
+  [target]="airoha/an7581"
+  [filesystem]="squashfs"
+  [release]="snapshot"
+  [packages]="${default_ap[*]} \
+    wpad-basic-mbedtls libiwinfo-data \
+    kmod-gpio-button-hotplug kmod-leds-gpio \
+    airoha-en7581-npu-firmware airoha-en7581-mt7996-npu-firmware \
+    kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
+    fitblk"
+  [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@snapshot"
+)
+
 declare -Ag w1700k=(
   [mode]="source"
   [device]="gemtek_w1700k-ubi"
