@@ -723,17 +723,6 @@ from_source() {
   # Begin OpenWRT build process
   ((DEBUG)) && make_opts+=("V=sc")
 
-  # Cleanup build environment: heavy clean only when --reset was used earlier
-  # make clean # compiled output
-  # make targetclean # compiled output, toolchain
-  # make dirclean # compiled output, toolchain, build tools
-  # make distclean # compiled output, toolchain, build tools, .config, feeds, .ccache
-  if [[ -n $CLEAN ]]; then
-    execute make "${make_opts[@]}" "-j1" "$CLEAN"
-  else
-    debug "Skipping cleanup step"
-  fi
-
   # Use a custom (faster) mirror
   local mirror_prefix="${USER_MIRROR:-github.com/openwrt}"
   execute sed -i -E "s;git.openwrt.org/(feed|project);${mirror_prefix};" feeds.conf.default
@@ -787,7 +776,17 @@ from_source() {
   done
 
   # Expand seed into full config
-  execute make "${make_opts[@]}" "-j1" defconfig
+  execute make "${make_opts[@]}" "-j1" defconfig || {
+    echo "Error: make defconfig failed (check the generated $seed_file)"
+    return 1
+  }
+
+  # Cleanup after .config exists; OpenWrt's clean targets depend on it.
+  if [[ -n $CLEAN ]]; then
+    execute make "${make_opts[@]}" "-j1" "$CLEAN"
+  else
+    debug "Skipping cleanup step"
+  fi
 
   # Run serial make download for better reliability
   # CURL_EXTRA_ARGS is picked up by OpenWRT's scripts/download.pl
