@@ -822,6 +822,9 @@ from_source() {
     return 1
   fi
 
+  echo "Make completed successfully."
+  echo "Output images are in $BIN_DIR/targets/${TARGET}/"
+
   execute popd || return 1
 
   # Symlink output images to root of BIN_DIR (match Image Builder behavior)
