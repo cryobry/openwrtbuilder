@@ -723,6 +723,14 @@ from_source() {
   # Begin OpenWRT build process
   ((DEBUG)) && make_opts+=("V=sc")
 
+  # OpenWrt's clean targets require .config and otherwise invoke menuconfig.
+  if [[ -n $CLEAN ]]; then
+    printf '%s\n' 'CONFIG_HAVE_DOT_CONFIG=y' > "$seed_file"
+    execute make "${make_opts[@]}" "-j1" "$CLEAN" || return 1
+  else
+    debug "Skipping cleanup step"
+  fi
+
   # Use a custom (faster) mirror
   local mirror_prefix="${USER_MIRROR:-github.com/openwrt}"
   execute sed -i -E "s;git.openwrt.org/(feed|project);${mirror_prefix};" feeds.conf.default
@@ -781,13 +789,6 @@ from_source() {
     return 1
   }
 
-  # Cleanup after .config exists; OpenWrt's clean targets depend on it.
-  if [[ -n $CLEAN ]]; then
-    execute make "${make_opts[@]}" "-j1" "$CLEAN"
-  else
-    debug "Skipping cleanup step"
-  fi
-
   # Run serial make download for better reliability
   # CURL_EXTRA_ARGS is picked up by OpenWRT's scripts/download.pl
   CURL_EXTRA_ARGS="--max-time ${USER_DL_TIMEOUT:-300}" execute make "${make_opts[@]}" "-j1" download
@@ -797,8 +798,7 @@ from_source() {
   make_opts+=("-j$JOBS")
 
   # Make image
-  # CMake 4.4.3 misreads OpenWrt's jobserver token as --parallel=<number>.
-  if ! ionice -c2 -n7 nice -n19 make "${make_opts[@]}" MAKE_JOBSERVER= BIN_DIR="$BIN_DIR" world 2>&1 | tee "$BUILD_DIR/make.log"; then
+  if ! ionice -c2 -n7 nice -n19 make "${make_opts[@]}" BIN_DIR="$BIN_DIR" world 2>&1 | tee "$BUILD_DIR/make.log"; then
     echo "Error: make failed (see $BUILD_DIR/make.log)"
     return 1
   fi
