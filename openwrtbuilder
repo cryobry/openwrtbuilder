@@ -797,7 +797,8 @@ from_source() {
   make_opts+=("-j$JOBS")
 
   # Make image
-  if ! ionice -c2 -n7 nice -n19 make "${make_opts[@]}" BIN_DIR="$BIN_DIR" world 2>&1 | tee "$BUILD_DIR/make.log"; then
+  # CMake 4.4.3 misreads OpenWrt's jobserver token as --parallel=<number>.
+  if ! ionice -c2 -n7 nice -n19 make "${make_opts[@]}" MAKE_JOBSERVER= BIN_DIR="$BIN_DIR" world 2>&1 | tee "$BUILD_DIR/make.log"; then
     echo "Error: make failed (see $BUILD_DIR/make.log)"
     return 1
   fi
