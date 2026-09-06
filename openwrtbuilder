@@ -13,7 +13,7 @@ usage() {
   debug "${FUNCNAME[0]}"
 
   cat <<-'EOF'
-	Build and deploy OpenWRT images using convenient profiles.
+	Build and deploy OpenWRT images using bashy device profiles.
 
 	USAGE:
 	  openwrtbuilder [OPTIONS] [-p PROFILE]...
@@ -43,7 +43,7 @@ usage() {
 	  --depends
 	    Force dependency installation
 	  --yes,-y
-	    Assume yes for all questions (non-interactive)
+	    Assume yes for all questions (non-interactive mode)
 	  --debug,-d
 	  --help,-h
 
@@ -586,6 +586,23 @@ from_source() {
       execute git -C "$repo_dir" cherry-pick "$commit"
   }
 
+  # @description Applies local patches for the selected profile
+  apply_local_patches() {
+    local patch_dir="$SCRIPT_DIR/patches/$PROFILE"
+    local patch_file
+
+    [[ -d "$patch_dir" ]] || return 0
+
+    for patch_file in "$patch_dir"/*.patch; do
+      [[ -f "$patch_file" ]] || continue
+      debug "Applying patch file: $patch_file"
+      execute patch --batch --forward -p1 < "$patch_file" || {
+        echo "Error: failed to apply local patch '$patch_file'"
+        return 1
+      }
+    done
+  }
+
   echo "Building from source is under development"
 
   # Convert filesystem to corresponding KCONFIG value
@@ -788,6 +805,8 @@ from_source() {
     echo "Error: make defconfig failed (check the generated $seed_file)"
     return 1
   }
+
+  apply_local_patches || return 1
 
   # Run serial make download for better reliability
   # CURL_EXTRA_ARGS is picked up by OpenWRT's scripts/download.pl

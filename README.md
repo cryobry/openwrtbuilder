@@ -60,6 +60,12 @@ Profile keys:
 | `clean` | No | Optional source cleanup step (`clean`, `targetclean`, `dirclean`, `distclean`). CLI `--clean` overrides it. |
 | `repo` | No | Extra Image Builder repository line appended to `repositories.conf` before build. |
 
+### Source Patches
+
+For source-mode profiles, add unified-diff patch files under `patches/<profile>/`.
+They are applied in filename order after `make defconfig` and before downloads and
+the build. A patch failure stops the build.
+
 Notes:
 
 * The profile file uses associative arrays (`declare -Ag name=( [key]="value" ... )`).
