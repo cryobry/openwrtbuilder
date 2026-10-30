@@ -54,7 +54,7 @@ declare -Ag router=(
     CONFIG_KERNEL_BTRFS_FS_POSIX_ACL=y CONFIG_BTRFS_PROGS_ZSTD=y"
 )
 
-# Airoha W1700K in AP mode w/ ubi2 layout and basic patches
+# Airoha W1700K in AP mode w/ ubi2 layout and 6ghz patches
 declare -Ag w1700k=(
   [mode]="source"
   [device]="gemtek_w1700k-ubi"

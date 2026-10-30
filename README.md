@@ -10,7 +10,7 @@ Build and deploy OpenWRT images using shell-style device profiles, via source co
 
 ```(text)
 --profile,-p PROFILE
---release,-r,--version,-v RELEASE ("snapshot", "22.03.3")
+--release,-r,--version,-v RELEASE ("snapshot", "25.12.6")
 --buildroot,-b PATH (Default: script directory)
 --cpus,-c NUM
 	Default: # of host CPUS minus 1
