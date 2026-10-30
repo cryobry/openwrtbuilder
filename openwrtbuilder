@@ -173,7 +173,10 @@ install_dependencies() {
   local -a pkg_list
   local lock_file="$BUILD_ROOT/dependencies.lock"
 
-  [[ -f $lock_file ]] && grep -Fxq -- "$mode" "$lock_file" && debug "$mode dependencies recorded in $lock_file, skipping dependency install" && return 0
+  if [[ -f $lock_file ]] && grep -Fxq -- "$mode" "$lock_file"; then
+    debug "$mode dependencies recorded in $lock_file, skipping dependency install"
+    return 0
+  fi
 
   if [[ "$mode" == "source" ]]; then
     # For building from source code see:
