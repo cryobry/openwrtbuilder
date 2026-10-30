@@ -143,22 +143,6 @@ declare -Ag w1700k_ap_fanboy_snapshot=(
   [branches]="https://github.com/OpenWRT-fanboy/OpenW1700k.git@snapshot"
 )
 
-declare -Ag w1700k=(
-  [mode]="source"
-  [device]="gemtek_w1700k-ubi"
-  [target]="airoha/an7581"
-  [filesystem]="squashfs"
-  [release]="snapshot"
-  [packages]="${default_router[*]} \
-    wpad-basic-mbedtls libiwinfo-data \
-    kmod-gpio-button-hotplug kmod-leds-gpio \
-    airoha-en7581-npu-firmware airoha-en7581-mt7996-npu-firmware \
-    kmod-i2c-an7581 kmod-hwmon-nct7802 kmod-mt7996-firmware kmod-phy-rtl8261n \
-    fitblk"
-  # tools: m4: update to 1.4.21 (fixes GCC15/C23 _Generic build failure)
-  # [cherrypicks]="https://github.com/openwrt/openwrt@main:ce9a0ff3fb88d037080aaf95af92ac5da4fcfdba"
-)
-
 # Deprecated: Last working profile for w1700k with stock (non-ubi) partitions
 # declare -Ag w1700k_fanboy=(
 #   [mode]="source"
