@@ -40,8 +40,6 @@ usage() {
 	    Mirror prefix for feeds (default: github.com/openwrt)
 	  --dl-timeout SECONDS
 	    Per-file max download time for source builds (default: 300)
-	  --depends
-	    Force dependency installation
 	  --yes,-y
 	    Assume yes for all questions (non-interactive mode)
 	  --debug,-d
@@ -133,10 +131,10 @@ init() {
 parse_input() {
   debug "${FUNCNAME[0]}" "$*"
   declare -ga PROFILES
-  declare -gi RESET=0 YES=0 DEBUG=0 FORCE_DEPENDS=0 CPUS=0
+  declare -gi RESET=0 YES=0 DEBUG=0 CPUS=0
   declare -g USER_RELEASE SSH_UPGRADE_PATH SSH_BACKUP_PATH FLASH_DEV USER_MODE USER_CLEAN USER_MIRROR USER_DL_TIMEOUT
   local long_opts='release:,version:,profile:,buildroot:,cpus:,mode:,clean:,mirror:,dl-timeout:'
-  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,depends,yes,debug,help'
+  long_opts+='ssh-upgrade:,ssh-backup:,flash:,reset,yes,debug,help'
 
   if _input=$(getopt -o +r:v:p:b:m:c:f:ydh -l $long_opts -- "$@"); then
     eval set -- "$_input"
@@ -154,7 +152,6 @@ parse_input() {
         --mirror) shift; USER_MIRROR="$1" ;;
         --dl-timeout) shift; USER_DL_TIMEOUT="$1" ;;
         --reset) RESET=1 ;;
-        --depends) FORCE_DEPENDS=1 ;;
         --yes|-y) YES=1 ;;
         --debug|-d) echo "Debugging on"; DEBUG=1 ;;
         --help|-h) usage; exit 0 ;;
@@ -174,16 +171,9 @@ install_dependencies() {
   debug "${FUNCNAME[0]}"
   local mode="$1"
   local -a pkg_list
-  local lock_file
+  local lock_file="$BUILD_ROOT/dependencies.lock"
 
-  # Set appropriate lock file based on mode
-  if [[ "$mode" == "source" ]]; then
-    lock_file="$BUILD_ROOT/.dependencies_source.lock"
-  elif [[ "$mode" == "imagebuilder" ]]; then
-    lock_file="$BUILD_ROOT/.dependencies_imagebuilder.lock"
-  fi
-
-  [[ -f $lock_file ]] && debug "$lock_file lock file exists, skipping dependency install" && return 0
+  [[ -f $lock_file ]] && grep -Fxq -- "$mode" "$lock_file" && debug "$mode dependencies recorded in $lock_file, skipping dependency install" && return 0
 
   if [[ "$mode" == "source" ]]; then
     # For building from source code see:
@@ -333,7 +323,7 @@ install_dependencies() {
     esac
   fi
 
-  pkg_install "${pkg_list[@]}" && echo "${pkg_list[@]}" > "$lock_file"
+  pkg_install "${pkg_list[@]}" && printf '%s\n' "$mode" >> "$lock_file"
 }
 
 # @description Normalize release and set worktree reference
@@ -906,12 +896,6 @@ main() {
       ask_ok "Remove $d?" && execute rm -rf "$d"
     done
     exit $?
-  fi
-
-  # Remove dependency lock files for --depends
-  if ((FORCE_DEPENDS)); then
-    [[ -f "$BUILD_ROOT/.dependencies_source.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_source.lock"
-    [[ -f "$BUILD_ROOT/.dependencies_imagebuilder.lock" ]] && rm -f "$BUILD_ROOT/.dependencies_imagebuilder.lock"
   fi
 
   # Run selected profiles

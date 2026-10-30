@@ -27,13 +27,13 @@ Build and deploy OpenWRT images using shell-style device profiles, via source co
 --reset
   Cleanup all source and output files
   Can be combined with -p to reset a specific profile
---depends
-  Force dependency installation
 --yes,-y
   Assume yes for all questions (automatic mode)
 --debug,-d
 --help,-h
 ```
+
+To reinstall dependencies, remove `dependencies.lock` from the build root (`rm -f dependencies.lock` from the script directory, or from the directory set with `--buildroot`), then rerun your build command.
 
 ## Profiles
 
